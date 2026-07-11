@@ -16,7 +16,7 @@ export default function WelcomeScreen({ onSuccess }: WelcomeScreenProps) {
     if (password === 'Naty') {
       onSuccess();
     } else {
-      setError('❌ MOT DE PASSE INCORRECT');
+      setError('❌ DISO NY TENY MIAFINA');
       setIsShaking(true);
       setPassword('');
       setTimeout(() => setIsShaking(false), 400);
@@ -69,7 +69,7 @@ export default function WelcomeScreen({ onSuccess }: WelcomeScreenProps) {
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="text-syne text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.9] tracking-[-0.04em] uppercase text-white"
             >
-              ANDRY<br />NANTENAINA
+              ANDRY<br />NATY
             </motion.h1>
             
             <motion.div
@@ -89,7 +89,7 @@ export default function WelcomeScreen({ onSuccess }: WelcomeScreenProps) {
             {/* Service identifier */}
             <div className="space-y-2">
               <span className="text-mono-tech text-xs tracking-[0.15em] text-white/40 uppercase block">
-                CDISCOUNT CARGO PARTNER PORTAL
+                GASY MILAY
               </span>
               <h2 className="text-3xl sm:text-4xl font-light tracking-tight text-white font-sans">
                 PORTAIL FOURNISSEUR
@@ -157,7 +157,7 @@ export default function WelcomeScreen({ onSuccess }: WelcomeScreenProps) {
       <footer className="px-6 py-4 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 text-mono-tech text-[10px] tracking-[0.15em] text-white/40 uppercase">
         <div className="flex items-center gap-2">
           <Server className="w-3.5 h-3.5 text-white/30" />
-          <span>[01] CDISCOUNT CARGO PARTNER PORTAL</span>
+          <span>[01] GASY MILALAO </span>
         </div>
         <div className="md:text-center flex items-center md:justify-center gap-2">
           <Cpu className="w-3.5 h-3.5 text-white/30" />
