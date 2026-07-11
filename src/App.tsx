@@ -110,7 +110,7 @@ const CUSTS = [
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [darkMode, setDarkMode] = useState<boolean>(false);
 
   // Database templates state (persisted via local storage)
   const [db, setDb] = useState<ModelsDatabase>(() => {
@@ -5096,9 +5096,8 @@ export default function App() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setSelectedExportColors(results.map(r => r.nom))}
-                                className={`px-2.5 py-1 text-[11px] font-bold font-mono rounded border cursor-pointer transition-all ${
-                                  darkMode ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white' : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                                }`}
+                                className="px-2.5 py-1 text-[11px] font-bold font-mono rounded border cursor-pointer transition-all hover:brightness-95 active:scale-[0.98]"
+                                style={{ backgroundColor: '#f1cd3f', borderColor: '#f2a727', color: '#ffffff', fontWeight: 'bold' }}
                               >
                                 TOUTES LES COULEURS
                               </button>
@@ -5120,15 +5119,14 @@ export default function App() {
                                       setSelectedExportColors([...selectedExportColors, res.nom]);
                                     }
                                   }}
-                                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+                                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-all ${
                                     isChecked
-                                      ? (darkMode 
-                                        ? 'bg-white/10 border-white text-white' 
-                                        : 'bg-slate-200 border-slate-400 text-slate-800 font-bold')
+                                      ? 'border-[#fc55b2] text-white'
                                       : (darkMode 
                                         ? 'bg-transparent border-white/5 text-slate-500 opacity-60 hover:opacity-100 hover:border-white/10' 
                                         : 'bg-transparent border-slate-200 text-slate-500 opacity-60 hover:opacity-100 hover:border-slate-300')
                                   }`}
+                                  style={isChecked ? { backgroundColor: '#fc55b2', color: '#ffffff' } : undefined}
                                 >
                                   <div className="w-3 h-3 rounded-full flex items-center justify-center border border-slate-700/40" style={{ backgroundColor: res.color }}>
                                     {isChecked && (
@@ -5136,7 +5134,14 @@ export default function App() {
                                     )}
                                   </div>
                                   <span>{res.nom}</span>
-                                  <span className={`text-[10px] px-1.5 py-0.15 rounded font-mono ${isChecked ? (darkMode ? 'bg-white/10 text-white font-bold' : 'bg-slate-300 text-slate-900 font-bold') : (darkMode ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400')}`}>
+                                  <span 
+                                    className={`text-[10px] px-1.5 py-0.15 rounded font-mono font-bold ${
+                                      isChecked 
+                                        ? '' 
+                                        : (darkMode ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400')
+                                    }`}
+                                    style={isChecked ? { backgroundColor: '#ffffff', color: '#fc55b2' } : undefined}
+                                  >
                                     {res.totals.p.toLocaleString('fr-FR')} Pcs
                                   </span>
                                 </button>
@@ -5157,24 +5162,27 @@ export default function App() {
                               darkMode ? 'bg-[#0F0F12] border-white/10' : 'bg-white border-slate-200'
                             }`}
                           >
-                            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border mb-3 font-mono font-bold uppercase text-xs ${
-                              darkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'
-                            }`}>
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: res.color }} />
+                            <div 
+                              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border mb-3 font-mono font-bold uppercase text-xs"
+                              style={{ backgroundColor: '#3988e7', color: '#fffbfb', borderColor: '#2c7cd1' }}
+                            >
+                              <div className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: res.color }} />
                               PACKING LIST — COULEUR : {res.nom}
                             </div>
 
                             <div className="pb-3 text-xs">
                               {res.mode === 'strict_solide' ? (
-                                <span className={`px-2.5 py-1 rounded border font-bold font-mono tracking-wide ${
-                                  darkMode ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-slate-300 text-slate-800'
-                                }`}>
+                                <span 
+                                  className="px-2.5 py-1 rounded border font-bold font-mono tracking-wide"
+                                  style={{ color: '#ff0436', borderColor: '#ff0436' }}
+                                >
                                   🔒 SOLID PACK STRICT
                                 </span>
                               ) : (
-                                <span className={`px-2.5 py-1 rounded border font-bold font-mono tracking-wide ${
-                                  darkMode ? 'bg-white/10 border-white/20 text-white' : 'bg-white border-slate-300 text-slate-800'
-                                }`}>
+                                <span 
+                                  className="px-2.5 py-1 rounded border font-bold font-mono tracking-wide"
+                                  style={{ color: '#ff0436', borderColor: '#ff0436' }}
+                                >
                                   🔀 MIXED PACK AUTORISÉ (max {maxSizesPerBox} tailles)
                                 </span>
                               )}
@@ -5183,29 +5191,58 @@ export default function App() {
                             <div className={`overflow-x-auto rounded-lg border ${darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-slate-200 bg-slate-50/50'}`}>
                               <table className="w-full text-xs text-center border-collapse">
                                 <thead>
-                                  <tr className={`font-mono font-bold text-[10px] border-b ${darkMode ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
-                                    {printColumns.ctn && (
-                                      <>
-                                        <th className={`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>N° DÉBUT</th>
-                                        <th className={`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>N° FIN</th>
-                                      </>
-                                    )}
-                                    {printColumns.color && <th className={`px-2 border-r col-color-lbl ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>COULEUR</th>}
-                                    {(() => {
-                                      const origColor = colors.find(c => c.nom === res.nom);
-                                      const showSkuCol = printColumns.sku && !!(origColor && Object.values(origColor.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
-                                      return showSkuCol && <th className={`px-3 border-r col-sku-lbl ${darkMode ? 'border-white/10 bg-white/5 text-white font-bold' : 'border-slate-200 bg-emerald-500/10 text-emerald-800 font-bold'}`}>SKU</th>;
-                                    })()}
-                                    {printColumns.sizes && activeColorSizes.map(t => (
-                                      <th key={t} className={`px-2 border-r col-sizes-cells ${darkMode ? 'border-white/10 bg-white/5 text-white font-bold' : 'border-slate-200 bg-white text-slate-700 font-bold'}`}>{t}</th>
-                                    ))}
-                                    <th className={`px-2 border-r ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>PCS/CTN</th>
-                                    {printColumns.nbctn && <th className={`px-2 border-r col-nbctn-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>NB CTN</th>}
-                                    {printColumns.totalqty && <th className={`px-2 border-r col-totalqty-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>TOTAL QTY</th>}
-                                    {printColumns.net && <th className={`px-2 border-r col-net-metric ${darkMode ? 'border-white/10 text-white' : 'border-slate-200 text-teal-700 font-bold'}`}>N.W (KG)</th>}
-                                    {printColumns.gross && <th className={`px-2 border-r col-gross-metric ${darkMode ? 'border-white/10 text-white' : 'border-slate-200 text-red-700 font-bold'}`}>G.W (KG)</th>}
-                                    {printColumns.cbm && <th className="px-2 col-cbm-metric">CBM (m³)</th>}
-                                  </tr>
+                                  {(() => {
+                                    let firstThRendered = false;
+                                    const getThProps = (baseClass: string) => {
+                                      if (!firstThRendered) {
+                                        firstThRendered = true;
+                                        return {
+                                          className: baseClass,
+                                          style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
+                                        };
+                                      }
+                                      return { className: baseClass };
+                                    };
+                                    return (
+                                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                                        {printColumns.ctn && (
+                                          <>
+                                            <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° DÉBUT</th>
+                                            <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° FIN</th>
+                                          </>
+                                        )}
+                                        {printColumns.color && (
+                                          <th {...getThProps(`px-2 border-r col-color-lbl ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>COULEUR</th>
+                                        )}
+                                        {(() => {
+                                          const origColor = colors.find(c => c.nom === res.nom);
+                                          const showSkuCol = printColumns.sku && !!(origColor && Object.values(origColor.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
+                                          return showSkuCol && (
+                                            <th {...getThProps(`px-3 border-r col-sku-lbl ${darkMode ? 'border-white/10' : 'border-slate-200'} font-bold`)}>SKU</th>
+                                          );
+                                        })()}
+                                        {printColumns.sizes && activeColorSizes.map(t => (
+                                          <th key={t} {...getThProps(`px-2 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'} font-bold`)}>{t}</th>
+                                        ))}
+                                        <th {...getThProps(`px-2 border-r ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>PCS/CTN</th>
+                                        {printColumns.nbctn && (
+                                          <th {...getThProps(`px-2 border-r col-nbctn-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>NB CTN</th>
+                                        )}
+                                        {printColumns.totalqty && (
+                                          <th {...getThProps(`px-2 border-r col-totalqty-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>TOTAL QTY</th>
+                                        )}
+                                        {printColumns.net && (
+                                          <th {...getThProps(`px-2 border-r col-net-metric ${darkMode ? 'border-white/10' : 'border-slate-200'} font-bold`)}>N.W (KG)</th>
+                                        )}
+                                        {printColumns.gross && (
+                                          <th {...getThProps(`px-2 border-r col-gross-metric ${darkMode ? 'border-white/10' : 'border-slate-200'} font-bold`)}>G.W (KG)</th>
+                                        )}
+                                        {printColumns.cbm && (
+                                          <th {...getThProps(`px-2 col-cbm-metric`)}>CBM (m³)</th>
+                                        )}
+                                      </tr>
+                                    );
+                                  })()}
                                 </thead>
                                 <tbody className={`divide-y font-mono font-medium ${darkMode ? 'divide-white/10' : 'divide-slate-200'}`}>
                                   {res.rows.map((row, rIdx) => {
@@ -5283,28 +5320,57 @@ export default function App() {
                           <div className={`overflow-x-auto rounded-lg border ${darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-slate-200 bg-slate-50/50'}`}>
                             <table className="w-full text-xs text-center border-collapse">
                               <thead>
-                                <tr className={`border-b font-mono font-bold text-[10px] ${darkMode ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
-                                  {printColumns.ctn && (
-                                    <>
-                                      <th className={`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>N° DÉBUT</th>
-                                      <th className={`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>N° FIN</th>
-                                    </>
-                                  )}
-                                  {printColumns.color && <th className={`px-2 border-r col-color-lbl ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>COULEUR</th>}
                                   {(() => {
-                                    const showSkuColCombined = printColumns.sku && colors.some(col => Object.values(col.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
-                                    return showSkuColCombined && <th className={`px-3 border-r col-sku-lbl ${darkMode ? 'border-white/10 bg-white/5 text-white font-bold' : 'border-slate-200 bg-emerald-500/10 text-emerald-800 font-bold'}`}>SKU</th>;
+                                    let firstThRendered = false;
+                                    const getThProps = (baseClass: string) => {
+                                      if (!firstThRendered) {
+                                        firstThRendered = true;
+                                        return {
+                                          className: baseClass,
+                                          style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
+                                        };
+                                      }
+                                      return { className: baseClass };
+                                    };
+                                    return (
+                                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                                        {printColumns.ctn && (
+                                          <>
+                                            <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° DÉBUT</th>
+                                            <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° FIN</th>
+                                          </>
+                                        )}
+                                        {printColumns.color && (
+                                          <th {...getThProps(`px-2 border-r col-color-lbl ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>COULEUR</th>
+                                        )}
+                                        {(() => {
+                                          const showSkuColCombined = printColumns.sku && colors.some(col => Object.values(col.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
+                                          return showSkuColCombined && (
+                                            <th {...getThProps(`px-3 border-r col-sku-lbl ${darkMode ? 'border-white/10 text-white font-bold' : 'border-slate-200 text-slate-800 font-bold'}`)}>SKU</th>
+                                          );
+                                        })()}
+                                        {printColumns.sizes && summaryUniqueSizes.map(t => (
+                                          <th key={t} {...getThProps(`px-2 border-r col-sizes-cells ${darkMode ? 'border-white/10 text-white font-bold' : 'border-slate-200 text-slate-800 font-bold'}`)}>{t}</th>
+                                        ))}
+                                        <th {...getThProps(`px-2 border-r ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>PCS/CTN</th>
+                                        {printColumns.nbctn && (
+                                          <th {...getThProps(`px-2 border-r col-nbctn-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>NB CTN</th>
+                                        )}
+                                        {printColumns.totalqty && (
+                                          <th {...getThProps(`px-2 border-r col-totalqty-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>TOTAL QTY</th>
+                                        )}
+                                        {printColumns.net && (
+                                          <th {...getThProps(`px-2 border-r col-net-metric ${darkMode ? 'border-white/10' : 'border-slate-200'} font-bold`)}>N.W (KG)</th>
+                                        )}
+                                        {printColumns.gross && (
+                                          <th {...getThProps(`px-2 border-r col-gross-metric ${darkMode ? 'border-white/10' : 'border-slate-200'} font-bold`)}>G.W (KG)</th>
+                                        )}
+                                        {printColumns.cbm && (
+                                          <th {...getThProps(`px-2 col-cbm-metric`)}>CBM (m³)</th>
+                                        )}
+                                      </tr>
+                                    );
                                   })()}
-                                  {printColumns.sizes && summaryUniqueSizes.map(t => (
-                                    <th key={t} className={`px-2 border-r col-sizes-cells ${darkMode ? 'border-white/10 bg-white/5 text-white font-bold' : 'border-slate-200 bg-white text-slate-700 font-bold'}`}>{t}</th>
-                                  ))}
-                                  <th className={`px-2 border-r ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>PCS/CTN</th>
-                                  {printColumns.nbctn && <th className={`px-2 border-r col-nbctn-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>NB CTN</th>}
-                                  {printColumns.totalqty && <th className={`px-2 border-r col-totalqty-metric ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>TOTAL QTY</th>}
-                                  {printColumns.net && <th className={`px-2 border-r col-net-metric ${darkMode ? 'border-white/10 text-white' : 'border-slate-200 text-teal-700 font-bold'}`}>N.W (KG)</th>}
-                                  {printColumns.gross && <th className={`px-2 border-r col-gross-metric ${darkMode ? 'border-white/10 text-white' : 'border-slate-200 text-red-700 font-bold'}`}>G.W (KG)</th>}
-                                  {printColumns.cbm && <th className="px-2 col-cbm-metric">CBM (m³)</th>}
-                                </tr>
                               </thead>
                               <tbody className={`divide-y font-mono text-left ${darkMode ? 'divide-white/10' : 'divide-slate-200'}`}>
                                 {(() => {
@@ -5422,16 +5488,21 @@ export default function App() {
                         <div className={`overflow-x-auto rounded-lg border ${darkMode ? 'border-white/10' : 'border-slate-200 bg-slate-50/50'}`}>
                           <table className="w-full text-xs text-center border-collapse">
                             <thead>
-                              <tr className={`font-mono font-semibold border-b ${darkMode ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                              <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
                                 <th className={`py-2.5 px-3 text-left border-r ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>COLOR / COULEUR</th>
                                 {summaryUniqueSizes.map(t => <th key={t} className={`border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>{t}</th>)}
-                                <th>TOTAL PCS</th>
+                                <th className="py-2.5">TOTAL PCS</th>
                               </tr>
                             </thead>
                             <tbody className={`divide-y font-mono font-medium ${darkMode ? 'divide-white/10' : 'divide-slate-200'}`}>
                               {activeResults.map((res, ci) => (
                                 <tr key={ci} className={`divide-x ${darkMode ? 'hover:bg-white/5 divide-white/10' : 'hover:bg-slate-100/40 divide-slate-200'}`}>
-                                  <td className="py-2 px-3 text-left font-bold" style={{ color: res.color }}>{res.nom}</td>
+                                  <td className={`py-2 px-3 text-left font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                    <div className="flex items-center gap-1.5 justify-start">
+                                      <span className="w-2.5 h-2.5 rounded-full border border-slate-700/40 shrink-0" style={{ backgroundColor: res.color }} />
+                                      <span>{res.nom}</span>
+                                    </div>
+                                  </td>
                                   {summaryUniqueSizes.map(t => (
                                     <td key={t} className={`font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}>{res.totals.sizes[t] || ''}</td>
                                   ))}
@@ -5602,8 +5673,8 @@ export default function App() {
                                 return (
                                   <div key={ci} className="space-y-1">
                                     <div className="flex justify-between text-xs font-mono">
-                                      <span className="font-semibold flex items-center gap-1.5" style={{ color: res.color }}>
-                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: res.color }} />
+                                      <span className={`font-semibold flex items-center gap-1.5 ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                        <span className="w-2.5 h-2.5 rounded-full border border-slate-700/40 shrink-0" style={{ backgroundColor: res.color }} />
                                         {res.nom}
                                       </span>
                                       <span className="text-slate-400">
@@ -6299,7 +6370,7 @@ export default function App() {
                            <div className={`overflow-x-auto rounded-xl border ${darkMode ? 'border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-slate-50/50'}`}>
                              <table className="w-full text-xs text-center border-collapse">
                                <thead>
-                                 <tr className={`font-mono font-semibold border-b ${darkMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-white text-slate-700 border-slate-200'}`}>
+                                 <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
                                    <th className="py-2.5 px-3 text-left">Couleur</th>
                                    <th className="py-2.5">Total Cartons</th>
                                    <th className="py-2.5">Style d'emballage</th>
@@ -6311,7 +6382,12 @@ export default function App() {
                                <tbody className={`divide-y font-mono ${darkMode ? 'divide-slate-800/65' : 'divide-slate-200'}`}>
                                  {activeResults.map((res, ci) => (
                                    <tr key={ci} className={darkMode ? 'hover:bg-slate-800/25' : 'hover:bg-slate-100/50'}>
-                                     <td className="py-2.5 px-3 text-left font-bold" style={{ color: res.color }}>{res.nom}</td>
+                                     <td className={`py-2.5 px-3 text-left font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                       <div className="flex items-center gap-1.5 justify-start">
+                                         <span className="w-2.5 h-2.5 rounded-full border border-slate-700/40 shrink-0" style={{ backgroundColor: res.color }} />
+                                         <span>{res.nom}</span>
+                                       </div>
+                                     </td>
                                      <td className={`font-bold ${darkMode ? 'text-slate-300' : 'text-slate-800'}`}>{res.totals.c}</td>
                                      <td className={`text-[10px] font-bold ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                                        {res.mode === 'strict_solide' ? '🔒 SOLID PACK' : '🔀 MIXED PACK'}
@@ -6348,8 +6424,8 @@ export default function App() {
                               const activeColorSizes = res.tailles.filter(t => isStandardSizeAlwaysShown(t) || (colors[origIdx]?.sizes[t]?.qtyTot || 0) > 0);
                               return (
                                 <div key={ci} className={`p-4 rounded-xl border ${darkMode ? 'bg-slate-950/25 border-slate-900/60' : 'bg-slate-50 border-slate-250/60'}`}>
-                                  <div className="flex items-center gap-2 border-b border-dashed border-slate-800/20 pb-2 mb-3 text-xs font-mono font-bold uppercase" style={{ color: res.color }}>
-                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: res.color }} />
+                                  <div className={`flex items-center gap-2 border-b border-dashed border-slate-850/40 pb-2 mb-3 text-xs font-mono font-bold uppercase ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                    <div className="w-2.5 h-2.5 rounded-full border border-slate-700/40" style={{ backgroundColor: res.color }} />
                                     <span>Couleur: {res.nom} — {res.mode === 'strict_solide' ? '🔒 Solid Pack' : '🔀 Mixed Pack'}</span>
                                   </div>
                                   <div className={`overflow-x-auto rounded-lg border ${
@@ -6357,13 +6433,11 @@ export default function App() {
                                   }`}>
                                     <table className="w-full text-xs text-center border-collapse">
                                       <thead>
-                                        <tr className={`border-b font-mono font-bold text-[10px] ${
-                                          darkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-250 text-slate-700'
-                                        }`}>
+                                        <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#ba66f7' }}>
                                           <th className={`py-2 px-1 uppercase text-center border-r ${darkMode ? 'border-slate-800' : 'border-slate-250'}`}>Début</th>
                                           <th className={`py-2 px-1 uppercase text-center border-r ${darkMode ? 'border-slate-800' : 'border-slate-250'}`}>Fin</th>
                                           {activeColorSizes.map(t => (
-                                            <th key={t} className={`px-1.5 border-r ${darkMode ? 'border-slate-800 bg-blue-500/5 text-[#4f8ef7]' : 'border-slate-250 bg-white text-slate-700 font-bold'}`}>{t}</th>
+                                            <th key={t} className={`px-1.5 border-r ${darkMode ? 'border-slate-800 text-white font-bold' : 'border-slate-250 text-slate-800 font-bold'}`}>{t}</th>
                                           ))}
                                           <th className={`px-1.5 border-r ${darkMode ? 'border-slate-800' : 'border-slate-250'}`}>Pcs/Ctn</th>
                                           <th className={`px-1.5 border-r ${darkMode ? 'border-slate-800' : 'border-slate-250'}`}>Nb Ctn</th>
@@ -6677,8 +6751,11 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2 bg-[#222636]/10 px-4 py-2.5 rounded-lg border border-slate-800/60 mb-3 text-blue-400 font-mono font-bold uppercase text-xs">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: res.color }} />
+                  <div 
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg border mb-3 font-mono font-bold uppercase text-xs"
+                    style={{ backgroundColor: '#3988e7', color: '#fffbfb', borderColor: '#2c7cd1' }}
+                  >
+                    <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: res.color }} />
                     PACKING LIST — COULEUR : {res.nom}
                   </div>
 
@@ -6714,31 +6791,58 @@ export default function App() {
                   }`}>
                     <table className="w-full text-xs text-center border-collapse">
                       <thead>
-                        <tr className={`border-b font-mono font-bold text-[10px] ${
-                          darkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-700'
-                        }`}>
-                          {printColumns.ctn && (
-                            <>
-                              <th className={`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>N° DÉBUT</th>
-                              <th className={`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>N° FIN</th>
-                            </>
-                          )}
-                          {printColumns.color && <th className={`px-2 col-color-lbl border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>COULEUR</th>}
-                          {(() => {
-                            const origColor = colors.find(c => c.nom === res.nom);
-                            const showSkuCol = printColumns.sku && !!(origColor && Object.values(origColor.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
-                            return showSkuCol && <th className={`px-3 col-sku-lbl border-r ${darkMode ? 'border-slate-800 bg-emerald-500/5 text-emerald-400' : 'border-slate-200 bg-emerald-500/10 text-emerald-800 font-bold'}`}>SKU</th>;
-                          })()}
-                          {printColumns.sizes && activeColorSizes.map(t => (
-                            <th key={t} className={`px-2 col-sizes-cells border-r ${darkMode ? 'border-slate-800 bg-blue-500/5 text-[#4f8ef7]' : 'border-slate-200 bg-white text-slate-700 font-bold'}`}>{t}</th>
-                          ))}
-                          <th className={`px-2 border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>PCS/CTN</th>
-                          {printColumns.nbctn && <th className={`px-2 col-nbctn-metric border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>NB CTN</th>}
-                          {printColumns.totalqty && <th className={`px-2 col-totalqty-metric border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>TOTAL QTY</th>}
-                          {printColumns.net && <th className={`px-2 col-net-metric border-r ${darkMode ? 'border-slate-800 text-teal-400' : 'border-slate-200 text-teal-700 font-bold'}`}>N.W (KG)</th>}
-                          {printColumns.gross && <th className={`px-2 col-gross-metric border-r ${darkMode ? 'border-slate-800 text-red-400' : 'border-slate-200 text-red-700 font-bold'}`}>G.W (KG)</th>}
-                          {printColumns.cbm && <th className="px-2 col-cbm-metric">CBM (m³)</th>}
-                        </tr>
+                        {(() => {
+                          let firstThRendered = false;
+                          const getThProps = (baseClass: string) => {
+                            if (!firstThRendered) {
+                              firstThRendered = true;
+                              return {
+                                className: baseClass,
+                                style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
+                              };
+                            }
+                            return { className: baseClass };
+                          };
+                          return (
+                            <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#ba66f7' }}>
+                              {printColumns.ctn && (
+                                <>
+                                  <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° DÉBUT</th>
+                                  <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° FIN</th>
+                                </>
+                              )}
+                              {printColumns.color && (
+                                <th {...getThProps(`px-2 col-color-lbl border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>COULEUR</th>
+                              )}
+                              {(() => {
+                                const origColor = colors.find(c => c.nom === res.nom);
+                                const showSkuCol = printColumns.sku && !!(origColor && Object.values(origColor.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
+                                return showSkuCol && (
+                                  <th {...getThProps(`px-3 col-sku-lbl border-r ${darkMode ? 'border-indigo-900/40 text-white font-bold' : 'border-slate-200 text-slate-800 font-bold'}`)}>SKU</th>
+                                );
+                              })()}
+                              {printColumns.sizes && activeColorSizes.map(t => (
+                                <th key={t} {...getThProps(`px-2 col-sizes-cells border-r ${darkMode ? 'border-indigo-900/40 text-white font-bold' : 'border-slate-200 text-slate-800 font-bold'}`)}>{t}</th>
+                              ))}
+                              <th {...getThProps(`px-2 border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>PCS/CTN</th>
+                              {printColumns.nbctn && (
+                                <th {...getThProps(`px-2 col-nbctn-metric border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>NB CTN</th>
+                              )}
+                              {printColumns.totalqty && (
+                                <th {...getThProps(`px-2 col-totalqty-metric border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>TOTAL QTY</th>
+                              )}
+                              {printColumns.net && (
+                                <th {...getThProps(`px-2 col-net-metric border-r ${darkMode ? 'border-indigo-900/40 text-teal-300 font-bold' : 'border-slate-200 text-teal-850 font-black'}`)}>N.W (KG)</th>
+                              )}
+                              {printColumns.gross && (
+                                <th {...getThProps(`px-2 col-gross-metric border-r ${darkMode ? 'border-indigo-900/40 text-red-300 font-bold' : 'border-slate-200 text-red-850 font-black'}`)}>G.W (KG)</th>
+                              )}
+                              {printColumns.cbm && (
+                                <th {...getThProps(`px-2 col-cbm-metric`)}>CBM (m³)</th>
+                              )}
+                            </tr>
+                          );
+                        })()}
                       </thead>
                       <tbody className={`divide-y font-mono font-medium ${darkMode ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
                         {res.rows.map((row, rIdx) => {
@@ -6870,30 +6974,57 @@ export default function App() {
                 }`}>
                   <table className="w-full text-xs text-center border-collapse">
                     <thead>
-                        <tr className={`border-b font-mono font-bold text-[10px] ${
-                          darkMode ? 'bg-slate-900 border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-700'
-                        }`}>
-                          {printColumns.ctn && (
-                            <>
-                              <th className={`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>N° DÉBUT</th>
-                              <th className={`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>N° FIN</th>
-                            </>
-                          )}
-                          {printColumns.color && <th className={`px-2 col-color-lbl border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>COULEUR</th>}
-                          {(() => {
-                            const showSkuColCombined = printColumns.sku && colors.some(col => Object.values(col.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
-                            return showSkuColCombined && <th className={`px-3 col-sku-lbl border-r ${darkMode ? 'border-slate-800 bg-emerald-500/5 text-emerald-400' : 'border-slate-200 bg-emerald-500/10 text-emerald-800 font-bold'}`}>SKU</th>;
-                          })()}
-                          {printColumns.sizes && summaryUniqueSizes.map(t => (
-                            <th key={t} className={`px-2 col-sizes-cells border-r ${darkMode ? 'border-slate-800 bg-blue-500/5 text-[#4f8ef7]' : 'border-slate-200 bg-white text-slate-700 font-bold'}`}>{t}</th>
-                          ))}
-                          <th className={`px-2 border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>PCS/CTN</th>
-                          {printColumns.nbctn && <th className={`px-2 col-nbctn-metric border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>NB CTN</th>}
-                          {printColumns.totalqty && <th className={`px-2 col-totalqty-metric border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>TOTAL QTY</th>}
-                          {printColumns.net && <th className={`px-2 col-net-metric border-r ${darkMode ? 'border-slate-800 text-teal-400' : 'border-slate-200 text-teal-700 font-bold'}`}>N.W (KG)</th>}
-                          {printColumns.gross && <th className={`px-2 col-gross-metric border-r ${darkMode ? 'border-slate-800 text-red-400' : 'border-slate-200 text-red-700 font-bold'}`}>G.W (KG)</th>}
-                          {printColumns.cbm && <th className="px-2 col-cbm-metric">CBM (m³)</th>}
-                        </tr>
+                        {(() => {
+                          let firstThRendered = false;
+                          const getThProps = (baseClass: string) => {
+                            if (!firstThRendered) {
+                              firstThRendered = true;
+                              return {
+                                className: baseClass,
+                                style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
+                              };
+                            }
+                            return { className: baseClass };
+                          };
+                          return (
+                            <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#ba66f7' }}>
+                              {printColumns.ctn && (
+                                <>
+                                  <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° DÉBUT</th>
+                                  <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° FIN</th>
+                                </>
+                              )}
+                              {printColumns.color && (
+                                <th {...getThProps(`px-2 col-color-lbl border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>COULEUR</th>
+                              )}
+                              {(() => {
+                                const showSkuColCombined = printColumns.sku && colors.some(col => Object.values(col.sizes || {}).some((s: any) => s.sku && String(s.sku).trim() !== ''));
+                                return showSkuColCombined && (
+                                  <th {...getThProps(`px-3 col-sku-lbl border-r ${darkMode ? 'border-indigo-900/40 text-white font-bold' : 'border-slate-200 text-slate-800 font-bold'}`)}>SKU</th>
+                                );
+                              })()}
+                              {printColumns.sizes && summaryUniqueSizes.map(t => (
+                                <th key={t} {...getThProps(`px-2 col-sizes-cells border-r ${darkMode ? 'border-indigo-900/40 text-white font-bold' : 'border-slate-200 text-slate-800 font-bold'}`)}>{t}</th>
+                              ))}
+                              <th {...getThProps(`px-2 border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>PCS/CTN</th>
+                              {printColumns.nbctn && (
+                                <th {...getThProps(`px-2 col-nbctn-metric border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>NB CTN</th>
+                              )}
+                              {printColumns.totalqty && (
+                                <th {...getThProps(`px-2 col-totalqty-metric border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>TOTAL QTY</th>
+                              )}
+                              {printColumns.net && (
+                                <th {...getThProps(`px-2 col-net-metric border-r ${darkMode ? 'border-indigo-900/40 text-teal-300 font-bold' : 'border-slate-200 text-teal-850 font-black'}`)}>N.W (KG)</th>
+                              )}
+                              {printColumns.gross && (
+                                <th {...getThProps(`px-2 col-gross-metric border-r ${darkMode ? 'border-indigo-900/40 text-red-300 font-bold' : 'border-slate-200 text-red-850 font-black'}`)}>G.W (KG)</th>
+                              )}
+                              {printColumns.cbm && (
+                                <th {...getThProps(`px-2 col-cbm-metric`)}>CBM (m³)</th>
+                              )}
+                            </tr>
+                          );
+                        })()}
                     </thead>
                     <tbody className="divide-y divide-slate-800/60 font-mono text-left">
                       {(() => {
@@ -6971,18 +7102,21 @@ export default function App() {
                     }`}>
                       <table className="w-full text-xs text-center border-collapse">
                         <thead>
-                          <tr className={`font-mono font-semibold border-b ${
-                            darkMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-white text-slate-700 border-slate-200'
-                          }`}>
+                          <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
                             <th className={`py-2 px-3 text-left border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>COLOR / COULEUR</th>
                             {summaryUniqueSizes.map(t2 => <th key={t2} className={`border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>{t2}</th>)}
-                            <th>TOTAL PCS</th>
+                            <th className="py-2.5">TOTAL PCS</th>
                           </tr>
                         </thead>
                         <tbody className={`divide-y font-mono font-medium ${darkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-200 text-slate-800'}`}>
                           {activeResults.map((res, ci) => (
                             <tr key={ci} className={`hover:bg-slate-800/40 divide-x ${darkMode ? 'divide-slate-800/40' : 'divide-slate-200'}`}>
-                              <td className="py-2 px-3 text-left font-bold" style={{ color: res.color }}>{res.nom}</td>
+                              <td className={`py-2 px-3 text-left font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                                <div className="flex items-center gap-1.5 justify-start">
+                                  <span className="w-2.5 h-2.5 rounded-full border border-slate-700/40 shrink-0" style={{ backgroundColor: res.color }} />
+                                  <span>{res.nom}</span>
+                                </div>
+                              </td>
                               {summaryUniqueSizes.map(t => (
                                 <td key={t} className="font-bold">{res.totals.sizes[t] || ''}</td>
                               ))}
@@ -7056,19 +7190,22 @@ export default function App() {
                 }`}>
                   <table className="w-full text-xs text-center border-collapse">
                     <thead>
-                      <tr className={`font-mono font-semibold border-b ${
-                        darkMode ? 'bg-slate-900 text-slate-400 border-slate-800' : 'bg-white text-slate-700 border-slate-200'
-                      }`}>
+                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
                         <th className={`py-2 px-3 text-left border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>COLORS / COULEURS</th>
                         {activeResults[0].tailles.filter(t => isStandardSizeAlwaysShown(t) || (colors[activeResults[0].colorIndex ?? 0]?.sizes[t]?.qtyTot || 0) > 0).map(t => (
                           <th key={t} className={`border-r ${darkMode ? 'border-slate-800' : 'border-slate-700'}`}>{t}</th>
                         ))}
-                        <th>TOTAL QTY</th>
+                        <th className="py-2 font-bold">TOTAL QTY</th>
                       </tr>
                     </thead>
                     <tbody className={`divide-y font-mono font-medium ${darkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-200 text-slate-800'}`}>
                       <tr className={`divide-x ${darkMode ? 'divide-slate-800' : 'divide-slate-200'}`}>
-                        <td className="py-2 px-3 text-left font-bold" style={{ color: activeResults[0].color }}>{activeResults[0].nom}</td>
+                        <td className={`py-2 px-3 text-left font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
+                          <div className="flex items-center gap-1.5 justify-start">
+                            <span className="w-2.5 h-2.5 rounded-full border border-slate-700/40 shrink-0" style={{ backgroundColor: activeResults[0].color }} />
+                            <span>{activeResults[0].nom}</span>
+                          </div>
+                        </td>
                         {activeResults[0].tailles.filter(t => isStandardSizeAlwaysShown(t) || (colors[activeResults[0].colorIndex ?? 0]?.sizes[t]?.qtyTot || 0) > 0).map(t => (
                           <td key={t} className="font-bold">{activeResults[0].totals.sizes[t] || ''}</td>
                         ))}

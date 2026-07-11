@@ -3,11 +3,11 @@
 
 :root {
   /* High contrast font colors for light theme: dark slate & black */
-  --slate-100: #122130;
-  --slate-200: #0D0B29;
+  --slate-100: #1e293b;
+  --slate-200: #0f172a;
   --slate-300: #1e293b;
-  --slate-450: #DD91FF;
-  --slate-400: #9466FF;
+  --slate-450: #0f172a;
+  --slate-400: #0f172a;
   --slate-500: #020617; /* Very near black */
   --slate-600: #000000; /* Pure black */
   --slate-700: #000000; /* Pure black */
@@ -24,8 +24,8 @@
   --slate-450: #cbd5e1;
   --slate-400: #cbd5e1;
   --slate-500: #f8fafc;
-  --slate-600: #FFFFFF; /* Pure white */
-  --slate-700: #FFFFFF; /* Pure white */
+  --slate-600: #ffffff; /* Pure white */
+  --slate-700: #ffffff; /* Pure white */
   --slate-705: #f1f5f9;
   --slate-205: #334155;
   --slate-350: #cbd5e1;
