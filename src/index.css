@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,600&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;800&family=Syne:wght@800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;550;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* High contrast font colors for light theme: dark slate & black */
+  --slate-100: #1e293b;
+  --slate-200: #0f172a;
+  --slate-300: #1e293b;
+  --slate-450: #0f172a;
+  --slate-400: #0f172a;
+  --slate-500: #020617; /* Very near black */
+  --slate-600: #000000; /* Pure black */
+  --slate-700: #000000; /* Pure black */
+  --slate-705: #000000; /* Pure black */
+  --slate-205: #cbd5e1;
+  --slate-350: #334155;
+}
+
+.dark {
+  /* Light font colors for dark theme: white & light slate */
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #e2e8f0;
+  --slate-450: #cbd5e1;
+  --slate-400: #cbd5e1;
+  --slate-500: #f8fafc;
+  --slate-600: #ffffff; /* Pure white */
+  --slate-700: #ffffff; /* Pure white */
+  --slate-705: #f1f5f9;
+  --slate-205: #334155;
+  --slate-350: #cbd5e1;
+}
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-slate-100: var(--slate-100);
+  --color-slate-200: var(--slate-200);
+  --color-slate-300: var(--slate-300);
+  --color-slate-350: var(--slate-350);
+  --color-slate-400: var(--slate-400);
+  --color-slate-450: var(--slate-450);
+  --color-slate-500: var(--slate-500);
+  --color-slate-600: var(--slate-600);
+  --color-slate-700: var(--slate-700);
+  --color-slate-705: var(--slate-705);
+  --color-slate-205: var(--slate-205);
+  
+  --color-gray-400: var(--slate-400);
+  --color-gray-500: var(--slate-500);
+  --color-gray-600: var(--slate-600);
+}
+
+/* Global enhancements inspired by Alibaba & Amazon merchant portals */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.bg-grid-pattern {
+  background-size: 24px 24px;
+  background-image: linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+}
+.dark .bg-grid-pattern {
+  background-size: 24px 24px;
+  background-image: linear-gradient(to right, rgba(51, 65, 85, 0.09) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(51, 65, 85, 0.09) 1px, transparent 1px);
+}
+
+/* Base scrollbar styles for a clean enterprise interface */
+.col-sizes-cells {
+  width: 68px !important;
+  min-width: 68px !important;
+  max-width: 68px !important;
+  box-sizing: border-box !important;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Print Custom Overrides - Focuses exclusively on generated Packing Sheets */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 8.5pt !important;
+    font-family: "Plus Jakarta Sans", sans-serif !important;
+  }
+
+  /* Force white background print for table rows */
+  * {
+    color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 0.5pt solid #cccccc !important;
+    padding: 4px 6px !important;
+  }
+
+  /* Automatically handle clean page breaks per color card */
+  .print-ind-card, .print-cpl-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 0 15mm 0 !important;
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  .print-bk-table, .print-stats-box, .print-dim-table {
+    page-break-inside: avoid !important;
+  }
+}
+
+/* Subtle fade in transitions */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Disable number-input spinner/arrow buttons globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+

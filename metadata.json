@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Remix: Remix: Remix: Packing List Pro",
+  "description": "Système de packing list pour officiers logistiques avec gestion de colisages solides et mixtes, gestion de modèles de cartons et exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
