@@ -1,39 +1,56 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@1,600&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;800&family=Syne:wght@800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;550;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Geist:wght@300;400;500;700&family=Inter:wght@300;400;500;600;750;800&family=JetBrains+Mono:wght@400;550;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* High contrast font colors for light theme: dark slate & black */
-  --slate-100: #1e293b;
-  --slate-200: #0f172a;
-  --slate-300: #1e293b;
-  --slate-450: #0f172a;
-  --slate-400: #0f172a;
-  --slate-500: #020617; /* Very near black */
-  --slate-600: #000000; /* Pure black */
-  --slate-700: #000000; /* Pure black */
-  --slate-705: #000000; /* Pure black */
-  --slate-205: #cbd5e1;
-  --slate-350: #334155;
+  /* Minimalist Blue CSS Variables */
+  --bg-color: #f2f5f9;
+  --ink-color: #1a2332;
+  --accent-color: #2563eb;
+  --accent-glow: rgba(37, 99, 235, 0.08);
+  --border-subtle: rgba(26, 35, 50, 0.08);
+  --border-bright: rgba(26, 35, 50, 0.15);
+  --card-bg: #ffffff;
+
+  --slate-100: var(--ink-color);
+  --slate-200: var(--ink-color);
+  --slate-300: var(--ink-color);
+  --slate-450: var(--ink-color);
+  --slate-400: var(--ink-color);
+  --slate-500: var(--ink-color);
+  --slate-600: var(--ink-color);
+  --slate-700: var(--ink-color);
+  --slate-705: var(--ink-color);
+  --slate-205: var(--border-subtle);
+  --slate-350: var(--ink-color);
 }
 
 .dark {
-  /* Light font colors for dark theme: white & light slate */
-  --slate-100: #f1f5f9;
-  --slate-200: #e2e8f0;
-  --slate-300: #e2e8f0;
-  --slate-450: #cbd5e1;
-  --slate-400: #cbd5e1;
-  --slate-500: #f8fafc;
-  --slate-600: #ffffff; /* Pure white */
-  --slate-700: #ffffff; /* Pure white */
-  --slate-705: #f1f5f9;
-  --slate-205: #334155;
-  --slate-350: #cbd5e1;
+  /* Minimalist Blue Dark/Midnight Variables */
+  --bg-color: #0b111e;
+  --ink-color: #f1f5f9;
+  --accent-color: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-bright: rgba(255, 255, 255, 0.15);
+  --card-bg: #111827;
+
+  --slate-100: var(--ink-color);
+  --slate-200: var(--ink-color);
+  --slate-300: var(--ink-color);
+  --slate-450: var(--ink-color);
+  --slate-400: var(--ink-color);
+  --slate-500: var(--ink-color);
+  --slate-600: var(--ink-color);
+  --slate-705: var(--ink-color);
+  --slate-700: var(--ink-color);
+  --slate-205: var(--border-subtle);
+  --slate-350: var(--ink-color);
 }
 
 @theme {
-  --font-sans: "Geist", "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Inter", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", monospace;
   
   --color-slate-100: var(--slate-100);
   --color-slate-200: var(--slate-200);
@@ -157,86 +174,223 @@ input[type=number] {
   appearance: textfield;
 }
 
-/* Obsidian Dark Theme Overrides */
-.dark, [data-theme="dark"] {
-  --bg-color: #0d0d0e;
-  --surface-color: #161618;
-  --surface-bright-color: #212124;
-  --accent-color: #2dd4bf;
-  --border-color-subtle: rgba(255, 255, 255, 0.08);
-  --border-color-bright: rgba(255, 255, 255, 0.15);
-  
+/* Minimalist Blue Theme Overrides and Mappings */
+body {
   background-color: var(--bg-color) !important;
-  color: #f1f5f9 !important;
+  color: var(--ink-color) !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
-/* Map background classes of panels, sidebar and cards */
-.dark .bg-\[\#0C0C0E\],
-.dark .bg-\[\#0C0C0E\]\/95 {
+/* Redefining generic container backgrounds to map onto Minimalist Blue */
+.bg-\[\#f4f6fb\],
+.bg-\[\#0C0C0E\],
+.bg-\[\#0C0C0E\]\/95 {
   background-color: var(--bg-color) !important;
 }
 
-.dark .bg-\[\#0F0F12\],
-.dark .bg-\[\#151518\],
-.dark .bg-\[\#18161e\],
-.dark .bg-\[\#1a1d27\],
-.dark .bg-\[\#121522\]\/60 {
-  background-color: var(--surface-color) !important;
+.bg-white,
+.bg-\[\#0F0F12\],
+.bg-\[\#151518\],
+.bg-\[\#18161e\],
+.bg-\[\#1a1d27\],
+.bg-\[\#121522\]\/60 {
+  background-color: var(--card-bg) !important;
+  color: var(--ink-color) !important;
 }
 
-/* Hover surfaces */
-.dark .hover\:bg-white\/5:hover,
-.dark .hover\:bg-white\/10:hover {
-  background-color: var(--surface-bright-color) !important;
+/* Borders mapping */
+.border,
+.border-white\/10,
+.border-slate-200,
+.border-slate-250,
+.border-slate-205 {
+  border-color: var(--border-subtle) !important;
 }
 
-/* Borders */
-.dark .border-white\/10 {
-  border-color: var(--border-color-subtle) !important;
+.border-white\/20,
+.border-slate-300 {
+  border-color: var(--border-bright) !important;
 }
 
-.dark .border-white\/20 {
-  border-color: var(--border-color-bright) !important;
-}
-
-/* Scrollbar tweaks */
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(45, 212, 191, 0.2);
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(45, 212, 191, 0.4);
-}
-
-/* Override existing background yellow, amber, blue highlights inside the cards or summary to make them teal */
-.dark .text-amber-400,
-.dark .text-indigo-400,
-.dark .text-blue-450,
-.dark .text-indigo-550 {
-  color: var(--accent-color) !important;
-}
-
-.dark .bg-amber-500,
-.dark .bg-indigo-500,
-.dark .bg-indigo-600 {
+/* Text selections & scrollbars */
+::selection {
   background-color: var(--accent-color) !important;
-  color: #0d0d0e !important;
+  color: #ffffff !important;
 }
 
-.dark .border-amber-500,
-.dark .border-indigo-500 {
+::-webkit-scrollbar-thumb {
+  background: var(--accent-color) !important;
+  opacity: 0.25 !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color) !important;
+  opacity: 0.45 !important;
+}
+
+/* Apply beautiful serif font to display elements */
+h1, .logo, .brand-logo, .cormorant-text, .print-title {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+}
+
+h1 {
+  font-weight: 300 !important;
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 3.5rem !important;
+  line-height: 1.1 !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  padding-bottom: 0.75rem !important;
+  margin-bottom: 2rem !important;
+}
+
+/* Bento grid totals styles */
+.grid-cols-1 .text-2xl,
+.grid-cols-2 .text-2xl,
+.grid-cols-4 .text-2xl,
+.stat-value {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  font-size: 2.75rem !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  color: var(--accent-color) !important;
+}
+
+.grid-cols-1 .uppercase,
+.grid-cols-2 .uppercase,
+.grid-cols-4 .uppercase {
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.05em !important;
+  opacity: 0.6 !important;
+}
+
+/* Main action button overrides - map yellow/red directly to blue accent */
+.bg-\[\#FFE100\],
+.bg-\[\#E51B22\],
+.bg-red-600 {
+  background-color: var(--accent-color) !important;
+  color: #ffffff !important;
   border-color: var(--accent-color) !important;
+  box-shadow: 0 2px 8px var(--accent-glow) !important;
 }
 
-/* Subtle highlights in breakdown */
-.dark .bg-amber-500\/10,
-.dark .bg-indigo-500\/10 {
-  background-color: rgba(45, 212, 191, 0.05) !important;
+.bg-\[\#FFE100\]:hover,
+.bg-\[\#E51B22\]:hover,
+.bg-red-600:hover {
+  background-color: var(--accent-color) !important;
+  opacity: 0.9 !important;
+}
+
+/* Highlight / text accents mapping */
+.text-amber-400,
+.text-indigo-400,
+.text-blue-400,
+.text-[#ff5000],
+.text-[#E51B22],
+.text-red-750 {
   color: var(--accent-color) !important;
 }
 
-/* Total row or specific breakdown colors */
-.dark .text-blue-400 {
-  color: var(--accent-color) !important;
+.bg-amber-500\/10,
+.bg-indigo-500\/10,
+.bg-blue-500\/10,
+.bg-slate-100 {
+  background-color: var(--accent-glow) !important;
 }
+
+/* Simple list & footer text styling */
+footer {
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace !important;
+  font-size: 0.6rem !important;
+  color: var(--ink-color) !important;
+  opacity: 0.45 !important;
+}
+
+/* ==========================================
+   FOCUS MODE: APPLIED AND COHESIVE OVERRIDES
+   ========================================== */
+
+/* 1. Action buttons container inside the topbar */
+div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
+  background-color: #441b53 !important;
+  border-radius: 0.75rem !important;
+  padding: 0.5rem !important;
+}
+
+/* 2. Subheadings inside the active content panels (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) .space-y-4 div[class*="font-mono"][class*="uppercase"][class*="text-"] {
+  background-color: #ffffff !important;
+  font-weight: bold !important;
+  border-color: #050303 !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 0.375rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  color: #050303 !important;
+  padding: 0.35rem 0.75rem !important;
+}
+
+/* 3. Outer container of the top bar content inside sticky topbar */
+div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
+  background-color: #717171 !important;
+  border-radius: 0.75rem !important;
+}
+
+/* 4. Sidebar navigation container and its sidebar items/buttons (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
+  background-color: #f386ff !important;
+  color: #ffffff !important;
+  border-color: #906296 !important;
+  border-width: 1px !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) button {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) button:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* 5. Metrics card value span inside active results (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) .grid-cols-2 > div > span:nth-of-type(2),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) .grid-cols-5 > div > span:nth-of-type(2) {
+  background-color: #a2dfff !important;
+  color: #000000 !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 0.25rem !important;
+  font-weight: bold !important;
+  display: inline-block !important;
+}
+
+/* 6. Size headers input in active colissage tables (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) > input:nth-of-type(1),
+table thead tr th.col-sizes-cells input {
+  background-color: #dbf7d2 !important;
+  color: #1a2332 !important;
+}
+
+/* 7. New targeted table headers and related elements (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2),
+table thead th,
+table thead tr th {
+  background-color: #dbf7d2 !important;
+  color: #1a2332 !important;
+  font-weight: 600 !important;
+}
+
+/* 8. Target the tbody cell selector */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr:nth-of-type(1) > td:nth-of-type(2) {
+  /* Retains default alignment and padding for high input readability */
+}
+
+
+
+
 
 
