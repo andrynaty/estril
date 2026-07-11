@@ -1588,6 +1588,91 @@ export default function App() {
     setHasGenerated(true);
   };
 
+  // Auto group remainders helper
+  const handleAutoGroupRemainders = () => {
+    const activeColorConfig = colors[activeColorIdx];
+    if (!activeColorConfig) return;
+
+    interface RestInfo {
+      taille: string;
+      qte: number;
+      cap: number;
+    }
+    const list: RestInfo[] = [];
+    activeColorConfig.tailles.forEach(sz => {
+      const qTot = activeColorConfig.sizes[sz]?.qtyTot || 0;
+      const cap = activeColorConfig.sizes[sz]?.cap || 25;
+      const r = qTot % cap;
+      if (r > 0) {
+        list.push({ taille: sz, qte: r, cap });
+      }
+    });
+
+    if (list.length === 0) {
+      triggerToast("ℹ️ Aucun reste à regrouper pour cette couleur !", "info");
+      return;
+    }
+
+    const customCartons: CustomRemainderCarton[] = [];
+    const tempPool = [...list];
+
+    while (tempPool.length > 0) {
+      tempPool.sort((a, b) => b.qte - a.qte);
+
+      const limitGroup = tempPool.slice(0, maxSizesPerBox);
+      const cartonCap = Math.max(...limitGroup.map(item => item.cap));
+
+      const selectedList: RestInfo[] = [];
+      let boxSum = 0;
+
+      for (let i = 0; i < tempPool.length && selectedList.length < maxSizesPerBox; i++) {
+        const item = tempPool[i];
+        if (boxSum + item.qte <= cartonCap) {
+          selectedList.push(item);
+          boxSum += item.qte;
+        }
+      }
+
+      if (selectedList.length === 0 && tempPool.length > 0) {
+        const first = tempPool[0];
+        selectedList.push(first);
+        boxSum += first.qte;
+      }
+
+      selectedList.forEach(sel => {
+        const fIdx = tempPool.findIndex(item => item.taille === sel.taille);
+        if (fIdx >= 0) tempPool.splice(fIdx, 1);
+      });
+
+      const cartonSizes: { [size: string]: number } = {};
+      const cartonWritten: { [size: string]: string } = {};
+
+      activeColorConfig.tailles.forEach(sz => {
+        cartonSizes[sz] = 0;
+      });
+
+      selectedList.forEach(item => {
+        cartonSizes[item.taille] = item.qte;
+        cartonWritten[item.taille] = numberToFrenchWords(item.qte);
+      });
+
+      customCartons.push({
+        id: 'rc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9) + '_' + customCartons.length,
+        sizes: cartonSizes,
+        writtenWords: cartonWritten
+      });
+    }
+
+    const nextColors = [...colors];
+    nextColors[activeColorIdx] = {
+      ...activeColorConfig,
+      customRemainders: customCartons
+    };
+    setColors(nextColors);
+    setHasGenerated(false);
+    triggerToast(`⚡ Cartons de restes configurés automatiquement (${customCartons.length} cartons générés) !`, "success");
+  };
+
   // Generate Results Trigger
   const handleGenerateList = () => {
     // Intervene if any custom remainders are configured incorrectly
@@ -4636,6 +4721,17 @@ export default function App() {
                                     }`}
                                   >
                                     <span>➕</span> Ajouter un carton
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={handleAutoGroupRemainders}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all inline-flex items-center gap-1 cursor-pointer ${
+                                      darkMode ? 'bg-amber-600 hover:bg-amber-500 text-white' : 'bg-amber-500 hover:bg-amber-600 text-white'
+                                    }`}
+                                    title="Regrouper automatiquement tous les restes de manière conforme"
+                                  >
+                                    <span>💡</span> Auto-configurer cartons
                                   </button>
 
                                   <button
