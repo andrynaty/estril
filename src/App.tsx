@@ -110,7 +110,7 @@ const CUSTS = [
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [darkMode, setDarkMode] = useState<boolean>(true);
 
   // Database templates state (persisted via local storage)
   const [db, setDb] = useState<ModelsDatabase>(() => {
@@ -2124,8 +2124,8 @@ export default function App() {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
       return isActive
-        ? 'bg-white border-white text-[#0C0C0E] font-black shadow-md'
-        : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:text-white shadow-xs';
+        ? 'bg-[#2dd4bf] border-[#2dd4bf] text-[#0d0d0e] font-black shadow-[0_0_20px_rgba(45,212,191,0.2)]'
+        : 'bg-[#212124] border-white/5 text-white/70 hover:bg-[#212124]/85 hover:text-white shadow-xs';
     }
     return isActive
       ? 'bg-white border-white text-blue-950 font-black shadow-md'
@@ -2135,7 +2135,7 @@ export default function App() {
   const getSidebarItemHighlightStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'bg-[#0C0C0E] scale-y-100' : 'bg-white/30 scale-y-0 group-hover:scale-y-50';
+      return isActive ? 'bg-[#0d0d0e] scale-y-100' : 'bg-white/30 scale-y-0 group-hover:scale-y-50';
     }
     return isActive ? 'bg-[#FFE100] scale-y-100' : 'bg-blue-300 scale-y-0 group-hover:scale-y-50';
   };
@@ -2143,7 +2143,7 @@ export default function App() {
   const getSidebarItemIconStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'bg-neutral-100 text-[#0C0C0E]' : 'bg-white/5 text-white/50';
+      return isActive ? 'bg-black/10 text-[#0d0d0e]' : 'bg-white/5 text-white/50';
     }
     return isActive ? 'bg-blue-50 text-blue-800' : 'bg-blue-900/30 text-blue-200';
   };
@@ -2151,7 +2151,7 @@ export default function App() {
   const getSidebarItemSubtextStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'text-neutral-500 font-medium' : 'text-white/45';
+      return isActive ? 'text-neutral-900 font-semibold' : 'text-white/45';
     }
     return isActive ? 'text-blue-700 font-medium' : 'text-blue-200/70';
   };
@@ -2159,7 +2159,7 @@ export default function App() {
   const getSidebarItemChevronStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'translate-x-[2px] text-[#0C0C0E]' : 'text-white/40';
+      return isActive ? 'translate-x-[2px] text-[#0d0d0e]' : 'text-white/40';
     }
     return isActive ? 'translate-x-[2px] text-blue-800' : 'text-blue-300';
   };
@@ -2167,9 +2167,9 @@ export default function App() {
   const getInputStyles = (isAccent?: boolean) => {
     if (darkMode) {
       if (isAccent) {
-        return 'bg-[#0F0F12] border-white/20 text-white focus:border-white focus:ring-1 focus:ring-white/20';
+        return 'bg-[#161618] border-[#2dd4bf] text-white focus:border-[#2dd4bf] focus:ring-1 focus:ring-[#2dd4bf]/20';
       }
-      return 'bg-[#0F0F12] border-white/10 text-white focus:border-white focus:ring-1 focus:ring-white/10';
+      return 'bg-[#161618] border-white/10 text-white focus:border-[#2dd4bf] focus:ring-1 focus:ring-[#2dd4bf]/10';
     }
     if (isAccent) {
       return 'bg-amber-500/5 border-amber-300 text-slate-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20';
@@ -2918,7 +2918,7 @@ export default function App() {
             className={`flex-shrink-0 transition-all duration-300 ease-in-out self-start lg:self-stretch z-30 
               ${isSidebarCollapsed ? 'hidden lg:flex lg:w-20' : 'w-full lg:w-64 flex'} 
               flex-col gap-2.5 lg:h-full lg:overflow-y-auto overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-none border rounded-2xl p-3 shadow-lg text-white
-              ${darkMode ? 'bg-[#0F0F12] border-white/10' : 'bg-[#0b5870] border-[#f5f0f0]'}
+              ${darkMode ? 'bg-[#161618] border-white/5' : 'bg-[#0b5870] border-[#f5f0f0]'}
             `}
           >
             {/* COLLAPSE/EXPAND TOGGLE HEADER - DESKTOP ONLY */}
