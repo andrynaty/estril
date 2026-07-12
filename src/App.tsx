@@ -110,7 +110,7 @@ const CUSTS = [
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [darkMode, setDarkMode] = useState<boolean>(false);
 
   // Database templates state (persisted via local storage)
   const [db, setDb] = useState<ModelsDatabase>(() => {
@@ -2124,64 +2124,64 @@ export default function App() {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
       return isActive
-        ? 'bg-[#2dd4bf] border-[#2dd4bf] text-[#0d0d0e] font-black shadow-[0_0_20px_rgba(45,212,191,0.2)]'
-        : 'bg-[#212124] border-white/5 text-white/70 hover:bg-[#212124]/85 hover:text-white shadow-xs';
+        ? 'bg-slate-800 border-slate-700 text-[#3b82f6] font-semibold shadow-lg'
+        : 'bg-transparent border-transparent text-white/70 hover:bg-slate-800/50 hover:text-white';
     }
     return isActive
-      ? 'bg-white border-white text-blue-950 font-black shadow-md'
-      : 'bg-blue-700/40 border-blue-500/30 text-blue-100 hover:bg-blue-700/75 hover:text-white shadow-xs';
+      ? 'bg-white border-slate-200 text-[#2563eb] font-semibold shadow-[0_2px_8px_rgba(37,99,235,0.06)]'
+      : 'bg-transparent border-transparent text-[#1a2332]/70 hover:bg-slate-200/40 hover:text-slate-900';
   };
 
   const getSidebarItemHighlightStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'bg-[#0d0d0e] scale-y-100' : 'bg-white/30 scale-y-0 group-hover:scale-y-50';
+      return isActive ? 'bg-[#3b82f6] scale-y-100' : 'bg-white/10 scale-y-0 group-hover:scale-y-50';
     }
-    return isActive ? 'bg-[#FFE100] scale-y-100' : 'bg-blue-300 scale-y-0 group-hover:scale-y-50';
+    return isActive ? 'bg-[#2563eb] scale-y-100' : 'bg-slate-300 scale-y-0 group-hover:scale-y-50';
   };
 
   const getSidebarItemIconStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'bg-black/10 text-[#0d0d0e]' : 'bg-white/5 text-white/50';
+      return isActive ? 'bg-blue-500/10 text-[#3b82f6]' : 'bg-white/5 text-white/50';
     }
-    return isActive ? 'bg-blue-50 text-blue-800' : 'bg-blue-900/30 text-blue-200';
+    return isActive ? 'bg-blue-50 text-[#2563eb]' : 'bg-slate-100 text-slate-500';
   };
 
   const getSidebarItemSubtextStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'text-neutral-900 font-semibold' : 'text-white/45';
+      return isActive ? 'text-blue-400 font-medium' : 'text-white/40';
     }
-    return isActive ? 'text-blue-700 font-medium' : 'text-blue-200/70';
+    return isActive ? 'text-blue-700 font-medium' : 'text-slate-400';
   };
 
   const getSidebarItemChevronStyles = (tabName: string) => {
     const isActive = activeInputTab === tabName;
     if (darkMode) {
-      return isActive ? 'translate-x-[2px] text-[#0d0d0e]' : 'text-white/40';
+      return isActive ? 'translate-x-[2px] text-[#3b82f6]' : 'text-white/20';
     }
-    return isActive ? 'translate-x-[2px] text-blue-800' : 'text-blue-300';
+    return isActive ? 'translate-x-[2px] text-[#2563eb]' : 'text-slate-300';
   };
 
   const getInputStyles = (isAccent?: boolean) => {
     if (darkMode) {
       if (isAccent) {
-        return 'bg-[#161618] border-[#2dd4bf] text-white focus:border-[#2dd4bf] focus:ring-1 focus:ring-[#2dd4bf]/20';
+        return 'bg-[#111827] border-[#3b82f6] text-white focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/20';
       }
-      return 'bg-[#161618] border-white/10 text-white focus:border-[#2dd4bf] focus:ring-1 focus:ring-[#2dd4bf]/10';
+      return 'bg-[#111827] border-white/10 text-white focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/10';
     }
     if (isAccent) {
-      return 'bg-amber-500/5 border-amber-300 text-slate-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20';
+      return 'bg-white border-[#2563eb] text-[#1a2332] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]/20';
     }
-    return 'bg-[#f4f6fb] border-slate-350 text-slate-900 focus:border-[#ff5000] focus:ring-1 focus:ring-[#ff5000]/20';
+    return 'bg-white border-slate-200 text-[#1a2332] focus:border-[#2563eb] focus:ring-1 focus:ring-[#2563eb]/20';
   };
 
   const getSubheadingStyles = (isSpecial?: boolean) => {
     if (darkMode) {
-      return 'text-white font-mono uppercase tracking-wider font-extrabold text-[11px]';
+      return 'text-[#3b82f6] font-mono uppercase tracking-wider font-extrabold text-[11px]';
     }
-    return isSpecial ? 'text-amber-600 font-mono uppercase tracking-wider font-extrabold text-[11px]' : 'text-[#ff5000] font-mono uppercase tracking-wider font-extrabold text-[11px]';
+    return isSpecial ? 'text-blue-700 font-mono uppercase tracking-wider font-extrabold text-[11px]' : 'text-[#2563eb] font-mono uppercase tracking-wider font-extrabold text-[11px]';
   };
 
   const grandTotals = getGrandTotalsSummary();
@@ -2664,22 +2664,24 @@ export default function App() {
       {/* HEADER & ACTIONS TOP BLOCK (STICKY) */}
 
 
-      <div className={`sticky top-0 z-40 print:hidden transition-all duration-300 border-b pb-1.5 shadow-md ${
-        darkMode ? 'bg-[#0C0C0E]/95 border-white/10 shadow-black/40' : 'bg-[#001A4F] border-[#001135] shadow-slate-900/10'
+      <div className={`sticky top-0 z-40 print:hidden transition-all duration-300 border-b pb-1.5 shadow-sm ${
+        darkMode ? 'bg-[#111827] border-white/5 shadow-black/40' : 'bg-white border-slate-200 shadow-slate-200/10'
       } backdrop-blur-md`}>
         {/* Sleek Top Bar containing GENERATE, Reset, Excel, PDF, SQL Export, SQL Import, Mode toggle */}
         <div className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-4">
-            {/* Cdiscount Replica Logo */}
-            <div className="flex items-center gap-1.5 select-none cursor-pointer">
-              <div className="bg-[#E51B22] text-white w-8 h-8 rounded-lg flex items-center justify-center font-black text-xl shadow-lg shadow-black/15">C</div>
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Minimalist Blue Logo */}
+            <div className="logo font-serif text-xl sm:text-2xl font-bold tracking-tight select-none cursor-pointer text-[#1a2332] dark:text-[#f1f5f9]">
+              Packing Strat.
             </div>
 
-            <div className="flex flex-col border-l border-white/10 pl-3 justify-center">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-black tracking-wider uppercase font-sans text-white">
-                  Andry <span className={darkMode ? 'text-white' : 'text-[#FFE100]'}>Nantenaina</span>
-                </span>
+            {/* Meta Tags matching provided template exactly */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="font-mono text-[10px] tracking-wider uppercase font-semibold bg-slate-100 dark:bg-slate-800 text-[#1a2332] dark:text-[#f1f5f9] px-3 py-1.5 rounded-[4px] border border-slate-200/50 dark:border-slate-700/50">
+                Andry Nantenaina
+              </div>
+              <div className="font-mono text-[10px] tracking-wider uppercase font-semibold bg-slate-100 dark:bg-slate-800 text-[#1a2332] dark:text-[#f1f5f9] px-3 py-1.5 rounded-[4px] border border-slate-200/50 dark:border-slate-700/50">
+                Vol: {grandTotals.v.toFixed(3)}m³
               </div>
             </div>
 
@@ -2690,63 +2692,66 @@ export default function App() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher couleur, SKU, taille..."
-                className={`w-full pl-3 pr-9 py-1 rounded-lg text-xs text-white focus:outline-none focus:ring-1 transition-all ${
+                className={`w-full pl-3 pr-9 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-1 transition-all ${
                   darkMode 
-                    ? 'bg-[#151518] border border-white/10 placeholder:text-white/30 focus:ring-white focus:border-white' 
-                    : 'bg-[#001135]/40 border border-blue-900/50 placeholder:text-blue-200/50 focus:ring-[#FFE100] focus:border-[#FFE100]'
+                    ? 'bg-slate-800 border border-white/10 text-white placeholder:text-white/30 focus:ring-blue-500 focus:border-blue-500' 
+                    : 'bg-slate-50 border border-slate-200 text-[#1a2332] placeholder:text-slate-400 focus:ring-blue-600 focus:border-blue-600'
                 }`}
               />
-              <div className={`absolute right-2.5 top-2 ${darkMode ? 'text-white/50' : 'text-blue-300'}`}>
+              <div className={`absolute right-2.5 top-2.5 ${darkMode ? 'text-white/50' : 'text-slate-400'}`}>
                 <Search className="w-3 h-3" />
               </div>
             </div>
 
             {/* Live Totals Summary (Pcs, Crt, Vol) */}
-            <div className={`flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 border rounded-lg text-white font-mono text-[10px] sm:text-xs shadow-inner select-none ${
-              darkMode ? 'bg-[#151518] border-white/10' : 'bg-blue-950/40 border-blue-900/50'
+            <div className={`flex items-center gap-2 sm:gap-3 px-3 py-1.5 border rounded-lg font-mono text-[10px] sm:text-xs select-none ${
+              darkMode ? 'bg-slate-800/50 border-white/10 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
             }`}>
               <div className="flex items-center gap-1">
-                <span className={`text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold ${darkMode ? 'text-white/40' : 'text-blue-300'}`}>Pcs:</span>
-                <span className={`font-bold ${darkMode ? 'text-white font-black' : 'text-[#FFE100]'}`}>{grandTotals.p.toLocaleString('fr-FR')}</span>
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Pcs:</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400">{grandTotals.p.toLocaleString('fr-FR')}</span>
               </div>
-              <div className="h-3 w-px bg-white/10" />
+              <div className="h-3 w-px bg-slate-200 dark:bg-slate-800" />
               <div className="flex items-center gap-1">
-                <span className={`text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold ${darkMode ? 'text-white/40' : 'text-blue-300'}`}>Crt:</span>
-                <span className={`font-bold ${darkMode ? 'text-white font-black' : 'text-[#FFE100]'}`}>{grandTotals.c.toLocaleString('fr-FR')}</span>
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Crt:</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400">{grandTotals.c.toLocaleString('fr-FR')}</span>
               </div>
-              <div className="h-3 w-px bg-white/10" />
+              <div className="h-3 w-px bg-slate-200 dark:bg-slate-800" />
               <div className="flex items-center gap-1">
-                <span className={`text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold ${darkMode ? 'text-white/40' : 'text-blue-300'}`}>Vol:</span>
-                <span className={`font-bold ${darkMode ? 'text-white font-black' : 'text-[#FFE100]'}`} style={{ color: '#fae7e7', fontWeight: 'bold' }}>{grandTotals.v.toFixed(3)} m³</span>
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-wider font-extrabold text-slate-400">Vol:</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400">{grandTotals.v.toFixed(3)} m³</span>
               </div>
             </div>
           </div>
 
-          <div className={`flex items-center gap-2 flex-wrap p-2.5 rounded-xl border shadow-md transition-colors ${
-            darkMode ? 'bg-[#151518] border-white/10 text-white' : 'bg-[#0e4f62] text-white border-blue-500/40'
+          <div className={`flex items-center gap-2 flex-wrap p-2.5 rounded-xl border shadow-sm transition-colors ${
+            darkMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-slate-50 text-slate-800 border-slate-200'
           }`}>
-            {/* CTA Generer styled as Cdiscount's Adding to Cart CTA button (Energetic Yellow/Orange) */}
+            {/* CTA Generer styled elegantly as a modern primary action button */}
             <button
               onClick={handleGenerateList}
-              className={`px-3.5 py-1.5 font-black rounded-lg text-[11px] transition-all focus:outline-none flex items-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01] active:scale-[0.99] uppercase tracking-wider font-sans ${
+              className={`px-4 py-1.5 font-semibold rounded-lg text-[11px] transition-all focus:outline-none flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-[1.01] active:scale-[0.99] uppercase tracking-wider font-sans ${
                 darkMode
-                  ? 'bg-white hover:bg-neutral-200 text-[#0C0C0E] border border-white/10 shadow-white/5'
-                  : 'bg-[#FFE100] hover:bg-[#ffe733] text-[#001e62] shadow-amber-500/15 animate-pulse hover:animate-none'
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 shadow-blue-500/25'
+                  : 'bg-[#2563eb] hover:bg-blue-700 text-white border border-[#2563eb] shadow-blue-500/15'
               }`}
             >
-              <Calculator className={`w-3.5 h-3.5 ${darkMode ? 'text-[#0C0C0E]' : 'text-[#001e62]'}`} />
+              <Calculator className="w-3.5 h-3.5 text-white" />
               <span>GÉNÉRER / CALCULER</span>
             </button>
 
             {/* Admin / Utility actions */}
             <button
               onClick={() => setIsMajBsdOpen(true)}
-              className="px-2 py-1.5 border border-white/10 hover:bg-white/5 rounded-lg text-[11px] font-bold text-white/95 transition-all cursor-pointer flex items-center gap-1 hover:scale-[1.02]"
+              className={`px-2 py-1.5 border hover:bg-white/5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 hover:scale-[1.02] ${
+                darkMode ? 'border-white/10 text-white/95' : 'border-slate-200 text-slate-700 hover:bg-slate-100 bg-white shadow-xs'
+              }`}
               title="🗂️ MAJ BSD (Gabarits)"
             >
-              <Database className={`w-3 h-3 ${darkMode ? 'text-white' : 'text-[#FFE100]'}`} />
+              <Database className={`w-3 h-3 ${darkMode ? 'text-white' : 'text-blue-600'}`} />
               <span className="hidden sm:inline">Gabarits</span>
             </button>
+
 
             <button
               onClick={() => setIsCapturingScreen(true)}
