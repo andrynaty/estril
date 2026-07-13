@@ -3234,6 +3234,7 @@ export default function App() {
             <AnimatePresence mode="wait">
               {activeInputTab === 'meta' && (
                 <motion.div
+                  id="tab-content-meta"
                   key="meta-section"
                   initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -3459,6 +3460,7 @@ export default function App() {
 
     {activeInputTab === 'strategy' && (
       <motion.div
+        id="tab-content-strategy"
         key="strategy-section"
         initial={{ opacity: 0, x: 15 }}
         animate={{ opacity: 1, x: 0 }}
@@ -3754,6 +3756,7 @@ export default function App() {
                 ) : null;
                 return (
                   <motion.div
+                    id="tab-content-colors"
                     key="colors-section"
                     initial={{ opacity: 0, x: 15 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -5056,6 +5059,7 @@ export default function App() {
 
               {activeInputTab === 'packing_list' && (
                 <motion.div
+                  id="tab-content-packing-list"
                   key="packing-list-section"
                   initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -5453,6 +5457,7 @@ export default function App() {
 
               {activeInputTab === 'breakdown' && (
                 <motion.div
+                  id="tab-content-breakdown"
                   key="breakdown-section"
                   initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -5555,6 +5560,7 @@ export default function App() {
 
               {activeInputTab === 'summary' && (
                 <motion.div
+                  id="tab-content-summary"
                   key="summary-section"
                   initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -6498,6 +6504,7 @@ export default function App() {
 
               {activeInputTab === 'saves' && (
                 <motion.div
+                  id="tab-content-saves"
                   key="saves-section"
                   initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -6701,6 +6708,7 @@ export default function App() {
 
               {activeInputTab === 'labels' && (
                 <motion.div
+                  id="tab-content-labels"
                   key="labels-section"
                   initial={{ opacity: 0, x: 15 }}
                   animate={{ opacity: 1, x: 0 }}

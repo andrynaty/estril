@@ -316,25 +316,143 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-t
   padding: 0.5rem !important;
 }
 
-/* 2. Subheadings inside the active content panels (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) .space-y-4 div[class*="font-mono"][class*="uppercase"][class*="text-"] {
-  background-color: #5cbbff !important;
+/* 2. Subheadings and content badges: Modern Scoped Styling Per Ribbon Page */
+
+/* Base subheading style helper for all tabs */
+#tab-content-meta div[class*="font-mono"][class*="uppercase"],
+#tab-content-strategy div[class*="font-mono"][class*="uppercase"],
+#tab-content-colors div[class*="font-mono"][class*="uppercase"],
+#tab-content-packing-list div[class*="font-mono"][class*="uppercase"],
+#tab-content-breakdown div[class*="font-mono"][class*="uppercase"],
+#tab-content-summary div[class*="font-mono"][class*="uppercase"],
+#tab-content-saves div[class*="font-mono"][class*="uppercase"],
+#tab-content-labels div[class*="font-mono"][class*="uppercase"] {
   font-weight: bold !important;
-  border-color: #5cbbff !important;
   border-width: 1px !important;
   border-style: solid !important;
   border-radius: 0.375rem !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 0.25rem !important;
-  color: #ffffff !important;
   padding: 0.35rem 0.75rem !important;
 }
 
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) {
-  color: #fff4f4 !important;
+/* --- TAB 1: meta (FICHE TRAÇABILITÉ / RÉFÉRENCES) --- */
+#tab-content-meta div[class*="font-mono"][class*="uppercase"] {
+  background-color: #0284c7 !important; /* Ocean blue */
+  border-color: #0284c7 !important;
+  color: #ffffff !important;
+}
+#tab-content-meta table thead th {
+  background-color: #f1f5f9 !important; /* Slate light */
+  color: #0f172a !important;
+  font-weight: 600 !important;
+}
+
+/* --- TAB 2: strategy (STRATÉGIE) --- */
+#tab-content-strategy div[class*="font-mono"][class*="uppercase"] {
+  background-color: #f97316 !important; /* Vibrant Orange */
+  border-color: #f97316 !important;
+  color: #ffffff !important;
+}
+#tab-content-strategy .grid-cols-2 > div > span:nth-of-type(2),
+#tab-content-strategy .grid-cols-5 > div > span:nth-of-type(2) {
+  background-color: #ffedd5 !important; /* Warm orange tint */
+  color: #ea580c !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 0.25rem !important;
+  font-weight: bold !important;
+  display: inline-block !important;
+}
+
+/* --- TAB 3: colors (SAISIE COLISAGE) --- */
+#tab-content-colors div[class*="font-mono"][class*="uppercase"] {
+  background-color: #10b981 !important; /* Emerald green */
+  border-color: #10b981 !important;
+  color: #ffffff !important;
+}
+#tab-content-colors table thead th {
+  background-color: #4c70c2 !important; /* Steel-blue highlight as requested */
+  color: #f2eeee !important;
+  font-weight: 600 !important;
+}
+#tab-content-colors table thead tr th.col-sizes-cells {
+  background-color: #4c70c2 !important;
+}
+#tab-content-colors table thead tr th.col-sizes-cells input,
+#tab-content-colors table thead tr th input {
+  background-color: #4c70c2 !important;
+  color: #ffffff !important;
+}
+#tab-content-colors td.col-ctn-index {
+  background-color: #fef08a !important; /* Soft yellow highlight */
+  color: #854d0e !important;
+  font-weight: bold !important;
+}
+
+/* --- TAB 4: packing_list (PACKING LIST) --- */
+#tab-content-packing-list div[class*="font-mono"][class*="uppercase"] {
+  background-color: #6366f1 !important; /* Royal Indigo */
+  border-color: #6366f1 !important;
+  color: #ffffff !important;
+}
+#tab-content-packing-list table thead th {
+  background-color: #e0e7ff !important; /* Indigo white tint */
+  color: #312e81 !important;
+  font-weight: 600 !important;
+}
+#tab-content-packing-list td.col-ctn-index {
+  background-color: #dbeafe !important; /* Soft blue highlight */
+  color: #1e40af !important;
+  font-weight: bold !important;
+}
+
+/* --- TAB 5: breakdown (BREAKDOWN SUMMARY) --- */
+#tab-content-breakdown div[class*="font-mono"][class*="uppercase"] {
+  background-color: #475569 !important; /* Slate steel */
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+#tab-content-breakdown table thead th,
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-breakdown:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1) {
+  background-color: #5febe3 !important; /* Cyan highlight */
+  color: #1a2332 !important;
+  font-weight: 600 !important;
+}
+
+/* --- TAB 6: summary (RECAPITULATIF) --- */
+#tab-content-summary div[class*="font-mono"][class*="uppercase"] {
+  background-color: #0d9488 !important; /* Dark Teal */
+  border-color: #0d9488 !important;
+  color: #ffffff !important;
+}
+#tab-content-summary table thead th {
+  background-color: #ccfbf1 !important; /* Soft teal tint */
+  color: #115e59 !important;
+  font-weight: 600 !important;
+}
+#tab-content-summary .grid-cols-2 > div > span:nth-of-type(2),
+#tab-content-summary .grid-cols-5 > div > span:nth-of-type(2) {
+  background-color: #ccfbf1 !important;
+  color: #0f766e !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 0.25rem !important;
+  font-weight: bold !important;
+  display: inline-block !important;
+}
+
+/* --- TAB 7: saves (SAUVEGARDES) --- */
+#tab-content-saves div[class*="font-mono"][class*="uppercase"] {
+  background-color: #2563eb !important; /* Cobalt Blue */
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+/* --- TAB 8: labels (ÉTIQUETTES PARCELLES) --- */
+#tab-content-labels div[class*="font-mono"][class*="uppercase"] {
+  background-color: #d97706 !important; /* Amber-gold */
+  border-color: #d97706 !important;
+  color: #ffffff !important;
 }
 
 /* 3. Outer container of the top bar content inside sticky topbar */
@@ -400,6 +518,39 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-
   background-color: #fffb37 !important;
   color: #000000 !important;
   font-weight: bold !important;
+}
+
+/* 10. Custom strategy button style (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-strategy:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1) {
+  background-color: #d733bd !important;
+  color: #fef8f8 !important;
+}
+
+/* 11. Custom colors / input tab styling (and all that concerns it) */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) {
+  background-color: #3eff32 !important;
+  font-weight: bold !important;
+  color: #ffffff !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
+  background-color: #bdefff !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1) {
+  background-color: #4c70c2 !important;
+  color: #f2eeee !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th.col-sizes-cells input,
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) > input:nth-of-type(1) {
+  background-color: #4c70c2 !important;
+  color: #ffffff !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th.col-sizes-cells,
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) {
+  background-color: #4c70c2 !important;
 }
 
 
