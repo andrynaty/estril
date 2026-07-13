@@ -2199,7 +2199,7 @@ export default function App() {
   });
 
   return (
-    <div className={`min-h-screen font-sans bg-grid-pattern ${darkMode ? 'bg-[#0C0C0E] text-white' : 'bg-[#f4f6fb] text-slate-900'} transition-colors duration-300 pb-12`}>
+    <div className={`min-h-screen lg:h-screen lg:overflow-hidden font-sans bg-grid-pattern ${darkMode ? 'bg-[#0C0C0E] text-white' : 'bg-[#f4f6fb] text-slate-900'} transition-colors duration-300 flex flex-col`}>
       
       {/* Dynamic Modal components */}
       {boxModalCtx?.isOpen && (
@@ -2887,42 +2887,53 @@ export default function App() {
       </div>
 
       {/* Main Container workspace */}
-      <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto space-y-6 print:px-0 pb-44 pt-6 mb-12">
+      <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:h-[calc(100vh-76px)] lg:overflow-hidden flex flex-col flex-1 min-h-0">
 
 
 
-        {/* Mobile Header indicator explaining menu state */}
-        <div className="lg:hidden flex items-center justify-between w-full p-3 border rounded-xl font-sans text-[6px] font-bold transition-all print:hidden shadow-xs border-dashed z-30 sticky top-[60px] bg-[#fbf5f5] border-white text-[#0d0b0b] text-left leading-[-1px]">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[#4f8ef7] animate-pulse" />
-            <span className="uppercase tracking-wider font-mono text-[11px]">
-              {
-                activeInputTab === 'meta' ? '📋 RÉFÉRENCES' : 
-                activeInputTab === 'strategy' ? '⚙️ STRATÉGIE' : 
-                activeInputTab === 'colors' ? '⌨️ SAISIE COLISAGE' : 
-                activeInputTab === 'packing_list' ? '📦 PACKING LIST' : 
-                activeInputTab === 'breakdown' ? '📊 BREAKDOWN' : 
-                activeInputTab === 'summary' ? '📈 RECAPITULATIF' : 
-                activeInputTab === 'saves' ? '💾 SAUVEGARDES' : '🏷️ ÉTIQUETTES PARCELLES'
-              }
-            </span>
+        {/* Sleek Mobile Horizontal Ribbon Navigation */}
+        <div className="lg:hidden sticky top-[62px] z-30 w-full overflow-x-auto scrollbar-none py-2.5 px-2 flex flex-row gap-2 print:hidden transition-all duration-300 border-b shadow-sm bg-[#f4f6fb] dark:bg-[#0C0C0E] border-slate-200/60 dark:border-white/5">
+          <div className="flex flex-row gap-2 w-max px-1">
+            {[
+              { id: 'meta', label: '📋 Références', title: '📋 RÉFÉRENCES' },
+              { id: 'strategy', label: '⚙️ Stratégie', title: '⚙️ STRATÉGIE' },
+              { id: 'colors', label: '⌨️ Saisie', title: '⌨️ SAISIE COLISAGE' },
+              { id: 'packing_list', label: '📦 Packing List', title: '📦 PACKING LIST' },
+              { id: 'breakdown', label: '📊 Breakdown', title: '📊 BREAKDOWN' },
+              { id: 'summary', label: '📈 Récap', title: '📈 RECAPITULATIF' },
+              { id: 'saves', label: '💾 Sauvegardes', title: '💾 SAUVEGARDES' },
+              { id: 'labels', label: '🏷️ Étiquettes', title: '🏷️ ÉTIQUETTES' },
+            ].map(item => {
+              const isActive = activeInputTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveInputTab(item.id as any)}
+                  className={`px-3 py-1.5 text-[10px] font-mono tracking-wider font-extrabold uppercase rounded-lg border transition-all flex-shrink-0 cursor-pointer ${
+                    isActive
+                      ? darkMode
+                        ? 'bg-blue-600 border-blue-500 text-white shadow-md'
+                        : 'bg-[#2563eb] border-[#2563eb] text-white shadow-md'
+                      : darkMode
+                        ? 'bg-[#161618] border-white/10 text-white/70 hover:text-white'
+                        : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900 shadow-xs'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="px-2.5 py-1.5 rounded-lg border text-[10px] font-mono font-bold uppercase transition-all bg-blue-500/10 hover:bg-blue-500/20 border-blue-500/30 text-[#4f8ef7] cursor-pointer"
-          >
-            {isSidebarCollapsed ? '👁️ Afficher Rubans' : '🙈 Masquer Rubans'}
-          </button>
         </div>
 
         {/* INPUT PANELS & SIDEBAR NAVIGATION RIBBONS */}
-        <div className="flex flex-col lg:flex-row gap-6 print:hidden items-stretch lg:h-[calc(100vh-170px)] lg:overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 print:hidden items-stretch lg:h-full lg:overflow-hidden min-h-0 mt-4 lg:mt-0">
           
           {/* SIDEBAR NAVIGATION: PETITS RUBANS À GAUCHE */}
           <div 
-            className={`flex-shrink-0 transition-all duration-300 ease-in-out self-start lg:self-stretch z-30 
-              ${isSidebarCollapsed ? 'hidden lg:flex lg:w-20' : 'w-full lg:w-64 flex'} 
-              flex-col gap-2.5 lg:h-full lg:overflow-y-auto overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 scrollbar-none border rounded-2xl p-3 shadow-lg text-white
+            className={`hidden lg:flex flex-shrink-0 transition-all duration-300 ease-in-out lg:self-stretch z-30 
+              ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'} 
+              flex-col gap-2.5 lg:h-full lg:overflow-y-auto pb-4 scrollbar-none border rounded-2xl p-3 shadow-lg text-white
               ${darkMode ? 'bg-[#161618] border-white/5' : 'bg-[#0b5870] border-[#f5f0f0]'}
             `}
           >
