@@ -2887,7 +2887,7 @@ export default function App() {
       </div>
 
       {/* Main Container workspace */}
-      <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:h-[calc(100vh-76px)] lg:overflow-hidden flex flex-col flex-1 min-h-0">
+      <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
 
 
 

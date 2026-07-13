@@ -553,6 +553,15 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-
   background-color: #4c70c2 !important;
 }
 
+/* Prevent whole page from scrolling on desktop to keep sidebar and page separated */
+@media (min-width: 1024px) {
+  html, body, #root {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+  }
+}
+
 
 
 

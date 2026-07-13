@@ -72,7 +72,7 @@ import './index.css';
 
   const originalGetComputedStyle = window.getComputedStyle;
   window.getComputedStyle = function (el, pseudo) {
-    const style = originalGetComputedStyle.call(this, el, pseudo);
+    const style = originalGetComputedStyle.call(window, el, pseudo);
     if (!style) return style;
     return new Proxy(style, {
       get(target, prop, receiver) {
