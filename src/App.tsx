@@ -40,7 +40,8 @@ import {
   Zap,
   Tag,
   Printer,
-  Search
+  Search,
+  Percent
 } from 'lucide-react';
 
 import WelcomeScreen from './components/WelcomeScreen';
@@ -219,19 +220,47 @@ export default function App() {
     errors: string[];
   } | null>(null);
 
+  // States for Excel Export Filename Modal
+  const [isExcelExportModalOpen, setIsExcelExportModalOpen] = useState<boolean>(false);
+  const [tempExcelFilename, setTempExcelFilename] = useState<string>('');
+
+  // States for VIEW % comparison and custom overrides
+  const [viewPercentCustomData, setViewPercentCustomData] = useState<{
+    [colorIdx: number]: {
+      ordered: { [sizeName: string]: string };
+      shipped: { [sizeName: string]: string };
+    };
+  }>(() => {
+    const saved = localStorage.getItem('packing_list_pro_current_view_percent');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Edit vs read-only mode for VIEW % page: 'edit' (saisie manuelle/excel) or 'view' (enregistré/lecture seule)
+  const [viewPercentMode, setViewPercentMode] = useState<'edit' | 'view'>('edit');
+
+  // Tolerance parameters for VIEW %: 'plus' (+), 'minus' (-), or 'both' (+/-)
+  const [viewPercentToleranceType, setViewPercentToleranceType] = useState<'plus' | 'minus' | 'both'>(() => {
+    const saved = localStorage.getItem('packing_list_pro_view_percent_tolerance_type');
+    return (saved as 'plus' | 'minus' | 'both') || 'both';
+  });
+  const [viewPercentToleranceValue, setViewPercentToleranceValue] = useState<number>(() => {
+    const saved = localStorage.getItem('packing_list_pro_view_percent_tolerance_value');
+    return saved ? parseFloat(saved) : 5.0; // default 5%
+  });
+
   // Accordion Expansions to collapse sections for clean layout
   const [isOrderMetaExpanded, setIsOrderMetaExpanded] = useState<boolean>(true);
   const [isPackingStrategyExpanded, setIsPackingStrategyExpanded] = useState<boolean>(true);
   const [isColorInputExpanded, setIsColorInputExpanded] = useState<boolean>(true);
 
   // Active Input Section Tab (separates metadata, strategy, and color sheet editing)
-  const [activeInputTab, setActiveInputTab] = useState<'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels'>('colors');
+  const [activeInputTab, setActiveInputTab] = useState<'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent'>('colors');
 
   // Active page state for sidebar: 'saisie' (page 1: Saisie & Préparation) or 'suivi' (page 2: Suivi & Livrables)
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
-  const handleSetActiveInputTab = (tab: 'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels') => {
+  const handleSetActiveInputTab = (tab: 'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent') => {
     setActiveInputTab(tab);
     if (['meta', 'strategy', 'colors'].includes(tab)) {
       setSidebarActivePage('saisie');
@@ -384,8 +413,11 @@ export default function App() {
       localStorage.setItem('packing_list_pro_current_forceSingleCarton', String(forceSingleCarton));
       localStorage.setItem('packing_list_pro_current_forceSubCapSolidInMixed', String(forceSubCapSolidInMixed));
       localStorage.setItem('packing_list_pro_current_colors', JSON.stringify(colors));
+      localStorage.setItem('packing_list_pro_current_view_percent', JSON.stringify(viewPercentCustomData));
+      localStorage.setItem('packing_list_pro_view_percent_tolerance_type', viewPercentToleranceType);
+      localStorage.setItem('packing_list_pro_view_percent_tolerance_value', String(viewPercentToleranceValue));
     }
-  }, [meta, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, colors, isAutosaveEnabled]);
+  }, [meta, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, colors, isAutosaveEnabled, viewPercentCustomData, viewPercentToleranceType, viewPercentToleranceValue]);
 
   // Save database modifications
   const handleSaveDatabase = (newDb: ModelsDatabase) => {
@@ -1796,8 +1828,17 @@ export default function App() {
     triggerToast(`🗑️ Sauvegarde "${name}" supprimée.`, 'info');
   };
 
-  // Excel Exports
-  const handleExcelExport = async () => {
+  // Excel Exports (triggered with filename prompt modal)
+  const handleExcelExportClick = () => {
+    setTempExcelFilename(meta.filename || 'PACKING_LIST');
+    setIsExcelExportModalOpen(true);
+  };
+
+  const confirmExcelExport = async () => {
+    setIsExcelExportModalOpen(false);
+    const updatedMeta = { ...meta, filename: tempExcelFilename };
+    setMeta(updatedMeta);
+
     try {
       let activeResults = results;
       if (!hasGenerated || activeResults.length === 0) {
@@ -1820,7 +1861,8 @@ export default function App() {
         };
       });
 
-      await exportToExcel(resultsToExport, meta, sizesInputsMapping, printColumns);
+      await exportToExcel(resultsToExport, updatedMeta, sizesInputsMapping, printColumns, tempExcelFilename);
+      triggerToast(`📁 Excel exporté sous le nom "${tempExcelFilename}.xlsx"`, 'success');
     } catch (err: any) {
       alert(`Erreur d'exportation Excel: ${err.message}`);
     }
@@ -2305,6 +2347,76 @@ export default function App() {
                 className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg text-xs font-mono transition-all cursor-pointer shadow-md hover:scale-[1.01] active:scale-[0.99]"
               >
                 Compris, vérifier la quantité
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isExcelExportModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9600] backdrop-blur-xs px-4">
+          <div className={`border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 transition-all animate-in fade-in zoom-in-95 duration-150 ${
+            darkMode ? 'bg-[#161618] border-white/10 text-slate-100' : 'bg-white border-slate-200 text-slate-900 shadow-xl'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-blue-500/10 rounded-full text-blue-500 mt-0.5">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5 flex-1">
+                <h3 className="text-sm font-sans font-black uppercase tracking-wider text-blue-500 flex items-center gap-1.5">
+                  💾 Nom du fichier Excel
+                </h3>
+                <p className={`text-xs leading-relaxed ${darkMode ? 'text-slate-350' : 'text-slate-600'}`}>
+                  Veuillez spécifier le nom du fichier pour l'exportation Excel de votre Packing List.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                Nom du Fichier (.xlsx)
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={tempExcelFilename}
+                  onChange={(e) => setTempExcelFilename(e.target.value)}
+                  className={`w-full px-3 py-2 text-xs font-mono rounded-lg border focus:outline-none transition-all ${
+                    darkMode
+                      ? 'bg-white/5 border-white/10 text-white focus:border-blue-500'
+                      : 'bg-slate-50 border-slate-200 text-slate-800 focus:border-blue-500 focus:bg-white'
+                  }`}
+                  placeholder="EXCEL_EXPORT"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      confirmExcelExport();
+                    }
+                  }}
+                />
+                <span className="absolute right-3 top-2.5 text-[11px] font-mono text-slate-400 select-none">
+                  .xlsx
+                </span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsExcelExportModalOpen(false)}
+                className={`px-3.5 py-2 font-bold rounded-lg text-xs font-mono transition-all cursor-pointer ${
+                  darkMode ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmExcelExport}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs font-mono transition-all cursor-pointer shadow-md hover:scale-[1.01] active:scale-[0.99] flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Télécharger</span>
               </button>
             </div>
           </div>
@@ -2818,7 +2930,7 @@ export default function App() {
             <div className="h-4 w-px bg-white/15 mx-0.5" />
 
             <button
-              onClick={handleExcelExport}
+              onClick={handleExcelExportClick}
               className={`px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border hover:scale-[1.02] cursor-pointer transition-all flex items-center gap-1 ${
                 darkMode
                   ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white font-bold'
@@ -2903,6 +3015,7 @@ export default function App() {
               { id: 'summary', label: '📈 Récap', title: '📈 RECAPITULATIF' },
               { id: 'saves', label: '💾 Sauvegardes', title: '💾 SAUVEGARDES' },
               { id: 'labels', label: '🏷️ Étiquettes', title: '🏷️ ÉTIQUETTES' },
+              { id: 'view_percent', label: '📊 View %', title: '📊 VIEW %' },
             ].map(item => {
               const isActive = activeInputTab === item.id;
               return (
@@ -3233,6 +3346,37 @@ export default function App() {
                   )}
                   {!isSidebarCollapsed && (
                     <ChevronRight className={`w-3 h-3 ml-auto hidden lg:block transition-all duration-200 ${getSidebarItemChevronStyles('labels')}`} />
+                  )}
+                </button>
+
+                {/* RIBBON 9: VIEW % */}
+                <button
+                  onClick={() => setActiveInputTab('view_percent')}
+                  className={`group flex items-center gap-3 transition-all border rounded-xl relative cursor-pointer hover:scale-[1.02] active:scale-[0.98] overflow-hidden ${
+                    isSidebarCollapsed 
+                      ? 'lg:w-12 lg:h-12 lg:justify-center p-0 lg:p-2' 
+                      : 'p-2.5 text-left w-full'
+                  } ${getSidebarItemStyles('view_percent')}`}
+                  title="📊 VIEW % : Analyse des Écarts par Couleur"
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1 transition-transform duration-300 ${getSidebarItemHighlightStyles('view_percent')}`}
+                  />
+                  <div className={`p-1.5 rounded-lg flex-shrink-0 ${getSidebarItemIconStyles('view_percent')} transition-colors ${isSidebarCollapsed ? 'ml-0' : 'ml-0.5'}`}>
+                    <Percent className="w-3.5 h-3.5" />
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <div className="flex-1 min-w-0 pr-1 select-none">
+                      <div className="text-[10px] font-mono tracking-wider font-extrabold uppercase truncate">
+                        📊 VIEW %
+                      </div>
+                      <div className={`text-[9px] hidden lg:block mt-0.5 font-sans truncate ${getSidebarItemSubtextStyles('view_percent')}`}>
+                        Analyse des Écarts %
+                      </div>
+                    </div>
+                  )}
+                  {!isSidebarCollapsed && (
+                    <ChevronRight className={`w-3 h-3 ml-auto hidden lg:block transition-all duration-200 ${getSidebarItemChevronStyles('view_percent')}`} />
                   )}
                 </button>
               </div>
@@ -6738,6 +6882,591 @@ export default function App() {
                     forceSubCapSolidInMixed={forceSubCapSolidInMixed}
                     computeColorResult={computeColorResult}
                   />
+                </motion.div>
+              )}
+
+              {activeInputTab === 'view_percent' && (
+                <motion.div
+                  id="tab-content-view-percent"
+                  key="view-percent-section"
+                  initial={{ opacity: 0, x: 15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -15 }}
+                  transition={{ duration: 0.15 }}
+                  className="space-y-6"
+                >
+                  <div className={`rounded-xl border p-5 ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'} space-y-4 shadow-sm`}>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-dashed border-slate-800/60 font-mono">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-4 bg-emerald-500 rounded-sm" />
+                        <h2 className={`text-xs font-mono font-bold tracking-wider ${darkMode ? 'text-slate-100' : 'text-slate-700'} uppercase`}>
+                          📊 VIEW % - ANALYSE DES ÉCARTS DE QUANTITÉS
+                        </h2>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (confirm("Êtes-vous sûr de vouloir réinitialiser toutes les saisies de cette page ?")) {
+                            setViewPercentCustomData({});
+                            triggerToast("🔄 Saisies réinitialisées aux valeurs par défaut !", "info");
+                          }
+                        }}
+                        className={`px-3 py-1.5 text-[10px] font-mono tracking-wider font-extrabold uppercase rounded-lg border transition-all cursor-pointer ${
+                          darkMode
+                            ? 'bg-red-950/20 border-red-900/50 text-red-400 hover:bg-red-900/30'
+                            : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                        }`}
+                      >
+                        🔄 Réinitialiser tous les tableaux
+                      </button>
+                    </div>
+
+                    <p className={`text-xs leading-relaxed ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                      Ce tableau affiche tous les breakdowns par couleur. Vous pouvez saisir ou modifier les quantités commandées (<b>Ordered quantity</b>) et les pièces finales de colisage (<b>Shipped quantity</b>) pour chaque taille. Le pourcentage d'écart (<b>% Change</b>) se recalcule automatiquement pour chaque taille ainsi qu'au global.
+                    </p>
+
+                    {/* CONFIGURATION DE LA TOLÉRANCE */}
+                    <div className={`p-4 rounded-xl border ${
+                      darkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    } space-y-3`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Sliders className="w-4 h-4 text-emerald-500" />
+                          <h4 className={`text-xs font-mono font-black uppercase tracking-wider ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                            ⚙️ Configuration de la Tolérance d'Écart
+                          </h4>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-black ${
+                          darkMode ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-blue-50 text-blue-600 border border-blue-200'
+                        }`}>
+                          CONTRÔLE QUALITÉ
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Type de Tolérance */}
+                        <div className="space-y-1.5">
+                          <label className={`text-[10px] font-mono font-bold uppercase tracking-wider block ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            Type de Tolérance :
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setViewPercentToleranceType('both');
+                                triggerToast("⚙️ Tolérance configurée sur ± (plus ou moins)", "info");
+                              }}
+                              className={`flex-1 py-1.5 text-[10px] font-bold font-mono rounded-lg border transition-all cursor-pointer ${
+                                viewPercentToleranceType === 'both'
+                                  ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
+                                  : darkMode
+                                    ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              ± % (les deux)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setViewPercentToleranceType('plus');
+                                triggerToast("⚙️ Tolérance configurée sur + (surplus uniquement)", "info");
+                              }}
+                              className={`flex-1 py-1.5 text-[10px] font-bold font-mono rounded-lg border transition-all cursor-pointer ${
+                                viewPercentToleranceType === 'plus'
+                                  ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
+                                  : darkMode
+                                    ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              + % (plus)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setViewPercentToleranceType('minus');
+                                triggerToast("⚙️ Tolérance configurée sur - (déficit uniquement)", "info");
+                              }}
+                              className={`flex-1 py-1.5 text-[10px] font-bold font-mono rounded-lg border transition-all cursor-pointer ${
+                                viewPercentToleranceType === 'minus'
+                                  ? 'bg-blue-600 border-blue-500 text-white shadow-sm'
+                                  : darkMode
+                                    ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              - % (moins)
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Valeur de Tolérance */}
+                        <div className="space-y-1.5">
+                          <label className={`text-[10px] font-mono font-bold uppercase tracking-wider block ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            Valeur autorisée (%) :
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setViewPercentToleranceValue(prev => Math.max(0, parseFloat((prev - 0.5).toFixed(2))));
+                              }}
+                              className={`w-9 h-9 flex items-center justify-center font-bold text-lg rounded-lg border cursor-pointer select-none transition-all ${
+                                darkMode ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-800'
+                              }`}
+                            >
+                              -
+                            </button>
+                            <div className="relative flex-1">
+                              <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="100"
+                                value={viewPercentToleranceValue}
+                                onChange={(e) => {
+                                  const v = parseFloat(e.target.value);
+                                  setViewPercentToleranceValue(isNaN(v) ? 0 : Math.max(0, v));
+                                }}
+                                className={`w-full h-9 px-3 text-center text-xs font-bold font-mono rounded-lg border focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                                  darkMode ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'
+                                }`}
+                              />
+                              <span className="absolute right-3 top-2 text-[10px] font-mono text-slate-400 font-bold">%</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setViewPercentToleranceValue(prev => parseFloat((prev + 0.5).toFixed(2)));
+                              }}
+                              className={`w-9 h-9 flex items-center justify-center font-bold text-lg rounded-lg border cursor-pointer select-none transition-all ${
+                                darkMode ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-800'
+                              }`}
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Intervalle explicatif */}
+                      <div className={`p-2.5 rounded-lg text-[11px] font-mono flex items-center gap-1.5 ${
+                        darkMode ? 'bg-slate-950/40 text-slate-300' : 'bg-white text-slate-600'
+                      } border border-dashed ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>
+                          Intervalle de conformité acceptable : {' '}
+                          <b className="text-emerald-500">
+                            {viewPercentToleranceType === 'both' && `[-${viewPercentToleranceValue.toFixed(2)}% à +${viewPercentToleranceValue.toFixed(2)}%]`}
+                            {viewPercentToleranceType === 'plus' && `[0.00% à +${viewPercentToleranceValue.toFixed(2)}%]`}
+                            {viewPercentToleranceType === 'minus' && `[-${viewPercentToleranceValue.toFixed(2)}% à 0.00%]`}
+                          </b>. Tout écart en dehors de cette plage sera coloré en <span className="text-red-500 font-bold">rouge</span>.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* NEW GLOBAL WORK MODE / SAVE & EDIT BAR */}
+                    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl border ${
+                      darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono font-extrabold uppercase tracking-wider text-slate-400">
+                          Statut de la page :
+                        </span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono ${
+                          viewPercentMode === 'edit'
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                            : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                        }`}>
+                          {viewPercentMode === 'edit' ? '✍️ MODE ÉDITION' : '🔒 SAUVEGARDÉ / LECTURE SEULE'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 sm:ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewPercentMode('edit');
+                            triggerToast("✍️ Mode Édition activé. Vous pouvez modifier les Ordered quantities.", "info");
+                          }}
+                          className={`px-3 py-1.5 text-xs font-bold font-mono rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                            viewPercentMode === 'edit'
+                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-md'
+                              : darkMode
+                                ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Modifier</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewPercentMode('view');
+                            triggerToast("💾 Données sauvegardées avec succès !", "success");
+                          }}
+                          className={`px-3 py-1.5 text-xs font-bold font-mono rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                            viewPercentMode === 'view'
+                              ? 'bg-blue-600 border-blue-500 text-white shadow-md'
+                              : darkMode
+                                ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Enregistrer</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {colors.length === 0 ? (
+                      <div className="text-center py-10 text-slate-500 text-xs">
+                        Veuillez d'abord ajouter au moins une couleur dans l'onglet Saisie.
+                      </div>
+                    ) : (
+                      <div className="space-y-8 pt-2">
+                        {colors.map((colorConfig, colorIdx) => {
+                          const sizes = colorConfig.tailles;
+
+                          // Helper to get values
+                          const getOrderedValue = (sz: string) => {
+                            if (viewPercentCustomData[colorConfig.nom]?.ordered?.[sz] !== undefined) {
+                              return viewPercentCustomData[colorConfig.nom].ordered[sz];
+                            }
+                            return String(colorConfig.sizes[sz]?.qtyTot || 0);
+                          };
+
+                          const getShippedValue = (sz: string) => {
+                            if (viewPercentCustomData[colorConfig.nom]?.shipped?.[sz] !== undefined) {
+                              return viewPercentCustomData[colorConfig.nom].shipped[sz];
+                            }
+                            // Find in generated results, or compute on the fly!
+                            let colorResult = results.find(res => res.nom === colorConfig.nom);
+                            if (!colorResult) {
+                              try {
+                                colorResult = computeColorResult(
+                                  colorConfig,
+                                  globalPackingMode,
+                                  forceSingleCarton,
+                                  maxSizesPerBox,
+                                  colorIdx,
+                                  forceSubCapSolidInMixed
+                                );
+                              } catch (e) {
+                                // fallback
+                              }
+                            }
+                            if (colorResult?.totals?.sizes?.[sz] !== undefined) {
+                              return String(colorResult.totals.sizes[sz]);
+                            }
+                            return String(colorConfig.sizes[sz]?.qtyTot || 0);
+                          };
+
+                          // Totals
+                          let totalOrdered = 0;
+                          let totalShipped = 0;
+
+                          sizes.forEach(sz => {
+                            totalOrdered += parseFloat(getOrderedValue(sz)) || 0;
+                            totalShipped += parseFloat(getShippedValue(sz)) || 0;
+                          });
+
+                          // Global gap
+                          let globalPctChange = 0;
+                          if (totalOrdered > 0) {
+                            globalPctChange = ((totalShipped - totalOrdered) / totalOrdered) * 100;
+                          } else if (totalShipped > 0) {
+                            globalPctChange = 100;
+                          }
+
+                          // Inline cell state updates
+                          const handleCellUpdate = (type: 'ordered' | 'shipped', sz: string, val: string) => {
+                            // Filter non-numeric chars except decimals/empty
+                            const filtered = val.replace(/[^0-9.]/g, '');
+                            setViewPercentCustomData(prev => {
+                              const updated = { ...prev };
+                              if (!updated[colorConfig.nom]) {
+                                updated[colorConfig.nom] = { ordered: {}, shipped: {} };
+                              }
+                              updated[colorConfig.nom][type] = {
+                                ...updated[colorConfig.nom][type],
+                                [sz]: filtered
+                              };
+                              return updated;
+                            });
+                          };
+
+                          const handleCellPaste = (sz: string, e: React.ClipboardEvent<HTMLInputElement>) => {
+                            e.preventDefault();
+                            const pastedText = e.clipboardData.getData('text');
+                            if (!pastedText) return;
+
+                            // Split Excel tab-separated or whitespace-separated numbers
+                            const valuesList = pastedText
+                              .trim()
+                              .split(/[\s,;\t\r\n]+/)
+                              .map(v => v.replace(/[^0-9.]/g, ''))
+                              .filter(v => v !== '');
+
+                            if (valuesList.length === 0) return;
+
+                            const sizeIndex = sizes.indexOf(sz);
+                            if (sizeIndex === -1) return;
+
+                            setViewPercentCustomData(prev => {
+                              const updated = { ...prev };
+                              if (!updated[colorConfig.nom]) {
+                                updated[colorConfig.nom] = { ordered: {}, shipped: {} };
+                              }
+                              const ord = { ...updated[colorConfig.nom].ordered };
+
+                              valuesList.forEach((valStr, offset) => {
+                                const destIdx = sizeIndex + offset;
+                                if (destIdx < sizes.length) {
+                                  const destSizeName = sizes[destIdx];
+                                  ord[destSizeName] = valStr;
+                                }
+                              });
+
+                              updated[colorConfig.nom].ordered = ord;
+                              return updated;
+                            });
+
+                            triggerToast(`📋 ${Math.min(valuesList.length, sizes.length - sizeIndex)} valeurs collées depuis Excel pour ${colorConfig.nom} !`, 'success');
+                          };
+
+                          // Reset single color
+                          const resetSingleColor = () => {
+                            setViewPercentCustomData(prev => {
+                              const updated = { ...prev };
+                              delete updated[colorConfig.nom];
+                              return updated;
+                            });
+                            triggerToast(`🔄 Tableau de la couleur ${colorConfig.nom} réinitialisé`, "info");
+                          };
+
+                          return (
+                            <div
+                              key={colorIdx}
+                              className={`p-5 rounded-xl border space-y-4 shadow-sm relative ${
+                                darkMode ? 'bg-[#1b1e29] border-slate-800' : 'bg-slate-50 border-slate-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between border-b pb-2.5 border-dashed border-slate-300 dark:border-slate-800">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colorConfig.nom.toLowerCase().includes('rouge') ? '#ef4444' : colorConfig.nom.toLowerCase().includes('bleu') ? '#3b82f6' : '#10b981' }} />
+                                  <h3 className="text-sm font-bold font-mono tracking-wide uppercase text-slate-800 dark:text-slate-100">
+                                    {colorConfig.nom}
+                                  </h3>
+                                </div>
+                                <button
+                                  onClick={resetSingleColor}
+                                  className="text-[10px] font-mono text-slate-400 hover:text-slate-200 cursor-pointer flex items-center gap-1"
+                                  title="Réinitialiser uniquement cette couleur"
+                                >
+                                  Réinitialiser la couleur
+                                </button>
+                              </div>
+
+                              {/* EXCEL SMART PASTE ZONE */}
+                              {viewPercentMode === 'edit' && (
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-3 bg-blue-500/5 dark:bg-blue-500/10 rounded-lg border border-blue-200/50 dark:border-blue-500/25">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 uppercase font-mono tracking-wider">
+                                      📋 Coller d'Excel pour {colorConfig.nom} :
+                                    </div>
+                                    <div className={`text-[10px] mt-0.5 leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                      Sélectionnez une ligne ou colonne de quantités dans Excel, copiez-la, puis collez-la ci-contre pour remplir automatiquement les tailles ({sizes.join(', ')}).
+                                    </div>
+                                  </div>
+                                  <div className="relative flex-shrink-0 w-full sm:w-72">
+                                    <input
+                                      type="text"
+                                      placeholder="Coller la ligne d'Excel ici..."
+                                      className={`w-full px-3 py-1.5 text-xs font-mono rounded-lg border focus:outline-none transition-all ${
+                                        darkMode
+                                          ? 'bg-slate-900 border-white/10 focus:border-blue-500 text-white'
+                                          : 'bg-white border-slate-200 focus:border-blue-500 text-slate-800'
+                                      }`}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (!val) return;
+                                        // Parse whitespace/tab/comma/newline separated numeric strings
+                                        const numbers = val.trim().split(/[\s,;\t]+/).map(v => v.replace(/[^0-9.]/g, '')).filter(v => v !== '');
+                                        if (numbers.length > 0) {
+                                          setViewPercentCustomData(prev => {
+                                            const updated = { ...prev };
+                                            if (!updated[colorConfig.nom]) {
+                                              updated[colorConfig.nom] = { ordered: {}, shipped: {} };
+                                            }
+                                            const ord = { ...updated[colorConfig.nom].ordered };
+                                            sizes.forEach((sz, idx) => {
+                                              if (numbers[idx] !== undefined) {
+                                                ord[sz] = numbers[idx];
+                                              }
+                                            });
+                                            updated[colorConfig.nom].ordered = ord;
+                                            return updated;
+                                          });
+                                          triggerToast(`📋 ${Math.min(numbers.length, sizes.length)} valeurs Excel collées avec succès pour ${colorConfig.nom} !`, 'success');
+                                          e.target.value = ''; // clear input
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="overflow-x-auto rounded-lg border border-slate-300 dark:border-slate-800 shadow-xs">
+                                <table className="min-w-full border-collapse">
+                                  <thead>
+                                    {/* FULL-WIDTH COLOR NAME CAPTION ROW MATCHING SCREENSHOT */}
+                                    <tr className={darkMode ? 'bg-slate-800/80 text-slate-100 font-black' : 'bg-white border-b border-slate-300 text-slate-900 font-bold'}>
+                                      <th colSpan={sizes.length + 2} className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-center text-xs font-black font-mono uppercase tracking-widest bg-slate-100/40 dark:bg-slate-800/20">
+                                        🎨 {colorConfig.nom}
+                                      </th>
+                                    </tr>
+                                    <tr className={darkMode ? 'bg-[#122e1f]/80 text-emerald-100' : 'bg-[#e2efda] text-slate-800 font-bold'}>
+                                      <th className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-left text-xs font-bold font-mono uppercase tracking-wider w-40">
+                                        Détails
+                                      </th>
+                                      {sizes.map((sz) => (
+                                        <th key={sz} className="border border-slate-300 dark:border-slate-800 px-2 py-2 text-center text-xs font-black font-mono">
+                                          {sz}
+                                        </th>
+                                      ))}
+                                      <th className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-center text-xs font-black font-mono w-28">
+                                        Total
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className={`divide-y divide-slate-300 dark:divide-slate-800 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                                    {/* ROW 1: Ordered Quantity */}
+                                    <tr className={darkMode ? 'bg-[#181a25]/50' : 'bg-white'}>
+                                      <td className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-left text-xs font-bold font-mono">
+                                        Ordered quantity
+                                      </td>
+                                      {sizes.map((sz) => {
+                                        const rawVal = getOrderedValue(sz);
+                                        return (
+                                          <td key={sz} className="border border-slate-300 dark:border-slate-800 p-0 text-center text-xs">
+                                            {viewPercentMode === 'edit' ? (
+                                              <input
+                                                type="text"
+                                                value={rawVal}
+                                                onChange={(e) => handleCellUpdate('ordered', sz, e.target.value)}
+                                                onPaste={(e) => handleCellPaste(sz, e)}
+                                                className="w-full h-full text-center bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold py-2 font-mono"
+                                                placeholder="0"
+                                                title="Saisissez une valeur ou collez des données copiées d'Excel directement ici"
+                                              />
+                                            ) : (
+                                              <span className="font-extrabold font-mono text-center block py-2">
+                                                {rawVal || '0'}
+                                              </span>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                      <td className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-center text-xs font-black font-mono bg-slate-100/50 dark:bg-slate-800/50">
+                                        {totalOrdered}
+                                      </td>
+                                    </tr>
+
+                                    {/* ROW 2: Shipped Quantity (Automatic/Read-Only) */}
+                                    <tr className={darkMode ? 'bg-[#181a25]/30' : 'bg-white'}>
+                                      <td className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-left text-xs font-bold font-mono">
+                                        Shipped quantity
+                                      </td>
+                                      {sizes.map((sz) => {
+                                        const rawVal = getShippedValue(sz);
+                                        return (
+                                          <td key={sz} className="border border-slate-300 dark:border-slate-800 px-2 py-2 text-center text-xs font-black font-mono bg-slate-50/50 dark:bg-slate-900/10">
+                                            {rawVal}
+                                          </td>
+                                        );
+                                      })}
+                                      <td className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-center text-xs font-black font-mono bg-slate-100/50 dark:bg-slate-800/50">
+                                        {totalShipped}
+                                      </td>
+                                    </tr>
+
+                                    {/* ROW 3: % Change */}
+                                    <tr className={darkMode ? 'bg-[#181a25]/10' : 'bg-white'}>
+                                      <td className="border border-slate-300 dark:border-slate-800 px-3 py-2 text-left text-xs font-bold font-mono">
+                                        % Change
+                                      </td>
+                                      {sizes.map((sz) => {
+                                        const ord = parseFloat(getOrderedValue(sz)) || 0;
+                                        const shp = parseFloat(getShippedValue(sz)) || 0;
+                                        let pct = 0;
+                                        if (ord > 0) {
+                                          pct = ((shp - ord) / ord) * 100;
+                                        } else if (shp > 0) {
+                                          pct = 100;
+                                        }
+
+                                        // Check if deviation is outside defined tolerance
+                                        let isCellOutside = false;
+                                        if (pct !== 0) {
+                                          if (viewPercentToleranceType === 'both') {
+                                            isCellOutside = Math.abs(pct) > viewPercentToleranceValue;
+                                          } else if (viewPercentToleranceType === 'plus') {
+                                            isCellOutside = pct < 0 || pct > viewPercentToleranceValue;
+                                          } else if (viewPercentToleranceType === 'minus') {
+                                            isCellOutside = pct > 0 || pct < -viewPercentToleranceValue;
+                                          }
+                                        }
+
+                                        const cellStyleClass = 'bg-slate-100/80 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300 font-semibold';
+
+                                        return (
+                                          <td
+                                            key={sz}
+                                            className={`border border-slate-300 dark:border-slate-800 px-2 py-2 text-center text-xs font-mono transition-colors ${cellStyleClass}`}
+                                          >
+                                            {pct === 0 ? '0.00%' : (pct > 0 ? '+' : '') + pct.toFixed(2) + '%'}
+                                          </td>
+                                        );
+                                      })}
+                                      {/* Total Column Cell: styled according to same tolerance criteria */}
+                                      {(() => {
+                                        let isTotalOutside = false;
+                                        if (globalPctChange !== 0) {
+                                          if (viewPercentToleranceType === 'both') {
+                                            isTotalOutside = Math.abs(globalPctChange) > viewPercentToleranceValue;
+                                          } else if (viewPercentToleranceType === 'plus') {
+                                            isTotalOutside = globalPctChange < 0 || globalPctChange > viewPercentToleranceValue;
+                                          } else if (viewPercentToleranceType === 'minus') {
+                                            isTotalOutside = globalPctChange > 0 || globalPctChange < -viewPercentToleranceValue;
+                                          }
+                                        }
+
+                                        const totalStyleClass = globalPctChange === 0
+                                          ? 'bg-blue-600 text-white font-black dark:bg-blue-700 shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]'
+                                          : isTotalOutside
+                                            ? 'bg-red-600 text-white font-black dark:bg-red-700 shadow-[inset_0_0_8px_rgba(0,0,0,0.25)]'
+                                            : 'bg-emerald-600 text-white font-black dark:bg-emerald-700 shadow-[inset_0_0_8px_rgba(0,0,0,0.2)]';
+
+                                        return (
+                                          <td
+                                            className={`border border-slate-300 dark:border-slate-800 px-3 py-2 text-center text-xs font-mono transition-colors ${totalStyleClass}`}
+                                          >
+                                            {globalPctChange === 0 ? '0.00%' : (globalPctChange > 0 ? '+' : '') + globalPctChange.toFixed(2) + '%'}
+                                          </td>
+                                        );
+                                      })()}
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

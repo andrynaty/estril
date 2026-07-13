@@ -732,7 +732,8 @@ export async function exportToExcel(
   allResults: ColorResult[],
   meta: OrderMeta,
   originalSizesInputs: { [colorIdx: number]: { tailles: string[]; D: { [size: string]: SizeDetails } } },
-  printColumns?: { sku: boolean; [key: string]: boolean }
+  printColumns?: { sku: boolean; [key: string]: boolean },
+  customFilename?: string
 ) {
   if (allResults.length === 0) {
     throw new Error("Générez d'abord la Packing List.");
@@ -776,7 +777,7 @@ export async function exportToExcel(
     return ['XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '2 XL'].includes(norm);
   };
 
-  const userFilename = (meta.filename || 'PACKING_LIST').replace(/\.xlsx$/i, '') + '.xlsx';
+  const userFilename = (customFilename || meta.filename || 'PACKING_LIST').replace(/\.xlsx$/i, '') + '.xlsx';
 
   // 0.A INFORMATIONS COMMANDE SHEET
   const wsInfo = wb.addWorksheet('INFORMATIONS COMMANDE', {
