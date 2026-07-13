@@ -77,7 +77,12 @@ import {
 const DEFAULT_DATABASE: ModelsDatabase = {
   dim_models: [
     { name: 'WOOLWORTHS', L: 60, l: 40, h: 30 },
-    { name: 'HUGO BOSS', L: 65, l: 45, h: 35 },
+    { name: 'FAHERTY', L: 60, l: 28, h: 28 },
+    { name: 'HUGO BOSS', L: 58.4, l: 38.2, h: 31.2 },
+    { name: 'M&S', L: 59, l: 38, h: 38 },
+    { name: 'DECENIO', L: 60, l: 40, h: 30 },
+    { name: 'MARKHAM', L: 60, l: 28, h: 28 },
+    { name: 'JOHNNIE O', L: 61, l: 41, h: 30 },
     { name: 'STANDARD', L: 61, l: 41, h: 30 }
   ],
   weight_piece_models: [
@@ -87,11 +92,12 @@ const DEFAULT_DATABASE: ModelsDatabase = {
   ],
   weight_carton_models: [
     { name: 'MEDIUM BOX', wCarton: 0.8 },
+    { name: 'HUGO BOSS', wCarton: 1.06 },
     { name: 'LARGE BOX', wCarton: 1.2 }
   ]
 };
 
-const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
+const DEFAULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 const CUSTS = [
   '6TH SENS', 'AGOA CTN', 'ANTHROPOLOGIE', 'ARMANI', 'AUSTIN REED', 'AWAY', 'BARBOUR', 'BONOBO', 'BRENTWOOD GENTS',
