@@ -1,5 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  deleteDoc, 
+  onSnapshot, 
+  addDoc, 
+  query, 
+  where,
+  orderBy,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { db, auth } from './firebase';
 import {
   Package,
   Plus,
@@ -41,7 +56,9 @@ import {
   Tag,
   Printer,
   Search,
-  Percent
+  Percent,
+  BarChart3,
+  ClipboardCheck
 } from 'lucide-react';
 
 import WelcomeScreen from './components/WelcomeScreen';
@@ -164,11 +181,47 @@ export default function App() {
     return saved === 'true';
   });
 
+  // User Authentication & Cloud Saves state
+  const [user, setUser] = useState<any>(null);
+  const [activeCloudDocId, setActiveCloudDocId] = useState<string | null>(null);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [cloudLists, setCloudLists] = useState<any[]>([]);
+
   // Interactive dynamic Colors state (with auto-save restore)
-  const [colors, setColors] = useState<ColorConfig[]>(() => {
+  const [colors, setColorsState] = useState<ColorConfig[]>(() => {
     const saved = localStorage.getItem('packing_list_pro_current_colors');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Modifications History States (Undo / Redo)
+  const [pastColors, setPastColors] = useState<ColorConfig[][]>([]);
+  const [futureColors, setFutureColors] = useState<ColorConfig[][]>([]);
+
+  const setColors = (newColors: ColorConfig[] | ((prev: ColorConfig[]) => ColorConfig[])) => {
+    setColorsState((prev) => {
+      const resolved = typeof newColors === 'function' ? newColors(prev) : newColors;
+      // Push previous to history
+      setPastColors((p) => [...p, prev]);
+      setFutureColors([]);
+      return resolved;
+    });
+  };
+
+  const undo = () => {
+    if (pastColors.length === 0) return;
+    const previous = pastColors[pastColors.length - 1];
+    setPastColors((p) => p.slice(0, -1));
+    setFutureColors((f) => [colors, ...f]);
+    setColorsState(previous);
+  };
+
+  const redo = () => {
+    if (futureColors.length === 0) return;
+    const next = futureColors[0];
+    setFutureColors((f) => f.slice(1));
+    setPastColors((p) => [...p, colors]);
+    setColorsState(next);
+  };
 
   const [activeColorIdx, setActiveColorIdx] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -248,19 +301,31 @@ export default function App() {
     return saved ? parseFloat(saved) : 5.0; // default 5%
   });
 
+  // State variables for Deviation Audit / Non-compliance
+  const [discrepancyReasons, setDiscrepancyReasons] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('packing_list_pro_discrepancy_reasons');
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [auditNotes, setAuditNotes] = useState<string>(() => {
+    return localStorage.getItem('packing_list_pro_audit_notes') || '';
+  });
+  const [auditorName, setAuditorName] = useState<string>(() => {
+    return localStorage.getItem('packing_list_pro_auditor_name') || '';
+  });
+
   // Accordion Expansions to collapse sections for clean layout
   const [isOrderMetaExpanded, setIsOrderMetaExpanded] = useState<boolean>(true);
   const [isPackingStrategyExpanded, setIsPackingStrategyExpanded] = useState<boolean>(true);
   const [isColorInputExpanded, setIsColorInputExpanded] = useState<boolean>(true);
 
   // Active Input Section Tab (separates metadata, strategy, and color sheet editing)
-  const [activeInputTab, setActiveInputTab] = useState<'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent'>('colors');
+  const [activeInputTab, setActiveInputTab] = useState<'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent' | 'dashboard_ecart' | 'rapport_ecart'>('colors');
 
   // Active page state for sidebar: 'saisie' (page 1: Saisie & Préparation) or 'suivi' (page 2: Suivi & Livrables)
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
-  const handleSetActiveInputTab = (tab: 'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent') => {
+  const handleSetActiveInputTab = (tab: 'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent' | 'dashboard_ecart' | 'rapport_ecart') => {
     setActiveInputTab(tab);
     if (['meta', 'strategy', 'colors'].includes(tab)) {
       setSidebarActivePage('saisie');
@@ -416,8 +481,126 @@ export default function App() {
       localStorage.setItem('packing_list_pro_current_view_percent', JSON.stringify(viewPercentCustomData));
       localStorage.setItem('packing_list_pro_view_percent_tolerance_type', viewPercentToleranceType);
       localStorage.setItem('packing_list_pro_view_percent_tolerance_value', String(viewPercentToleranceValue));
+      localStorage.setItem('packing_list_pro_discrepancy_reasons', JSON.stringify(discrepancyReasons));
+      localStorage.setItem('packing_list_pro_audit_notes', auditNotes);
+      localStorage.setItem('packing_list_pro_auditor_name', auditorName);
     }
-  }, [meta, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, colors, isAutosaveEnabled, viewPercentCustomData, viewPercentToleranceType, viewPercentToleranceValue]);
+  }, [meta, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, colors, isAutosaveEnabled, viewPercentCustomData, viewPercentToleranceType, viewPercentToleranceValue, discrepancyReasons, auditNotes, auditorName]);
+
+  // 1. Keyboard shortcuts listener for Undo/Redo (Ctrl+Z / Ctrl+Y)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) {
+        return; // Don't intercept when user is editing fields
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+        triggerToast("🔄 Modification annulée (Undo)", "info");
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+        triggerToast("🔄 Modification rétablie (Redo)", "info");
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [colors, pastColors, futureColors]);
+
+  // 2. Firebase Auth state listener
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Avoid recursive loops during real-time document sync
+  const isSyncingRef = useRef<boolean>(false);
+
+  // 3. Real-time document listener from Firestore
+  useEffect(() => {
+    if (!activeCloudDocId) return;
+
+    setIsCloudSyncing(true);
+    const docRef = doc(db, 'packingLists', activeCloudDocId);
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        
+        // Prevent feedback loop by marking active sync
+        isSyncingRef.current = true;
+        
+        if (data.meta) setMeta(data.meta);
+        if (data.colors) setColorsState(data.colors);
+        if (data.globalPackingMode) setGlobalPackingMode(data.globalPackingMode);
+        if (data.maxSizesPerBox) setMaxSizesPerBox(data.maxSizesPerBox);
+        if (data.forceSingleCarton !== undefined) setForceSingleCarton(data.forceSingleCarton);
+        if (data.forceSubCapSolidInMixed !== undefined) setForceSubCapSolidInMixed(data.forceSubCapSolidInMixed);
+        
+        setTimeout(() => {
+          isSyncingRef.current = false;
+        }, 100);
+      }
+      setIsCloudSyncing(false);
+    }, (err) => {
+      console.error("Firestore document stream error:", err);
+      setIsCloudSyncing(false);
+    });
+
+    return () => unsubscribe();
+  }, [activeCloudDocId]);
+
+  // 4. Real-time changes syncing back to Firestore
+  useEffect(() => {
+    if (!activeCloudDocId || isSyncingRef.current) return;
+
+    const syncToCloud = async () => {
+      setIsCloudSyncing(true);
+      try {
+        const docRef = doc(db, 'packingLists', activeCloudDocId);
+        await setDoc(docRef, {
+          meta,
+          colors,
+          globalPackingMode,
+          maxSizesPerBox,
+          forceSingleCarton,
+          forceSubCapSolidInMixed,
+          updatedAt: serverTimestamp(),
+          lastUpdatedBy: user?.email || 'Invité (Naty)'
+        }, { merge: true });
+      } catch (err) {
+        console.error("Error writing edits to Firestore:", err);
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      syncToCloud();
+    }, 1000); // 1s debounce to avoid excessive writes
+
+    return () => clearTimeout(timer);
+  }, [meta, colors, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, activeCloudDocId]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Logout error: ", err);
+    }
+    setIsAuthenticated(false);
+    setUser(null);
+    setActiveCloudDocId(null);
+  };
 
   // Save database modifications
   const handleSaveDatabase = (newDb: ModelsDatabase) => {
@@ -1828,6 +2011,89 @@ export default function App() {
     triggerToast(`🗑️ Sauvegarde "${name}" supprimée.`, 'info');
   };
 
+  // Load and subscribe to cloud packing lists list
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'packingLists'), orderBy('updatedAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const lists: any[] = [];
+      querySnapshot.forEach((doc) => {
+        lists.push({ id: doc.id, ...doc.data() });
+      });
+      setCloudLists(lists);
+    }, (err) => {
+      console.error("Error reading cloud packing lists: ", err);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handlePublishToCloud = async (customName: string) => {
+    setIsCloudSyncing(true);
+    try {
+      const timestamp = new Date().toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      const autoLabel = [
+        meta.order ? `Order #${meta.order}` : '',
+        meta.customer ? `${meta.customer}` : '',
+        meta.style ? `${meta.style}` : ''
+      ].filter(Boolean).join(' - ') || 'Fiche sans nom';
+
+      const finalName = customName.trim() || `${autoLabel} (${timestamp})`;
+      
+      const docRef = await addDoc(collection(db, 'packingLists'), {
+        name: finalName,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        createdBy: user?.email || 'Invité (Naty)',
+        lastUpdatedBy: user?.email || 'Invité (Naty)',
+        meta,
+        colors,
+        globalPackingMode,
+        maxSizesPerBox,
+        forceSingleCarton,
+        forceSubCapSolidInMixed
+      });
+
+      setActiveCloudDocId(docRef.id);
+      triggerToast(`☁️ Fiche publiée avec succès sur le Cloud : "${finalName}"`, 'success');
+      setSaveNameInput('');
+    } catch (err: any) {
+      console.error(err);
+      setSavesError(`❌ Erreur lors de la publication Cloud : ${err?.message || err}`);
+      triggerToast(`Erreur de publication Cloud`, 'error');
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
+  const handleJoinCloudList = (listId: string, name: string) => {
+    setActiveCloudDocId(listId);
+    triggerToast(`☁️ Collaboration en temps réel activée pour "${name}"`, 'success');
+  };
+
+  const handleDisconnectCloudList = () => {
+    setActiveCloudDocId(null);
+    triggerToast(`🔌 Déconnecté du document Cloud. Les modifications sont locales maintenant.`, 'info');
+  };
+
+  const handleDeleteCloudList = async (listId: string, name: string) => {
+    try {
+      await deleteDoc(doc(db, 'packingLists', listId));
+      if (activeCloudDocId === listId) {
+        setActiveCloudDocId(null);
+      }
+      triggerToast(`🗑️ Fiche Cloud "${name}" supprimée !`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      triggerToast(`Erreur lors de la suppression Cloud`, 'error');
+    }
+  };
+
   // Excel Exports (triggered with filename prompt modal)
   const handleExcelExportClick = () => {
     setTempExcelFilename(meta.filename || 'PACKING_LIST');
@@ -2156,6 +2422,39 @@ export default function App() {
       });
     });
     return list;
+  };
+
+  const getOrderedValueForColorAndSize = (colorName: string, sz: string, colorConfig: ColorConfig) => {
+    if (viewPercentCustomData[colorName]?.ordered?.[sz] !== undefined) {
+      return viewPercentCustomData[colorName].ordered[sz];
+    }
+    return String(colorConfig.sizes[sz]?.qtyTot || 0);
+  };
+
+  const getShippedValueForColorAndSize = (colorName: string, sz: string, colorConfig: ColorConfig, colorIdx: number) => {
+    if (viewPercentCustomData[colorName]?.shipped?.[sz] !== undefined) {
+      return viewPercentCustomData[colorName].shipped[sz];
+    }
+    // Find in generated results, or compute on the fly!
+    let colorResult = results.find(res => res.nom === colorName);
+    if (!colorResult) {
+      try {
+        colorResult = computeColorResult(
+          colorConfig,
+          globalPackingMode,
+          forceSingleCarton,
+          maxSizesPerBox,
+          colorIdx,
+          forceSubCapSolidInMixed
+        );
+      } catch (e) {
+        // fallback
+      }
+    }
+    if (colorResult?.totals?.sizes?.[sz] !== undefined) {
+      return String(colorResult.totals.sizes[sz]);
+    }
+    return String(colorConfig.sizes[sz]?.qtyTot || 0);
   };
 
   if (!isAuthenticated) {
@@ -2874,8 +3173,20 @@ export default function App() {
               <span className="hidden sm:inline">Capture</span>
             </button>
 
+            {user && (
+              <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-mono tracking-wide ${
+                darkMode ? 'bg-slate-800/80 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600 font-bold'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>UTILISATEUR:</span>
+                <strong className="text-blue-500 max-w-[120px] truncate" title={user.email || 'Invité (Naty)'}>
+                  {user.isAnonymous ? 'INVITÉ (NATY)' : (user.email || '').toUpperCase()}
+                </strong>
+              </div>
+            )}
+
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={handleLogout}
               className="px-2 py-1.5 border border-white/10 hover:bg-white/5 rounded-lg text-[11px] font-bold text-rose-200 hover:text-rose-100 transition-all cursor-pointer flex items-center gap-1 hover:scale-[1.02]"
               title="🚪 SE DÉCONNECTER"
             >
@@ -3016,6 +3327,8 @@ export default function App() {
               { id: 'saves', label: '💾 Sauvegardes', title: '💾 SAUVEGARDES' },
               { id: 'labels', label: '🏷️ Étiquettes', title: '🏷️ ÉTIQUETTES' },
               { id: 'view_percent', label: '📊 View %', title: '📊 VIEW %' },
+              { id: 'dashboard_ecart', label: '📊 Dashboard Écarts', title: '📊 DASHBOARD ÉCARTS' },
+              { id: 'rapport_ecart', label: '📋 Rapport d\'Écarts', title: '📋 RAPPORT D\'ÉCARTS' },
             ].map(item => {
               const isActive = activeInputTab === item.id;
               return (
@@ -3377,6 +3690,68 @@ export default function App() {
                   )}
                   {!isSidebarCollapsed && (
                     <ChevronRight className={`w-3 h-3 ml-auto hidden lg:block transition-all duration-200 ${getSidebarItemChevronStyles('view_percent')}`} />
+                  )}
+                </button>
+
+                {/* RIBBON 10: DASHBOARD ÉCARTS */}
+                <button
+                  onClick={() => setActiveInputTab('dashboard_ecart')}
+                  className={`group flex items-center gap-3 transition-all border rounded-xl relative cursor-pointer hover:scale-[1.02] active:scale-[0.98] overflow-hidden ${
+                    isSidebarCollapsed 
+                      ? 'lg:w-12 lg:h-12 lg:justify-center p-0 lg:p-2' 
+                      : 'p-2.5 text-left w-full'
+                  } ${getSidebarItemStyles('dashboard_ecart')}`}
+                  title="📈 DASHBOARD ÉCARTS : Analyses et Visualisations Globales"
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1 transition-transform duration-300 ${getSidebarItemHighlightStyles('dashboard_ecart')}`}
+                  />
+                  <div className={`p-1.5 rounded-lg flex-shrink-0 ${getSidebarItemIconStyles('dashboard_ecart')} transition-colors ${isSidebarCollapsed ? 'ml-0' : 'ml-0.5'}`}>
+                    <BarChart3 className="w-3.5 h-3.5" />
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <div className="flex-1 min-w-0 pr-1 select-none">
+                      <div className="text-[10px] font-mono tracking-wider font-extrabold uppercase truncate">
+                        📊 ANALYSES GLOBAL
+                      </div>
+                      <div className={`text-[9px] hidden lg:block mt-0.5 font-sans truncate ${getSidebarItemSubtextStyles('dashboard_ecart')}`}>
+                        Dashboard des Écarts
+                      </div>
+                    </div>
+                  )}
+                  {!isSidebarCollapsed && (
+                    <ChevronRight className={`w-3 h-3 ml-auto hidden lg:block transition-all duration-200 ${getSidebarItemChevronStyles('dashboard_ecart')}`} />
+                  )}
+                </button>
+
+                {/* RIBBON 11: RAPPORT D'ÉCARTS */}
+                <button
+                  onClick={() => setActiveInputTab('rapport_ecart')}
+                  className={`group flex items-center gap-3 transition-all border rounded-xl relative cursor-pointer hover:scale-[1.02] active:scale-[0.98] overflow-hidden ${
+                    isSidebarCollapsed 
+                      ? 'lg:w-12 lg:h-12 lg:justify-center p-0 lg:p-2' 
+                      : 'p-2.5 text-left w-full'
+                  } ${getSidebarItemStyles('rapport_ecart')}`}
+                  title="📋 RAPPORT D'ÉCARTS : Fiche Audit et Non-conformités"
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1 transition-transform duration-300 ${getSidebarItemHighlightStyles('rapport_ecart')}`}
+                  />
+                  <div className={`p-1.5 rounded-lg flex-shrink-0 ${getSidebarItemIconStyles('rapport_ecart')} transition-colors ${isSidebarCollapsed ? 'ml-0' : 'ml-0.5'}`}>
+                    <ClipboardCheck className="w-3.5 h-3.5" />
+                  </div>
+                  {!isSidebarCollapsed && (
+                    <div className="flex-1 min-w-0 pr-1 select-none">
+                      <div className="text-[10px] font-mono tracking-wider font-extrabold uppercase truncate">
+                        📋 RAPPORT AUDIT
+                      </div>
+                      <div className={`text-[9px] hidden lg:block mt-0.5 font-sans truncate ${getSidebarItemSubtextStyles('rapport_ecart')}`}>
+                        Rapport Non-conformités
+                      </div>
+                    </div>
+                  )}
+                  {!isSidebarCollapsed && (
+                    <ChevronRight className={`w-3 h-3 ml-auto hidden lg:block transition-all duration-200 ${getSidebarItemChevronStyles('rapport_ecart')}`} />
                   )}
                 </button>
               </div>
@@ -6667,196 +7042,274 @@ export default function App() {
                   transition={{ duration: 0.15 }}
                   className="space-y-6"
                 >
-                  {/* SAVE CREATOR GRID CONTROL */}
-                  <div className={`rounded-xl border p-5 ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'} space-y-4 shadow-sm`}>
-                    <div className="flex items-center justify-between border-b pb-3 border-dashed border-slate-800/60">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-4 bg-blue-500 rounded-sm" />
-                        <h2 className={`text-xs font-mono font-bold tracking-wider ${darkMode ? 'text-slate-100' : 'text-slate-700'} uppercase`}>
-                          💾 Sauvegarder la Fiche Actuelle
-                        </h2>
+                  {/* Real-time Collaboration Status Bar */}
+                  {activeCloudDocId && (() => {
+                    const activeDoc = cloudLists.find(l => l.id === activeCloudDocId);
+                    return (
+                      <div className="p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                          <div>
+                            <span className="font-bold text-white uppercase block">☁️ COLLABORATION EN TEMPS RÉEL ACTIVE</span>
+                            <span className="text-[11px] text-indigo-300">
+                              Fiche active : <strong>{activeDoc?.name || 'Synchronisation...'}</strong> (ID: {activeCloudDocId})
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleDisconnectCloudList}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer shrink-0"
+                        >
+                          🔌 Déconnecter le direct
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    
+                    {/* LEFT COLUMN: CLOUD CO-EDITING & STORAGE */}
+                    <div className={`rounded-xl border p-5 ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'} space-y-4 shadow-sm`}>
+                      <div className="flex items-center justify-between border-b pb-3 border-dashed border-slate-800/60">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-4 bg-indigo-500 rounded-sm" />
+                          <h2 className={`text-xs font-mono font-bold tracking-wider ${darkMode ? 'text-slate-100' : 'text-slate-700'} uppercase`}>
+                            ☁️ Fiches Partagées sur le Cloud ({cloudLists.length})
+                          </h2>
+                        </div>
                       </div>
 
-                      {/* Autosave Switcher */}
-                      <button
-                        onClick={() => setIsAutosaveEnabled(!isAutosaveEnabled)}
-                        className={`px-3 py-1.5 rounded-lg border font-mono text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
-                          isAutosaveEnabled
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                            : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                        }`}
-                        title="Désactiver ou réactiver l'enregistrement automatique sur le navigateur"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${isAutosaveEnabled ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />
-                        <span>SAUVEGARDE AUTO : {isAutosaveEnabled ? 'ACTIVE' : 'ASSOUPIE'}</span>
-                      </button>
-                    </div>
+                      <div className="space-y-3">
+                        <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                          Publiez cette fiche sur le Cloud pour permettre à vos collaborateurs d'y accéder en temps réel depuis n'importe quel poste.
+                        </p>
 
-                    <div className="pt-2 space-y-3">
-                      <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                        L'enregistrement automatique stocke vos modifications en temps réel. 
-                        Vous pouvez aussi figer des <strong>instantanés d'étapes nommés</strong> de vos fiches de colisage ci-dessous.
-                      </p>
-
-                      <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-1">
-                        <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-1">
                           <input
                             type="text"
                             value={saveNameInput}
                             onChange={(e) => setSaveNameInput(e.target.value)}
-                            placeholder="Saisir un nom de sauvegarde personnalisé (vide = auto-génération)"
-                            className={`w-full text-xs font-mono rounded-lg border px-3 py-2.5 focus:outline-none transition-all ${
+                            placeholder="Nom de la fiche Cloud (vide = auto-génération)"
+                            className={`flex-1 text-xs font-mono rounded-lg border px-3 py-2.5 focus:outline-none transition-all ${
                               darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-blue-500' : 'bg-[#f4f6fb] border-slate-300 text-slate-900 focus:border-[#4f8ef7]'
                             }`}
                           />
+                          <button
+                            onClick={() => handlePublishToCloud(saveNameInput)}
+                            disabled={isCloudSyncing}
+                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/10 hover:scale-[1.01] active:scale-[0.99]"
+                          >
+                            <Globe className={`w-4 h-4 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                            <span>PUBLIER & COLLABORER</span>
+                          </button>
                         </div>
+
+                        {/* Cloud Files List */}
+                        <div className="pt-3 space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                          {cloudLists.length === 0 ? (
+                            <div className="text-center py-8 text-slate-500 text-xs font-mono">
+                              Aucune fiche sur le cloud. Publiez-en une avec le champ ci-dessus !
+                            </div>
+                          ) : (
+                            cloudLists.map((item) => {
+                              const isCurrentlyOpen = activeCloudDocId === item.id;
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`p-3.5 border rounded-xl transition-all duration-300 flex flex-col justify-between gap-3 ${
+                                    darkMode 
+                                      ? isCurrentlyOpen
+                                        ? 'bg-indigo-950/30 border-indigo-500/40 shadow-md shadow-indigo-500/5'
+                                        : 'bg-[#1e2330]/40 border-slate-800 hover:border-slate-700'
+                                      : isCurrentlyOpen
+                                        ? 'bg-indigo-50/50 border-indigo-400/50 shadow-sm'
+                                        : 'bg-[#fcfdfe] border-slate-200 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h4 className={`text-xs font-bold font-sans ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+                                        {item.name}
+                                      </h4>
+                                      {isCurrentlyOpen && (
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase font-mono bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 animate-pulse">
+                                          En Direct
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9.5px] font-mono text-slate-400 mt-1.5">
+                                      <span>📅 Modifié le {item.updatedAt ? new Date(item.updatedAt.seconds * 1000).toLocaleDateString('fr-FR') : '...'}</span>
+                                      <span>•</span>
+                                      <span>✍️ Par: <strong>{item.lastUpdatedBy || '—'}</strong></span>
+                                      <span>•</span>
+                                      <span>🏭 Client: <strong>{item.meta?.customer || '—'}</strong></span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 justify-end">
+                                    {isCurrentlyOpen ? (
+                                      <button
+                                        onClick={handleDisconnectCloudList}
+                                        className="px-2.5 py-1.5 bg-rose-600/10 border border-rose-500/20 text-rose-400 font-mono text-[11px] rounded-lg hover:bg-rose-600/20 transition-all cursor-pointer"
+                                      >
+                                        🔌 Quitter
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleJoinCloudList(item.id, item.name)}
+                                        className="px-2.5 py-1.5 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 font-mono text-[11px] rounded-lg hover:bg-indigo-600/20 transition-all cursor-pointer"
+                                      >
+                                        ⚡ Co-éditer
+                                      </button>
+                                    )}
+
+                                    <button
+                                      onClick={() => handleDeleteCloudList(item.id, item.name)}
+                                      className="px-2.5 py-1.5 border border-red-500/20 bg-red-500/5 text-red-400 font-mono text-[11px] rounded-lg hover:bg-red-500/15 cursor-pointer"
+                                      title="Supprimer la fiche cloud"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: LOCAL BACKUP SNAPSHOTS */}
+                    <div className={`rounded-xl border p-5 ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'} space-y-4 shadow-sm`}>
+                      <div className="flex items-center justify-between border-b pb-3 border-dashed border-slate-800/60">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-4 bg-purple-500 rounded-sm" />
+                          <h2 className={`text-xs font-mono font-bold tracking-wider ${darkMode ? 'text-slate-100' : 'text-slate-700'} uppercase`}>
+                            💾 Instantanés de Colisage Locaux ({savedLists.length})
+                          </h2>
+                        </div>
+
+                        {/* Autosave Switcher */}
                         <button
-                          onClick={() => handleSaveCurrentList(saveNameInput)}
-                          className="px-4 py-2.5 bg-gradient-to-r from-blue-500 to-[#4f8ef7] hover:brightness-110 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-blue-500/10 hover:scale-[1.01] active:scale-[0.99]"
+                          onClick={() => setIsAutosaveEnabled(!isAutosaveEnabled)}
+                          className={`px-3 py-1 rounded-lg border font-mono text-[9px] font-bold cursor-pointer transition-all flex items-center gap-1.5 ${
+                            isAutosaveEnabled
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                              : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                          }`}
                         >
-                          <Save className="w-4 h-4" />
-                          <span>CRÉER UN INSTANTANÉ</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isAutosaveEnabled ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'}`} />
+                          <span>AUTO-SAVE</span>
                         </button>
                       </div>
 
-                      {/* Flash feedback alerts */}
-                      <AnimatePresence mode="wait">
-                        {savesSuccess && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono rounded-lg font-bold"
-                          >
-                            {savesSuccess}
-                          </motion.div>
-                        )}
-                        {savesError && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono rounded-lg font-bold"
-                          >
-                            {savesError}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-
-                  {/* SAVED SLOTS GRID */}
-                  <div className={`rounded-xl border p-5 ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'} space-y-4 shadow-sm pb-6`}>
-                    <div className="flex items-center justify-between border-b pb-3 border-dashed border-slate-800/60 font-mono">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-4 bg-purple-500 rounded-sm" />
-                        <h2 className={`text-xs font-mono font-bold tracking-wider ${darkMode ? 'text-slate-100' : 'text-slate-700'} uppercase`}>
-                          🗄️ Historique & Fiches Enregistrées ({savedLists.length})
-                        </h2>
-                      </div>
-                    </div>
-
-                    {savedLists.length === 0 ? (
-                      <div className="text-center py-10 px-4 space-y-3">
-                        <div className="w-12 h-12 bg-slate-800/30 text-slate-500 rounded-full flex items-center justify-center mx-auto">
-                          <History className="w-6 h-6 animate-pulse" />
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className={`text-xs font-bold font-mono uppercase ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>Aucune fiche sauvegardée</h4>
-                          <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                            Toutes vos fiches de colisage de cartons solides ou mixtes peuvent être archivées localement sur ce navigateur. 
-                            Créez-en une en utilisant le module ci-dessus !
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
                       <div className="space-y-3">
-                        {savedLists.map((item) => {
-                          const isAutosaveEquivalent = meta.order === item.meta.order && meta.customer === item.meta.customer && meta.style === item.meta.style;
-                          
-                          return (
-                            <div
-                              key={item.id}
-                              className={`p-4 border rounded-xl transition-all duration-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-                                darkMode 
-                                  ? isAutosaveEquivalent
-                                    ? 'bg-[#18233c]/60 border-blue-500/40 hover:border-blue-500/60 shadow-[#4f8ef7]/5'
-                                    : 'bg-[#1e2330]/50 border-slate-800 hover:border-slate-700'
-                                  : isAutosaveEquivalent
-                                    ? 'bg-[#f4f7fc] border-blue-400/60 hover:border-blue-500/65 shadow-xs'
-                                    : 'bg-[#fcfdfe] border-slate-250 hover:border-slate-350'
-                              }`}
-                            >
-                              <div className="space-y-1.5 flex-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <h4 className={`text-xs font-bold font-sans ${darkMode ? 'text-white' : 'text-slate-800'} truncate max-w-xl`}>
-                                    {item.name}
-                                  </h4>
-                                  {isAutosaveEquivalent && (
-                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase font-mono bg-blue-500/15 border border-blue-500/30 text-[#4f8ef7]" title="Cette fiche correspond aux en-têtes actuellement ouverts">
-                                      Ouvert
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-mono text-slate-400">
-                                  <span>📅 {new Date(item.savedAt).toLocaleDateString('fr-FR')} {new Date(item.savedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                  <span>•</span>
-                                  <span>🏭 Client: <strong className={darkMode ? 'text-slate-350': 'text-slate-700'}>{item.meta.customer || '—'}</strong></span>
-                                  <span>•</span>
-                                  <span>📁 Commande: <strong className={darkMode ? 'text-slate-350' : 'text-slate-700'}>{item.meta.order || '—'}</strong></span>
-                                  <span>•</span>
-                                  <span className={`px-1 py-px rounded text-[9px] ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-200 text-slate-700'}`}>
-                                    {item.colors.length} Couleur{item.colors.length > 1 ? 's' : ''}
-                                  </span>
-                                </div>
-                              </div>
+                        <p className={`text-xs ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                          Prenez un cliché figé dans le cache de votre navigateur pour archiver ou dupliquer vos étapes de travail locales.
+                        </p>
 
-                              {/* Button interaction cluster */}
-                              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                                <button
-                                  onClick={() => handleLoadSavedList(item)}
-                                  className={`px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all flex items-center gap-1 border hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
-                                    darkMode 
-                                      ? 'bg-[#1e293b] hover:bg-slate-700 border-slate-700 text-slate-100'
-                                      : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
-                                  }`}
-                                  title="Recharger cette fiche dans l'éditeur de colisage"
-                                >
-                                  🔌 Restaurer
-                                </button>
+                        <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-1">
+                          <input
+                            type="text"
+                            value={saveNameInput}
+                            onChange={(e) => setSaveNameInput(e.target.value)}
+                            placeholder="Nom de l'instantané local"
+                            className={`flex-1 text-xs font-mono rounded-lg border px-3 py-2.5 focus:outline-none transition-all ${
+                              darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-blue-500' : 'bg-[#f4f6fb] border-slate-300 text-slate-900 focus:border-[#4f8ef7]'
+                            }`}
+                          />
+                          <button
+                            onClick={() => handleSaveCurrentList(saveNameInput)}
+                            className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:brightness-110 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-purple-500/10 hover:scale-[1.01] active:scale-[0.99]"
+                          >
+                            <Save className="w-4 h-4" />
+                            <span>CRÉER L'INSTANTANÉ</span>
+                          </button>
+                        </div>
 
-                                {confirmDeleteId !== item.id ? (
-                                  <button
-                                    onClick={() => setConfirmDeleteId(item.id)}
-                                    className="px-2.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/5 text-red-400 font-mono text-xs hover:bg-red-500/10 cursor-pointer"
-                                    title="Supprimer cette sauvegarde définitivement"
-                                  >
-                                    🗑️
-                                  </button>
-                                ) : (
-                                  <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/40 p-1 rounded-lg transition-all">
-                                    <button
-                                      onClick={() => handleDeleteSavedList(item.id, item.name)}
-                                      className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white font-black rounded text-[10px] cursor-pointer"
-                                    >
-                                      🚨 CONFIRMER
-                                    </button>
-                                    <button
-                                      onClick={() => setConfirmDeleteId(null)}
-                                      className={`px-1.5 py-1 text-slate-300 rounded text-[10px] cursor-pointer ${darkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-slate-300 hover:bg-slate-400'}`}
-                                      title="Annuler"
-                                    >
-                                      ✕
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                        {/* Local Lists List */}
+                        <div className="pt-3 space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                          {savedLists.length === 0 ? (
+                            <div className="text-center py-8 text-slate-500 text-xs font-mono">
+                              Aucun cliché local. Créez-en un avec le champ ci-dessus !
                             </div>
-                          );
-                        })}
+                          ) : (
+                            savedLists.map((item) => {
+                              const isAutosaveEquivalent = meta.order === item.meta.order && meta.customer === item.meta.customer && meta.style === item.meta.style;
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`p-3.5 border rounded-xl transition-all duration-300 flex flex-col justify-between gap-3 ${
+                                    darkMode 
+                                      ? isAutosaveEquivalent
+                                        ? 'bg-[#18233c]/60 border-blue-500/40 hover:border-blue-500/60 shadow-md'
+                                        : 'bg-[#1e2330]/50 border-slate-800 hover:border-slate-700'
+                                      : isAutosaveEquivalent
+                                        ? 'bg-[#f4f7fc] border-blue-400/60 hover:border-blue-500/65 shadow-sm'
+                                        : 'bg-[#fcfdfe] border-slate-200 hover:border-slate-350'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h4 className={`text-xs font-bold font-sans ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+                                        {item.name}
+                                      </h4>
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9.5px] font-mono text-slate-400 mt-1.5">
+                                      <span>📅 {new Date(item.savedAt).toLocaleDateString('fr-FR')} {new Date(item.savedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      <span>•</span>
+                                      <span>🏭 Client: <strong>{item.meta?.customer || '—'}</strong></span>
+                                      <span>•</span>
+                                      <span>📁 Commande: <strong>{item.meta?.order || '—'}</strong></span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 justify-end">
+                                    <button
+                                      onClick={() => handleLoadSavedList(item)}
+                                      className={`px-2.5 py-1.5 rounded-lg font-mono text-[11px] font-bold transition-all flex items-center gap-1 border cursor-pointer ${
+                                        darkMode 
+                                          ? 'bg-[#1e293b] hover:bg-slate-700 border-slate-700 text-slate-100'
+                                          : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-800'
+                                      }`}
+                                    >
+                                      🔌 Charger
+                                    </button>
+
+                                    {confirmDeleteId !== item.id ? (
+                                      <button
+                                        onClick={() => setConfirmDeleteId(item.id)}
+                                        className="px-2.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/5 text-red-400 font-mono text-[11px] hover:bg-red-500/10 cursor-pointer"
+                                      >
+                                        🗑️
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center gap-1 bg-red-500/10 border border-red-500/40 p-0.5 rounded-lg">
+                                        <button
+                                          onClick={() => handleDeleteSavedList(item.id, item.name)}
+                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white font-black rounded text-[9px] cursor-pointer"
+                                        >
+                                          OUI
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDeleteId(null)}
+                                          className="px-1.5 py-1 text-slate-300 bg-slate-800 rounded text-[9px] cursor-pointer"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
                       </div>
-                    )}
+                    </div>
+
                   </div>
                 </motion.div>
               )}
@@ -7469,6 +7922,675 @@ export default function App() {
                   </div>
                 </motion.div>
               )}
+
+              {activeInputTab === 'dashboard_ecart' && (() => {
+                // Compute global stats
+                let totalOrderedGlobal = 0;
+                let totalShippedGlobal = 0;
+                let totalExactMatches = 0;
+                let totalToleredMatches = 0;
+                let totalOutsideTolerance = 0;
+                let totalSurplusPcs = 0;
+                let totalDeficitPcs = 0;
+                const colorStatsList: Array<{
+                  nom: string;
+                  ordered: number;
+                  shipped: number;
+                  gap: number;
+                  pct: number;
+                  status: 'exact' | 'tolerated' | 'outside';
+                  sizesBreakdown: Array<{
+                    size: string;
+                    ord: number;
+                    shp: number;
+                    gap: number;
+                    pct: number;
+                    isOutside: boolean;
+                  }>;
+                }> = [];
+
+                colors.forEach((colorConfig, colorIdx) => {
+                  let colorOrdered = 0;
+                  let colorShipped = 0;
+                  const sizesBreakdown: any[] = [];
+
+                  colorConfig.tailles.forEach(sz => {
+                    const ord = parseFloat(getOrderedValueForColorAndSize(colorConfig.nom, sz, colorConfig)) || 0;
+                    const shp = parseFloat(getShippedValueForColorAndSize(colorConfig.nom, sz, colorConfig, colorIdx)) || 0;
+                    const gap = shp - ord;
+                    let pct = 0;
+                    if (ord > 0) {
+                      pct = (gap / ord) * 100;
+                    } else if (shp > 0) {
+                      pct = 100;
+                    }
+
+                    let isCellOutside = false;
+                    if (gap !== 0) {
+                      if (viewPercentToleranceType === 'both') {
+                        isCellOutside = Math.abs(pct) > viewPercentToleranceValue;
+                      } else if (viewPercentToleranceType === 'plus') {
+                        isCellOutside = pct < 0 || pct > viewPercentToleranceValue;
+                      } else if (viewPercentToleranceType === 'minus') {
+                        isCellOutside = pct > 0 || pct < -viewPercentToleranceValue;
+                      }
+                    }
+
+                    colorOrdered += ord;
+                    colorShipped += shp;
+
+                    if (gap > 0) {
+                      totalSurplusPcs += gap;
+                    } else if (gap < 0) {
+                      totalDeficitPcs += Math.abs(gap);
+                    }
+
+                    if (gap === 0) {
+                      totalExactMatches++;
+                    } else if (!isCellOutside) {
+                      totalToleredMatches++;
+                    } else {
+                      totalOutsideTolerance++;
+                    }
+
+                    sizesBreakdown.push({
+                      size: sz,
+                      ord,
+                      shp,
+                      gap,
+                      pct,
+                      isOutside: isCellOutside
+                    });
+                  });
+
+                  totalOrderedGlobal += colorOrdered;
+                  totalShippedGlobal += colorShipped;
+
+                  const colorGap = colorShipped - colorOrdered;
+                  let colorPct = 0;
+                  if (colorOrdered > 0) {
+                    colorPct = (colorGap / colorOrdered) * 100;
+                  } else if (colorShipped > 0) {
+                    colorPct = 100;
+                  }
+
+                  let isColorOutside = false;
+                  if (colorGap !== 0) {
+                    if (viewPercentToleranceType === 'both') {
+                      isColorOutside = Math.abs(colorPct) > viewPercentToleranceValue;
+                    } else if (viewPercentToleranceType === 'plus') {
+                      isColorOutside = colorPct < 0 || colorPct > viewPercentToleranceValue;
+                    } else if (viewPercentToleranceType === 'minus') {
+                      isColorOutside = colorPct > 0 || colorPct < -viewPercentToleranceValue;
+                    }
+                  }
+
+                  colorStatsList.push({
+                    nom: colorConfig.nom,
+                    ordered: colorOrdered,
+                    shipped: colorShipped,
+                    gap: colorGap,
+                    pct: colorPct,
+                    status: colorGap === 0 ? 'exact' : (isColorOutside ? 'outside' : 'tolerated'),
+                    sizesBreakdown
+                  });
+                });
+
+                const totalPositions = totalExactMatches + totalToleredMatches + totalOutsideTolerance;
+                const matchRate = totalPositions > 0 ? ((totalExactMatches + totalToleredMatches) / totalPositions) * 105 : 0;
+                const matchRateClamped = Math.min(100, matchRate);
+                const exactRate = totalPositions > 0 ? (totalExactMatches / totalPositions) * 100 : 0;
+
+                return (
+                  <motion.div
+                    id="tab-content-dashboard-ecart"
+                    key="dashboard-ecart-section"
+                    initial={{ opacity: 0, x: 15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -15 }}
+                    transition={{ duration: 0.15 }}
+                    className="space-y-6"
+                  >
+                    {/* Main Card */}
+                    <div className={`rounded-xl border p-5 ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'} space-y-6 shadow-sm`}>
+                      {/* Header with beautiful custom layout */}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-slate-200 dark:border-slate-800">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <BarChart3 className="w-5 h-5 text-blue-500" />
+                            <h2 className="text-base font-black tracking-tight font-mono text-slate-800 dark:text-white uppercase">
+                              📊 Dashboard Global des Écarts
+                            </h2>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-sans">
+                            Analyses globales de conformité, volume de colisage et écarts par rapport aux commandes.
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 text-xs font-mono bg-slate-100 dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                          <span className="text-slate-500">Marge Tolérée :</span>
+                          <span className="font-extrabold text-blue-600 dark:text-blue-400">
+                            {viewPercentToleranceType === 'both' ? '±' : viewPercentToleranceType === 'plus' ? '+' : '-'}{viewPercentToleranceValue}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* KPI cards Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* KPI 1: Taux de Conformité */}
+                        <div className={`rounded-xl p-4 border transition-all hover:shadow-md ${
+                          darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50/50 border-slate-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500 font-mono uppercase">Conformité</span>
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          </div>
+                          <div className="mt-2.5 flex items-baseline gap-1.5">
+                            <span className="text-2xl font-black font-mono tracking-tight text-slate-800 dark:text-white">
+                              {matchRateClamped.toFixed(1)}%
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" 
+                              style={{ width: `${matchRateClamped}%` }}
+                            />
+                          </div>
+                          <div className="mt-2 text-[10px] text-slate-400 font-mono flex justify-between">
+                            <span>Pile poil : {exactRate.toFixed(0)}%</span>
+                            <span>Toléré : {Math.max(0, matchRateClamped - exactRate).toFixed(0)}%</span>
+                          </div>
+                        </div>
+
+                        {/* KPI 2: Total Ordered vs Packed */}
+                        <div className={`rounded-xl p-4 border transition-all hover:shadow-md ${
+                          darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50/50 border-slate-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500 font-mono uppercase">Volume total</span>
+                            <Package className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <div className="mt-2.5">
+                            <span className="text-2xl font-black font-mono tracking-tight text-slate-800 dark:text-white">
+                              {totalShippedGlobal}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-1.5 font-mono">
+                              / {totalOrderedGlobal} pcs
+                            </span>
+                          </div>
+                          
+                          {/* Progress bar */}
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div 
+                              className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" 
+                              style={{ width: `${Math.min(100, totalOrderedGlobal > 0 ? (totalShippedGlobal / totalOrderedGlobal) * 100 : 0)}%` }}
+                            />
+                          </div>
+
+                          <div className="mt-2 text-[10px] text-slate-400 font-mono flex justify-between">
+                            <span>Écart Global :</span>
+                            <span className={totalShippedGlobal - totalOrderedGlobal >= 0 ? 'text-emerald-500' : 'text-red-500'}>
+                              {totalShippedGlobal - totalOrderedGlobal >= 0 ? '+' : ''}{totalShippedGlobal - totalOrderedGlobal} pcs
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* KPI 3: Surplus pieces */}
+                        <div className={`rounded-xl p-4 border transition-all hover:shadow-md ${
+                          darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50/50 border-slate-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500 font-mono uppercase">Pièces en Surplus</span>
+                            <Plus className="w-4 h-4 text-emerald-500" />
+                          </div>
+                          <div className="mt-2.5 flex items-baseline gap-1">
+                            <span className="text-2xl font-black font-mono tracking-tight text-emerald-600 dark:text-emerald-400">
+                              +{totalSurplusPcs}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono ml-1">pcs</span>
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: '100%' }} />
+                          </div>
+                          <p className="mt-2 text-[10px] text-slate-400 font-sans">
+                            Quantités emballées dépassant les demandes de commande.
+                          </p>
+                        </div>
+
+                        {/* KPI 4: Shortage pieces */}
+                        <div className={`rounded-xl p-4 border transition-all hover:shadow-md ${
+                          darkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50/50 border-slate-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500 font-mono uppercase">Déficit (Manquant)</span>
+                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                          </div>
+                          <div className="mt-2.5 flex items-baseline gap-1">
+                            <span className="text-2xl font-black font-mono tracking-tight text-red-600 dark:text-red-400">
+                              -{totalDeficitPcs}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono ml-1">pcs</span>
+                          </div>
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div className="bg-red-500 h-1.5 rounded-full" style={{ width: '100%' }} />
+                          </div>
+                          <p className="mt-2 text-[10px] text-slate-400 font-sans">
+                            Pièces manquantes par rapport aux exigences de la commande.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Visual meters and legend */}
+                      <div className={`rounded-xl border p-4 ${darkMode ? 'bg-[#181d2a] border-slate-800/60' : 'bg-slate-50/30 border-slate-200/60'}`}>
+                        <h3 className="text-xs font-black font-mono text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">
+                          📊 Répartition de Conformité de Production (Sur {totalPositions} points)
+                        </h3>
+                        {/* Custom Segmented Bar */}
+                        <div className="w-full h-8 rounded-lg overflow-hidden flex font-mono text-[10px] font-bold text-white shadow-sm border border-black/10">
+                          {totalExactMatches > 0 && (
+                            <div 
+                              className="bg-blue-600 dark:bg-blue-700 flex items-center justify-center transition-all hover:opacity-90 cursor-pointer"
+                              style={{ width: `${(totalExactMatches / totalPositions) * 100}%` }}
+                              title={`Pile poil : ${totalExactMatches} tailles (${((totalExactMatches / totalPositions) * 100).toFixed(1)}%)`}
+                            >
+                              <span>{((totalExactMatches / totalPositions) * 100).toFixed(0)}% Exact</span>
+                            </div>
+                          )}
+                          {totalToleredMatches > 0 && (
+                            <div 
+                              className="bg-emerald-600 dark:bg-emerald-700 flex items-center justify-center transition-all hover:opacity-90 cursor-pointer border-l border-white/10"
+                              style={{ width: `${(totalToleredMatches / totalPositions) * 100}%` }}
+                              title={`Toléré : ${totalToleredMatches} tailles (${((totalToleredMatches / totalPositions) * 100).toFixed(1)}%)`}
+                            >
+                              <span>{((totalToleredMatches / totalPositions) * 100).toFixed(0)}% Toléré</span>
+                            </div>
+                          )}
+                          {totalOutsideTolerance > 0 && (
+                            <div 
+                              className="bg-red-600 dark:bg-red-700 flex items-center justify-center transition-all hover:opacity-90 cursor-pointer border-l border-white/10"
+                              style={{ width: `${(totalOutsideTolerance / totalPositions) * 100}%` }}
+                              title={`Hors Tolérance : ${totalOutsideTolerance} tailles (${((totalOutsideTolerance / totalPositions) * 100).toFixed(1)}%)`}
+                            >
+                              <span>{((totalOutsideTolerance / totalPositions) * 100).toFixed(0)}% Écart</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded bg-blue-600 block"></span>
+                            <span className="text-slate-600 dark:text-slate-300 font-medium">Pile poil (0% d'écart) : <b>{totalExactMatches} tailles</b></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded bg-emerald-600 block"></span>
+                            <span className="text-slate-600 dark:text-slate-300 font-medium">Dans la Tolérance : <b>{totalToleredMatches} tailles</b></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="w-3 h-3 rounded bg-red-600 block"></span>
+                            <span className="text-slate-600 dark:text-slate-300 font-medium">Hors Tolérance : <b className="text-red-500">{totalOutsideTolerance} tailles</b></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Interactive breakdown per color config */}
+                      <div className="space-y-3">
+                        <h3 className="text-xs font-black font-mono text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                          🔍 Analyse des Écarts par Couleur
+                        </h3>
+
+                        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
+                          <table className="min-w-full border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-mono font-bold uppercase">
+                                <th className="px-4 py-3 text-left">Couleur</th>
+                                <th className="px-4 py-3 text-center">Quantité Commandée</th>
+                                <th className="px-4 py-3 text-center">Quantité Expédiée</th>
+                                <th className="px-4 py-3 text-center">Écart Absolu</th>
+                                <th className="px-4 py-3 text-center">% Écart</th>
+                                <th className="px-4 py-3 text-right">Statut de Conformité</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {colorStatsList.map((cStat, idx) => {
+                                let badgeClass = '';
+                                let badgeLabel = '';
+                                if (cStat.status === 'exact') {
+                                  badgeClass = 'bg-blue-500/10 text-blue-600 border-blue-500/25 dark:bg-blue-500/15 dark:text-blue-400';
+                                  badgeLabel = 'Exact (0%)';
+                                } else if (cStat.status === 'tolerated') {
+                                  badgeClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-400';
+                                  badgeLabel = 'Toléré';
+                                } else {
+                                  badgeClass = 'bg-red-500/10 text-red-600 border-red-500/25 dark:bg-red-500/15 dark:text-red-400 font-bold';
+                                  badgeLabel = 'Hors Tolérance';
+                                }
+
+                                return (
+                                  <React.Fragment key={cStat.nom}>
+                                    <tr className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors font-mono">
+                                      <td className="px-4 py-3.5 text-left font-sans font-bold flex items-center gap-2">
+                                        <div className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: colors[idx]?.color || '#ccc' }} />
+                                        <span>{cStat.nom}</span>
+                                      </td>
+                                      <td className="px-4 py-3.5 text-center font-bold text-slate-600 dark:text-slate-400">{cStat.ordered}</td>
+                                      <td className="px-4 py-3.5 text-center font-bold text-slate-800 dark:text-white">{cStat.shipped}</td>
+                                      <td className="px-4 py-3.5 text-center font-bold">
+                                        <span className={cStat.gap === 0 ? 'text-slate-400' : cStat.gap > 0 ? 'text-emerald-500' : 'text-red-500'}>
+                                          {cStat.gap === 0 ? '—' : (cStat.gap > 0 ? `+${cStat.gap}` : cStat.gap)}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3.5 text-center font-bold">
+                                        <span className={cStat.gap === 0 ? 'text-slate-400' : cStat.status === 'outside' ? 'text-red-500' : 'text-emerald-500'}>
+                                          {cStat.gap === 0 ? '0.00%' : `${cStat.pct > 0 ? '+' : ''}${cStat.pct.toFixed(2)}%`}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3.5 text-right">
+                                        <span className={`px-2.5 py-1 rounded-full border text-[10px] tracking-wide font-extrabold uppercase ${badgeClass}`}>
+                                          {badgeLabel}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })()}
+
+              {activeInputTab === 'rapport_ecart' && (() => {
+                // Compile list of discrepancies
+                const deviationsList: any[] = [];
+                colors.forEach((colorConfig, colorIdx) => {
+                  colorConfig.tailles.forEach(sz => {
+                    const ord = parseFloat(getOrderedValueForColorAndSize(colorConfig.nom, sz, colorConfig)) || 0;
+                    const shp = parseFloat(getShippedValueForColorAndSize(colorConfig.nom, sz, colorConfig, colorIdx)) || 0;
+                    const gap = shp - ord;
+                    if (gap !== 0) {
+                      let pct = 0;
+                      if (ord > 0) {
+                        pct = (gap / ord) * 100;
+                      } else if (shp > 0) {
+                        pct = 100;
+                      }
+
+                      let isOutside = false;
+                      if (viewPercentToleranceType === 'both') {
+                        isOutside = Math.abs(pct) > viewPercentToleranceValue;
+                      } else if (viewPercentToleranceType === 'plus') {
+                        isOutside = pct < 0 || pct > viewPercentToleranceValue;
+                      } else if (viewPercentToleranceType === 'minus') {
+                        isOutside = pct > 0 || pct < -viewPercentToleranceValue;
+                      }
+
+                      deviationsList.push({
+                        colorName: colorConfig.nom,
+                        colorConfig,
+                        colorIdx,
+                        size: sz,
+                        ord,
+                        shp,
+                        gap,
+                        pct,
+                        isOutside
+                      });
+                    }
+                  });
+                });
+
+                const handlePrintReport = () => {
+                  window.print();
+                };
+
+                return (
+                  <motion.div
+                    id="tab-content-rapport-ecart"
+                    key="rapport-ecart-section"
+                    initial={{ opacity: 0, x: 15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -15 }}
+                    transition={{ duration: 0.15 }}
+                    className="space-y-6"
+                  >
+                    {/* Main Audit Report Card (styled printable beautifully with print rules) */}
+                    <div className={`rounded-xl border p-6 relative shadow-sm ${
+                      darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200'
+                    } print:border-none print:shadow-none print:bg-white print:text-black print:p-0 print:m-0`}>
+                      
+                      {/* Interactive Controls Panel (Hidden when printing) */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-slate-200 dark:border-slate-800 print:hidden">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <ClipboardCheck className="w-5 h-5 text-blue-500" />
+                            <h2 className="text-base font-black tracking-tight font-mono text-slate-800 dark:text-white uppercase">
+                              📋 Rapport d'Écarts & Audit de Conformité
+                            </h2>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Générez et imprimez un rapport officiel d'écarts de colisage pour validation d'expédition par le client.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handlePrintReport}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-mono font-extrabold uppercase text-xs rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.02] shadow-sm"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Imprimer le Rapport
+                        </button>
+                      </div>
+
+                      {/* Header Section (ALWAYS Visible in Print & Screen) */}
+                      <div className="mt-4 border-b-2 border-red-700 pb-5 mb-5">
+                        <div className="text-center">
+                          <h1 className="text-xl font-extrabold tracking-wide uppercase font-mono text-red-800 dark:text-red-400 print:text-red-800">
+                            Rapport d'Audit & Non-Conformité de Colisage
+                          </h1>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1 uppercase tracking-wider">
+                            Rapport d'analyse de conformité quantitative commande vs colisage final
+                          </p>
+                        </div>
+
+                        {/* Order Metadata Block */}
+                        <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-y-3 gap-x-6 text-xs font-mono">
+                          <div className="border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5">
+                            <span className="text-slate-400 block text-[9px] uppercase">Client :</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 print:text-black">{meta.customer || '—'}</span>
+                          </div>
+                          <div className="border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5">
+                            <span className="text-slate-400 block text-[9px] uppercase">Commande (N°) :</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 print:text-black">{meta.order || '—'}</span>
+                          </div>
+                          <div className="border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5">
+                            <span className="text-slate-400 block text-[9px] uppercase">Bon de Commande (PO) :</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 print:text-black">{meta.po || '—'}</span>
+                          </div>
+                          <div className="border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5">
+                            <span className="text-slate-400 block text-[9px] uppercase">Facture (Invoice) :</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 print:text-black">{meta.invoice || '—'}</span>
+                          </div>
+                          <div className="border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5">
+                            <span className="text-slate-400 block text-[9px] uppercase">Modèle / Style :</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 print:text-black">{meta.style || '—'} {meta.styleNumber ? `(${meta.styleNumber})` : ''}</span>
+                          </div>
+                          <div className="border-b border-slate-200/50 dark:border-slate-800/50 pb-1.5">
+                            <span className="text-slate-400 block text-[9px] uppercase">Destination :</span>
+                            <span className="font-bold text-slate-800 dark:text-slate-200 print:text-black">{meta.destination || '—'}</span>
+                          </div>
+                        </div>
+
+                        {/* Auditor Field input */}
+                        <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="print:border-b print:border-slate-300 pb-1 flex flex-col gap-1">
+                            <label className="text-[10px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400">
+                              Nom de l'Auditeur / Contrôleur :
+                            </label>
+                            <input
+                              type="text"
+                              value={auditorName}
+                              onChange={(e) => setAuditorName(e.target.value)}
+                              placeholder="Entrez le nom de l'auditeur..."
+                              className={`w-full text-xs font-mono px-3 py-2 rounded-lg border outline-none print:hidden ${
+                                darkMode ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800'
+                              }`}
+                            />
+                            <span className="hidden print:inline font-mono text-xs font-extrabold text-slate-900">
+                              {auditorName || '—'}
+                            </span>
+                          </div>
+                          <div className="print:border-b print:border-slate-300 pb-1 flex flex-col gap-1">
+                            <label className="text-[10px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400">
+                              Date du Contrôle d'Audit :
+                            </label>
+                            <span className="font-mono text-xs font-extrabold text-slate-800 dark:text-slate-200 print:text-black">
+                              {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Deviations Table */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-black font-mono text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                            📝 Articles Présentant un Écart Quantitative (Total : {deviationsList.length} articles)
+                          </h3>
+                        </div>
+
+                        {deviationsList.length === 0 ? (
+                          <div className={`p-8 text-center rounded-xl border border-dashed ${
+                            darkMode ? 'bg-slate-900/20 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+                          }`}>
+                            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                            <p className="text-xs font-mono font-bold uppercase tracking-wider">Aucun Écart Détecté !</p>
+                            <p className="text-xs mt-1">Le colisage final correspond exactement aux quantités commandées.</p>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs">
+                            <table className="min-w-full border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-mono font-bold uppercase">
+                                  <th className="px-4 py-3.5 text-left">Couleur</th>
+                                  <th className="px-4 py-3.5 text-center">Taille</th>
+                                  <th className="px-4 py-3.5 text-center">Commandé</th>
+                                  <th className="px-4 py-3.5 text-center">Expédié</th>
+                                  <th className="px-4 py-3.5 text-center">Écart (Pcs)</th>
+                                  <th className="px-4 py-3.5 text-center">% Écart</th>
+                                  <th className="px-4 py-3.5 text-center print:hidden w-64">Motif de l'Écart (Saisie)</th>
+                                  <th className="px-4 py-3.5 text-center hidden print:table-cell">Motif Consigné</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {deviationsList.map((dev, idx) => {
+                                  const reasonKey = `${dev.colorName}-${dev.size}`;
+                                  const currentReason = discrepancyReasons[reasonKey] || '';
+
+                                  return (
+                                    <tr 
+                                      key={`${dev.colorName}-${dev.size}`} 
+                                      className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 font-mono"
+                                    >
+                                      <td className="px-4 py-3 text-left font-sans font-bold flex items-center gap-2">
+                                        <div className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: colors[dev.colorIdx]?.color || '#ccc' }} />
+                                        <span>{dev.colorName}</span>
+                                      </td>
+                                      <td className="px-4 py-3 text-center font-black">{dev.size}</td>
+                                      <td className="px-4 py-3 text-center text-slate-500">{dev.ord}</td>
+                                      <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-white print:text-black">{dev.shp}</td>
+                                      <td className="px-4 py-3 text-center font-black">
+                                        <span className={dev.gap > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
+                                          {dev.gap > 0 ? `+${dev.gap}` : dev.gap}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-center">
+                                        <span className={`px-2 py-0.5 rounded font-bold ${
+                                          dev.isOutside 
+                                            ? 'bg-red-500/10 text-red-600 dark:bg-red-500/15' 
+                                            : 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15'
+                                        }`}>
+                                          {dev.pct > 0 ? '+' : ''}{dev.pct.toFixed(2)}% {dev.isOutside ? '⚠️' : ''}
+                                        </span>
+                                      </td>
+                                      
+                                      {/* Interactive Select for screen view */}
+                                      <td className="px-4 py-3 text-center print:hidden">
+                                        <select
+                                          value={currentReason}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setDiscrepancyReasons(prev => ({
+                                              ...prev,
+                                              [reasonKey]: val
+                                            }));
+                                          }}
+                                          className={`text-xs font-mono px-2 py-1.5 rounded border max-w-full focus:outline-none focus:border-blue-500 ${
+                                            darkMode ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-300 text-slate-800'
+                                          }`}
+                                        >
+                                          <option value="">Sélectionner un motif...</option>
+                                          <option value="Rupture matière première">Rupture matière première</option>
+                                          <option value="Défaut qualité / Second choix">Défaut qualité / Second choix</option>
+                                          <option value="Modifications client demandées">Modifications client demandées</option>
+                                          <option value="Ajustement logistique de volume">Ajustement logistique de volume</option>
+                                          <option value="Surplus validé par client">Surplus validé par client</option>
+                                          <option value="Autre">Autre</option>
+                                        </select>
+                                      </td>
+
+                                      {/* Non-interactive string for print view */}
+                                      <td className="px-4 py-3 text-center hidden print:table-cell font-sans font-medium text-slate-800">
+                                        {currentReason || '—'}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Observations / Comments section */}
+                      <div className="mt-6 flex flex-col gap-2">
+                        <label className="text-[10px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400">
+                          Remarques & Observations de l'Auditeur :
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={auditNotes}
+                          onChange={(e) => setAuditNotes(e.target.value)}
+                          placeholder="Saisissez ici toute note additionnelle d'audit de non-conformité..."
+                          className={`w-full text-xs font-mono p-3 rounded-lg border outline-none resize-none print:hidden ${
+                            darkMode ? 'bg-slate-900 border-white/10 text-white focus:border-blue-500' : 'bg-white border-slate-200 text-slate-800 focus:border-blue-500'
+                          }`}
+                        />
+                        <div className="hidden print:block border border-slate-300 rounded-lg p-3 min-h-[80px] font-mono text-xs text-slate-800 bg-slate-50/50">
+                          {auditNotes || 'Aucune remarque consignée.'}
+                        </div>
+                      </div>
+
+                      {/* Signatures Panel */}
+                      <div className="mt-8 pt-8 border-t border-dashed border-slate-300 dark:border-slate-800 grid grid-cols-2 gap-12 font-mono text-[10px] text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="text-slate-400 uppercase tracking-wider mb-12">Le Responsable Production</span>
+                          <div className="w-48 h-px bg-slate-400 dark:bg-slate-700"></div>
+                          <span className="text-slate-500 mt-1">Visa & Signature</span>
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-slate-400 uppercase tracking-wider mb-12">Le Client / Auditeur Externe</span>
+                          <div className="w-48 h-px bg-slate-400 dark:bg-slate-700"></div>
+                          <span className="text-slate-500 mt-1">Visa & Signature</span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })()}
             </AnimatePresence>
           </div>
         </div>

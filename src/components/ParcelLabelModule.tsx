@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
+import { jsPDF } from 'jspdf';
 import { 
   Printer, 
   Tag, 
@@ -48,6 +50,7 @@ interface FlattenedCarton {
   cbm: number;
   dimensions: string; // e.g. "60x40x35"
   sku: string;
+  qrCodeDataUrl?: string;
 }
 
 export default function ParcelLabelModule({
@@ -298,13 +301,35 @@ export default function ParcelLabelModule({
       });
     });
 
-    setFlattenedCartons(flattened);
-    
-    // Auto select all newly generated carton ids
-    const allIds = new Set(flattened.map(item => item.id));
-    setSelectedCartonIds(allIds);
-    setPreviewIdx(0);
-  }, [results, colors, globalPackingMode, forceSingleCarton, maxSizesPerBox, forceSubCapSolidInMixed]);
+    // Generate QR Codes for each item asynchronously
+    const totalCartons = flattened.length;
+    const generateQRs = async () => {
+      const withQRs = await Promise.all(
+        flattened.map(async (item) => {
+          const sizesSummary = Object.entries(item.sizes)
+            .map(([sz, qty]) => `${sz}:${qty}`)
+            .join(', ');
+          const qrText = `BOX:${item.globalCartonNum}/${totalCartons}\nSTYLE:${styleNameOverride || 'N/A'}\nCOLOR:${item.colorName}\nCONTENT:${sizesSummary}\nQTY:${item.pcsPerCarton}\nGW:${item.grossWeight.toFixed(2)}KG\nSSCC:${getSSCC18ForCarton(item.globalCartonNum)}`;
+          
+          try {
+            const qrCodeDataUrl = await QRCode.toDataURL(qrText, { margin: 1, width: 140 });
+            return { ...item, qrCodeDataUrl };
+          } catch (err) {
+            console.error("QR Code Generation error: ", err);
+            return item;
+          }
+        })
+      );
+      setFlattenedCartons(withQRs);
+      
+      // Auto select all newly generated carton ids
+      const allIds = new Set(withQRs.map(item => item.id));
+      setSelectedCartonIds(allIds);
+      setPreviewIdx(0);
+    };
+
+    generateQRs();
+  }, [results, colors, globalPackingMode, forceSingleCarton, maxSizesPerBox, forceSubCapSolidInMixed, styleNameOverride, ssccCompanyPrefix]);
 
   const parseCartonRange = (rangeStr: string): number[] => {
     const parts = rangeStr.split('-').map(s => parseInt(s.trim(), 10));
@@ -498,13 +523,9 @@ export default function ParcelLabelModule({
                 <div style="font-size: 18px; font-weight: 900; letter-spacing: -0.3px; font-family: sans-serif;">${quantityQ}</div>
               </div>
             </div>
-            <!-- DataMatrix SVG -->
-            <div style="width: 52px; height: 52px; flex-shrink: 0;">
-              <svg viewBox="0 0 ${dmSize} ${dmSize}" style="width: 100%; height: 100%;" shape-rendering="crispEdges">
-                <g fill="black">
-                  ${dmRectsHTML}
-                </g>
-              </svg>
+            <!-- Dynamic QR Code -->
+            <div style="width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+              ${ctn.qrCodeDataUrl ? `<img src="${ctn.qrCodeDataUrl}" style="width: 100%; height: 100%;" />` : ''}
             </div>
           </div>
 
@@ -600,6 +621,190 @@ export default function ParcelLabelModule({
     }, 200);
   };
 
+  // Generate and download labels as high-quality PDF (A6 portrait format)
+  const handleDownloadPDFLabels = () => {
+    const chosenLabels = flattenedCartons.filter(c => selectedCartonIds.has(c.id));
+    
+    if (chosenLabels.length === 0) {
+      triggerToast('⚠️ Veuillez sélectionner au moins 1 carton pour exporter en PDF !', 'error');
+      return;
+    }
+
+    // Initialize A6 PDF in portrait
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a6'
+    });
+
+    chosenLabels.forEach((ctn, idx) => {
+      if (idx > 0) {
+        doc.addPage('a6', 'portrait');
+      }
+
+      const ssccCode = getSSCC18ForCarton(ctn.globalCartonNum);
+      const ssccWithAI = `(00)${ssccCode}`;
+      const colorSizeVal = getColorSizeText(ctn);
+      const matVal = materialOverride || ctn.sku || '50527573';
+
+      // 1. Set font & draw outer border
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.4);
+      // Outer border of label (A6 is 105 x 148 mm)
+      doc.rect(5, 5, 95, 138);
+
+      // 2. Draw Top fields (PO, PO-ITEM, SENDER, Q)
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 80, 80);
+      
+      // Column widths & positions
+      doc.text('PO', 8, 11);
+      doc.text('PO-ITEM', 28, 11);
+      doc.text('SENDER', 48, 11);
+      doc.text('Q', 68, 11);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text(poNumber, 8, 16);
+      doc.text(poItem, 28, 16);
+      doc.text(senderId, 48, 16);
+      doc.text(quantityQ, 68, 16);
+
+      // Add QR Code at the top-right
+      if (ctn.qrCodeDataUrl) {
+        try {
+          doc.addImage(ctn.qrCodeDataUrl, 'PNG', 81, 7, 16, 16);
+        } catch (e) {
+          console.error("Failed to add QR Code to PDF: ", e);
+        }
+      }
+
+      // Draw horizontal line separator
+      doc.setLineWidth(0.2);
+      doc.line(5, 25, 100, 25);
+
+      // 3. Stylename Section
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 80, 80);
+      doc.text('STYLENAME', 8, 29);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(0, 0, 0);
+      doc.text(styleNameOverride || 'N/A', 8, 35);
+
+      // Draw horizontal line separator
+      doc.line(5, 41, 100, 41);
+
+      // 4. Color/Size, Quantity, Material
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 80, 80);
+      doc.text('COLOR / SIZE', 8, 45);
+      doc.text('QUANTITY', 53, 45);
+      doc.text('MATERIAL', 75, 45);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(colorSizeVal, 8, 51);
+      doc.text(String(ctn.pcsPerCarton), 53, 51);
+      doc.text(matVal, 75, 51);
+
+      // Draw horizontal line separator
+      doc.line(5, 57, 100, 57);
+
+      // 5. Destination Depot
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(destinationDepot || 'N/A', 8, 65);
+
+      // Draw horizontal line separator
+      doc.line(5, 72, 100, 72);
+
+      // 6. Additional Logistics / Weight info (Middle-bottom block)
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(80, 80, 80);
+      doc.text('CARTON NO', 8, 76);
+      doc.text('WEIGHT (GW)', 38, 76);
+      doc.text('DIMENSIONS (CM)', 68, 76);
+
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`${ctn.globalCartonNum} / ${flattenedCartons.length}`, 8, 82);
+      doc.text(`${ctn.grossWeight.toFixed(2)} KG`, 38, 82);
+      doc.text(ctn.dimensions || 'N/A', 68, 82);
+
+      // Draw horizontal line separator before barcode
+      doc.line(5, 88, 100, 88);
+
+      // 7. 1D SSCC Barcode Section
+      // Calculate bars exactly as in print layout
+      const bars: boolean[] = [];
+      for (let i = 0; i < 10; i++) bars.push(false);
+      
+      const seed = ssccCode.replace(/[^0-9]/g, '');
+      for (let i = 0; i < seed.length; i++) {
+        const val = parseInt(seed.charAt(i), 10) || 0;
+        const pattern = [
+          [true, false, true, true, false, false],
+          [true, true, false, true, false, false],
+          [true, true, false, false, true, false],
+          [true, false, false, true, true, false],
+          [true, false, false, false, true, true],
+          [true, true, false, true, true, false],
+          [true, true, false, false, true, true],
+          [true, false, true, true, false, true],
+          [true, false, true, true, true, false],
+          [true, true, true, false, true, false]
+        ][val];
+        pattern.forEach(b => {
+          bars.push(b);
+          bars.push(b); // double width
+        });
+        bars.push(i % 2 === 0);
+        bars.push(false);
+      }
+      bars.push(true, true, false, false, true, true, true, false, true, true);
+      for (let i = 0; i < 10; i++) bars.push(false);
+
+      // Draw 1D Barcode rects in PDF
+      const barcodeXStart = 8;
+      const barcodeWidthTotal = 89; // 89 mm printable barcode area
+      const barcodeYStart = 92;
+      const barcodeHeight = 22;
+      const barWidth = barcodeWidthTotal / bars.length;
+
+      doc.setFillColor(0, 0, 0);
+      bars.forEach((bar, idx) => {
+        if (bar) {
+          doc.rect(barcodeXStart + idx * barWidth, barcodeYStart, barWidth, barcodeHeight, 'F');
+        }
+      });
+
+      // 8. SSCC text under barcode
+      doc.setFont('Helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text(ssccWithAI, 52.5, 120, { align: 'center' });
+
+      // 9. Additional Branding / Security Line
+      doc.setFont('Helvetica', 'normal');
+      doc.setFontSize(5);
+      doc.setTextColor(120, 120, 120);
+      doc.text('PRODUIT PAR NATY PACKING LIST PRO • SECURE LOGISTICS AGENT', 52.5, 133, { align: 'center' });
+    });
+
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const pdfFilename = `ETIQUETTES_A6_${poNumber || 'PARCEL'}_${timestamp}.pdf`;
+    doc.save(pdfFilename);
+    triggerToast(`🎉 PDF généré avec succès : "${pdfFilename}" !`, 'success');
+  };
+
   // Preview elements
   const currentPreviewCarton = visibleCartons[previewIdx];
 
@@ -641,6 +846,14 @@ export default function ParcelLabelModule({
         </div>
 
         <div className="flex flex-wrap gap-2.5">
+          <button
+            onClick={handleDownloadPDFLabels}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer text-white font-extrabold text-[10px] font-mono tracking-wider uppercase rounded-lg flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/10"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>TÉLÉCHARGER LE PDF ({selectedCartonIds.size})</span>
+          </button>
+          
           <button
             onClick={handlePrintLabels}
             className="px-4 py-2 bg-gradient-to-r from-[#E51B22] to-red-600 hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer text-white font-extrabold text-[10px] font-mono tracking-wider uppercase rounded-lg flex items-center justify-center gap-1.5 shadow-md shadow-red-500/10"
@@ -1012,12 +1225,11 @@ export default function ParcelLabelModule({
                           </div>
                         </>
                       ) : (
-                        <div className="w-8 h-8 bg-black p-0.5 flex flex-wrap justify-between items-between overflow-hidden gap-[0.5px]">
-                          {Array.from({ length: 64 }).map((_, pixIdx) => {
-                            const isBlack = (pixIdx * 7) % 3 !== 0;
-                            return <div key={pixIdx} className={`w-[3px] h-[3px] ${isBlack ? 'bg-white' : 'bg-black'}`} />;
-                          })}
-                        </div>
+                        currentPreviewCarton.qrCodeDataUrl ? (
+                          <img src={currentPreviewCarton.qrCodeDataUrl} className="w-14 h-14 object-contain" alt="QR Code" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-14 h-14 bg-slate-200 animate-pulse rounded" />
+                        )
                       )}
                       
                       <div className="text-[7.5px] font-bold tracking-widest uppercase text-black font-mono mt-1 select-text">
