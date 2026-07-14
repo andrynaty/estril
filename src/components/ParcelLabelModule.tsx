@@ -96,6 +96,36 @@ export default function ParcelLabelModule({
   const [destinationDepot, setDestinationDepot] = useState(() => localStorage.getItem('sm_dest_depot') || meta.destination || 'HB Filderstadt');
   const [ssccCompanyPrefix, setSsccCompanyPrefix] = useState(() => localStorage.getItem('sm_sscc_prefix') || '340214040296'); // 12-digit prefix
 
+  // Visual Label Editor States
+  const [labelFormat, setLabelFormat] = useState<'a6' | '10x15' | '10x10'>(() => {
+    return (localStorage.getItem('label_format') as 'a6' | '10x15' | '10x10') || 'a6';
+  });
+
+  const [visibleFields, setVisibleFields] = useState(() => {
+    try {
+      const saved = localStorage.getItem('label_visible_fields');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return {
+      headerBranding: true,
+      senderInfo: true,
+      recipientInfo: true,
+      orderMetadata: true,
+      colorAndSizes: true,
+      logisticsMetrics: true,
+      transitStrip: true,
+      barcode1D: true,
+    };
+  });
+
+  // Save visibility and format to localStorage
+  useEffect(() => {
+    localStorage.setItem('label_format', labelFormat);
+    localStorage.setItem('label_visible_fields', JSON.stringify(visibleFields));
+  }, [labelFormat, visibleFields]);
+
   // 4. Flattened & filtered list of Cartons
   const [flattenedCartons, setFlattenedCartons] = useState<FlattenedCarton[]>([]);
   const [selectedCartonIds, setSelectedCartonIds] = useState<Set<string>>(new Set());
@@ -410,6 +440,10 @@ export default function ParcelLabelModule({
       return;
     }
 
+    const widthMm = labelFormat === '10x10' ? 100 : (labelFormat === '10x15' ? 100 : 105);
+    const heightMm = labelFormat === '10x10' ? 100 : (labelFormat === '10x15' ? 150 : 148);
+    const sizePageStr = labelFormat === '10x10' ? '100mm 100mm' : (labelFormat === '10x15' ? '100mm 150mm' : 'A6 portrait');
+
     // Create the printing iframe or absolute hidden area
     let printArea = document.getElementById('labels-print-area');
     if (!printArea) {
@@ -489,86 +523,143 @@ export default function ParcelLabelModule({
 
       return `
         <div class="print-label-page" style="
-          width: 105mm;
-          height: 148mm;
+          width: ${widthMm}mm;
+          height: ${heightMm}mm;
           page-break-after: always;
           break-after: page;
           box-sizing: border-box;
-          padding: 24px 28px;
+          padding: 16px 20px;
           display: flex;
           flex-direction: column;
           font-family: 'Arial', 'Helvetica', sans-serif;
           color: black;
           background: white;
           justify-content: flex-start;
-          gap: 16px;
+          gap: 10px;
         ">
-          <!-- TOP ROW: PO / PO-ITEM / SENDER / Q + DATAMATRIX -->
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-            <div style="display: flex; gap: 24px; flex: 1;">
+          <!-- TOP ROW: LOGO + CARRIER -->
+          ${visibleFields.headerBranding ? `
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-bottom: 2px solid black; padding-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: 900; text-transform: uppercase;">${customBranding}</span>
+            <span style="background: black; color: white; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 2px;">${carrier} EXP</span>
+          </div>
+          ` : ''}
+
+          <!-- SENDER & SHIP TO ADDRESS FIELDS -->
+          ${(visibleFields.senderInfo || visibleFields.recipientInfo) ? `
+          <div style="display: flex; border-bottom: 1.5px solid black; font-size: 8px; padding-bottom: 4px;">
+            ${visibleFields.senderInfo ? `
+            <div style="width: 50%; padding-right: 8px; ${visibleFields.recipientInfo ? 'border-right: 1.5px solid black;' : ''}">
+              <div style="font-size: 6px; font-weight: bold; text-decoration: underline; margin-bottom: 2px;">SENDER:</div>
+              <div style="font-weight: bold;">${senderName}</div>
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${senderAddress}</div>
+              <div>${senderZipCity}</div>
+              <div style="font-weight: bold;">${senderCountry}</div>
+            </div>
+            ` : ''}
+            
+            ${visibleFields.recipientInfo ? `
+            <div style="width: ${visibleFields.senderInfo ? '50%' : '100%'}; padding-left: ${visibleFields.senderInfo ? '8px' : '0'};">
+              <div style="font-size: 6px; font-weight: bold; text-decoration: underline; margin-bottom: 2px;">SHIP TO:</div>
+              <div style="font-weight: 900; font-size: 9px;">${destName}</div>
+              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${destAddress}</div>
+              <div style="font-weight: bold;">${destZipCity}</div>
+              <div style="font-weight: bold;">${destCountry}</div>
+            </div>
+            ` : ''}
+          </div>
+          ` : ''}
+
+          <!-- METADATA (PO, PO-ITEM, SENDER, Q, STYLENAME) + QR -->
+          ${visibleFields.orderMetadata ? `
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; border-bottom: 1.5px solid black; padding-bottom: 4px; font-size: 8px;">
+            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
               <div>
-                <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">PO</div>
-                <div style="font-size: 18px; font-weight: 900; letter-spacing: -0.3px; font-family: sans-serif;">${poNumber}</div>
+                <div style="font-weight: bold; font-size: 6px; color: #555;">PO</div>
+                <div style="font-size: 11px; font-weight: 900;">${poNumber}</div>
               </div>
               <div>
-                <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">PO-ITEM</div>
-                <div style="font-size: 18px; font-weight: 900; letter-spacing: -0.3px; font-family: sans-serif;">${poItem}</div>
+                <div style="font-weight: bold; font-size: 6px; color: #555;">PO-ITEM</div>
+                <div style="font-size: 11px; font-weight: 900;">${poItem}</div>
               </div>
               <div>
-                <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">SENDER</div>
-                <div style="font-size: 18px; font-weight: 900; letter-spacing: -0.3px; font-family: sans-serif;">${senderId}</div>
+                <div style="font-weight: bold; font-size: 6px; color: #555;">SENDER ID</div>
+                <div style="font-size: 11px; font-weight: 900;">${senderId}</div>
               </div>
               <div>
-                <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">Q</div>
-                <div style="font-size: 18px; font-weight: 900; letter-spacing: -0.3px; font-family: sans-serif;">${quantityQ}</div>
+                <div style="font-weight: bold; font-size: 6px; color: #555;">QTY</div>
+                <div style="font-size: 11px; font-weight: 900;">${quantityQ}</div>
+              </div>
+              <div style="width: 100%;">
+                <div style="font-weight: bold; font-size: 6px; color: #555;">STYLENAME</div>
+                <div style="font-size: 11px; font-weight: 900;">${styleNameOverride}</div>
               </div>
             </div>
-            <!-- Dynamic QR Code -->
-            <div style="width: 56px; height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+            <div style="width: 44px; height: 44px; flex-shrink: 0;">
               ${ctn.qrCodeDataUrl ? `<img src="${ctn.qrCodeDataUrl}" style="width: 100%; height: 100%;" />` : ''}
             </div>
           </div>
+          ` : ''}
 
-          <!-- STYLENAME -->
-          <div style="display: flex; flex-direction: column; width: 100%;">
-            <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">Stylename</div>
-            <div style="font-size: 19px; font-weight: 900; font-family: sans-serif; letter-spacing: -0.2px;">${styleNameOverride}</div>
+          <!-- COLOR & SIZES -->
+          ${visibleFields.colorAndSizes ? `
+          <div style="border-bottom: 1.5px solid black; padding-bottom: 4px;">
+            <div style="font-size: 8px; font-weight: bold; margin-bottom: 2px;">
+              COULEUR : <span style="font-size: 10px; font-weight: 900; background: #eee; padding: 1px 4px; border-radius: 2px;">${ctn.colorName}</span>
+            </div>
+            <div style="font-size: 7.5px; font-family: monospace; display: flex; flex-wrap: wrap; gap: 6px;">
+              ${Object.entries(ctn.sizes).map(([sz, qty]) => `
+                <span><u>${sz}</u>: <b>${qty}</b></span>
+              `).join('')}
+            </div>
           </div>
+          ` : ''}
 
-          <!-- COLUMN DETAILS: COLOR/SIZE / QUANTITY / MATERIAL -->
-          <div style="display: flex; width: 100%; justify-content: flex-start; gap: 40px;">
-            <div style="min-width: 90px;">
-              <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">Color / Size</div>
-              <div style="font-size: 18px; font-weight: 900; font-family: sans-serif; letter-spacing: -0.2px;">${colorSizeVal}</div>
-            </div>
-            <div style="min-width: 70px;">
-              <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">Quantity</div>
-              <div style="font-size: 18px; font-weight: 900; font-family: sans-serif; letter-spacing: -0.2px;">${ctn.pcsPerCarton}</div>
-            </div>
+          <!-- LOGISTICS METRICS (WEIGHT, DIMENSIONS, SKU, QUANTITY) -->
+          ${visibleFields.logisticsMetrics ? `
+          <div style="display: flex; justify-content: space-between; border-bottom: 1.5px solid black; padding-bottom: 4px; font-size: 8px;">
             <div>
-              <div style="font-size: 9px; text-transform: uppercase; color: #555; font-weight: bold; margin-bottom: 2px; font-family: sans-serif;">Material</div>
-              <div style="font-size: 18px; font-weight: 900; font-family: sans-serif; letter-spacing: -0.2px;">${matVal}</div>
+              <div>NET WEIGHT: <b>${ctn.netWeight.toFixed(2)} KG</b></div>
+              <div style="font-size: 9px; font-weight: 900;">GROSS WEIGHT: <b>${ctn.grossWeight.toFixed(2)} KG</b></div>
+              <div>VOLUME: <b>${ctn.cbm.toFixed(4)} m³</b></div>
+            </div>
+            <div style="text-align: right;">
+              <div>SKU: <b>${ctn.sku}</b></div>
+              <div>DIM: <b>${ctn.dimensions} CM</b></div>
+              <div style="font-size: 9px; font-weight: 900; margin-top: 1px;">QTE: ${ctn.pcsPerCarton} PCS</div>
             </div>
           </div>
+          ` : ''}
 
-          <!-- LOCATION / DEPOT -->
-          <div style="font-size: 21px; font-weight: 900; font-family: sans-serif; width: 100%; margin-top: 4px; letter-spacing: -0.3px;">
-            ${destinationDepot}
+          <!-- TRANSIT ROUTE STRIP -->
+          ${visibleFields.transitStrip ? `
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 4px; font-size: 8px;">
+            <div>
+              <div style="font-size: 6px; color: #555;">ROUTE INDEX:</div>
+              <div style="font-size: 12px; font-weight: 950; letter-spacing: 0.5px;">${routingZone}</div>
+            </div>
+            <div style="text-align: right;">
+              <div>CARTON DE COULEUR : <b>#${ctn.cartonNum} / ${flattenedCartons.filter(c => c.colorName === ctn.colorName).length}</b></div>
+              <div>COLIS GLOBAL : <b>#${ctn.globalCartonNum} / ${flattenedCartons.length}</b></div>
+            </div>
           </div>
+          ` : ''}
 
           <!-- 1D SSCC BARCODE -->
-          <div style="display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: auto; padding-top: 12px;">
-            <div style="width: 100%; height: 75px;">
+          ${visibleFields.barcode1D ? `
+          <div style="display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: auto;">
+            <div style="width: 100%; height: 50px;">
               <svg viewBox="0 0 ${bars.length} 100" preserveAspectRatio="none" style="width: 100%; height: 100%;" shape-rendering="crispEdges">
                 <g fill="black">
                   ${barcodeRectsHTML}
                 </g>
               </svg>
             </div>
-            <div style="font-size: 14px; font-weight: 900; font-family: sans-serif; letter-spacing: 0.5px; text-align: center; margin-top: 6px;">
+            <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.5px; text-align: center; margin-top: 3px;">
               ${ssccWithAI}
             </div>
           </div>
+          ` : ''}
         </div>
       `;
     }).join('');
@@ -591,8 +682,8 @@ export default function ParcelLabelModule({
           padding: 0 !important;
         }
         .print-label-page {
-          width: 105mm !important;
-          height: 148mm !important;
+          width: ${widthMm}mm !important;
+          height: ${heightMm}mm !important;
           page-break-after: always !important;
           break-after: page !important;
           display: flex !important;
@@ -604,7 +695,7 @@ export default function ParcelLabelModule({
           print-color-adjust: exact !important;
         }
         @page {
-          size: A6 portrait;
+          size: ${sizePageStr};
           margin: 0;
         }
       }
@@ -621,7 +712,7 @@ export default function ParcelLabelModule({
     }, 200);
   };
 
-  // Generate and download labels as high-quality PDF (A6 portrait format)
+  // Generate and download labels as high-quality PDF
   const handleDownloadPDFLabels = () => {
     const chosenLabels = flattenedCartons.filter(c => selectedCartonIds.has(c.id));
     
@@ -630,16 +721,18 @@ export default function ParcelLabelModule({
       return;
     }
 
-    // Initialize A6 PDF in portrait
+    const labelW = labelFormat === '10x10' ? 101.6 : (labelFormat === '10x15' ? 101.6 : 105);
+    const labelH = labelFormat === '10x10' ? 101.6 : (labelFormat === '10x15' ? 152.4 : 148);
+
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a6'
+      format: [labelW, labelH]
     });
 
     chosenLabels.forEach((ctn, idx) => {
       if (idx > 0) {
-        doc.addPage('a6', 'portrait');
+        doc.addPage([labelW, labelH], 'portrait');
       }
 
       const ssccCode = getSSCC18ForCarton(ctn.globalCartonNum);
@@ -650,157 +743,240 @@ export default function ParcelLabelModule({
       // 1. Set font & draw outer border
       doc.setDrawColor(0);
       doc.setLineWidth(0.4);
-      // Outer border of label (A6 is 105 x 148 mm)
-      doc.rect(5, 5, 95, 138);
+      doc.rect(4, 4, labelW - 8, labelH - 8);
 
-      // 2. Draw Top fields (PO, PO-ITEM, SENDER, Q)
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(80, 80, 80);
-      
-      // Column widths & positions
-      doc.text('PO', 8, 11);
-      doc.text('PO-ITEM', 28, 11);
-      doc.text('SENDER', 48, 11);
-      doc.text('Q', 68, 11);
+      let yCursor = 4;
 
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text(poNumber, 8, 16);
-      doc.text(poItem, 28, 16);
-      doc.text(senderId, 48, 16);
-      doc.text(quantityQ, 68, 16);
+      // 1. Header/Branding
+      if (visibleFields.headerBranding) {
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.text(customBranding, 6, yCursor + 5);
 
-      // Add QR Code at the top-right
-      if (ctn.qrCodeDataUrl) {
-        try {
-          doc.addImage(ctn.qrCodeDataUrl, 'PNG', 81, 7, 16, 16);
-        } catch (e) {
-          console.error("Failed to add QR Code to PDF: ", e);
-        }
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.text(`${carrier} EXP`, labelW - 20, yCursor + 5);
+
+        yCursor += 8;
+        doc.setLineWidth(0.2);
+        doc.line(4, yCursor, labelW - 4, yCursor);
       }
 
-      // Draw horizontal line separator
-      doc.setLineWidth(0.2);
-      doc.line(5, 25, 100, 25);
+      // 2. Sender & Ship To Addresses
+      if (visibleFields.senderInfo || visibleFields.recipientInfo) {
+        const startY = yCursor;
+        let senderY = startY + 3;
+        let recipientY = startY + 3;
 
-      // 3. Stylename Section
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(80, 80, 80);
-      doc.text('STYLENAME', 8, 29);
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
 
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(0, 0, 0);
-      doc.text(styleNameOverride || 'N/A', 8, 35);
+        if (visibleFields.senderInfo) {
+          doc.text('SENDER:', 6, senderY);
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.setTextColor(0, 0, 0);
+          doc.text(senderName.slice(0, 22), 6, senderY + 4);
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(6);
+          doc.text(senderAddress.slice(0, 24), 6, senderY + 7);
+          doc.text(senderZipCity, 6, senderY + 10);
+          doc.text(senderCountry, 6, senderY + 13);
+        }
 
-      // Draw horizontal line separator
-      doc.line(5, 41, 100, 41);
+        const rightColX = visibleFields.senderInfo ? (labelW / 2) + 2 : 6;
+        if (visibleFields.recipientInfo) {
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(80, 80, 80);
+          doc.text('SHIP TO:', rightColX, recipientY);
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(0, 0, 0);
+          doc.text(destName.slice(0, 20), rightColX, recipientY + 4);
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(6);
+          doc.text(destAddress.slice(0, 24), rightColX, recipientY + 7);
+          doc.text(destZipCity, rightColX, recipientY + 10);
+          doc.text(destCountry, rightColX, recipientY + 13);
+        }
 
-      // 4. Color/Size, Quantity, Material
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(80, 80, 80);
-      doc.text('COLOR / SIZE', 8, 45);
-      doc.text('QUANTITY', 53, 45);
-      doc.text('MATERIAL', 75, 45);
+        yCursor += 18;
+        doc.setLineWidth(0.2);
+        doc.line(4, yCursor, labelW - 4, yCursor);
+      }
 
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(colorSizeVal, 8, 51);
-      doc.text(String(ctn.pcsPerCarton), 53, 51);
-      doc.text(matVal, 75, 51);
+      // 3. Metadata (PO, PO-ITEM, SENDER, Q, STYLENAME) + QR
+      if (visibleFields.orderMetadata) {
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text('PO', 6, yCursor + 3);
+        doc.text('PO-ITEM', 24, yCursor + 3);
+        doc.text('SENDER ID', 42, yCursor + 3);
+        doc.text('QTY', 60, yCursor + 3);
 
-      // Draw horizontal line separator
-      doc.line(5, 57, 100, 57);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.text(poNumber, 6, yCursor + 7);
+        doc.text(poItem, 24, yCursor + 7);
+        doc.text(senderId, 42, yCursor + 7);
+        doc.text(quantityQ, 60, yCursor + 7);
 
-      // 5. Destination Depot
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text(destinationDepot || 'N/A', 8, 65);
+        // STYLENAME line
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text('STYLENAME', 6, yCursor + 11);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.text(styleNameOverride || 'N/A', 6, yCursor + 15);
 
-      // Draw horizontal line separator
-      doc.line(5, 72, 100, 72);
+        // QR Code
+        if (ctn.qrCodeDataUrl) {
+          try {
+            doc.addImage(ctn.qrCodeDataUrl, 'PNG', labelW - 20, yCursor + 1, 14, 14);
+          } catch (e) {
+            console.error(e);
+          }
+        }
 
-      // 6. Additional Logistics / Weight info (Middle-bottom block)
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(80, 80, 80);
-      doc.text('CARTON NO', 8, 76);
-      doc.text('WEIGHT (GW)', 38, 76);
-      doc.text('DIMENSIONS (CM)', 68, 76);
+        yCursor += 18;
+        doc.setLineWidth(0.2);
+        doc.line(4, yCursor, labelW - 4, yCursor);
+      }
 
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`${ctn.globalCartonNum} / ${flattenedCartons.length}`, 8, 82);
-      doc.text(`${ctn.grossWeight.toFixed(2)} KG`, 38, 82);
-      doc.text(ctn.dimensions || 'N/A', 68, 82);
+      // 4. Color & Sizes
+      if (visibleFields.colorAndSizes) {
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text('COULEUR / COLOR', 6, yCursor + 3);
 
-      // Draw horizontal line separator before barcode
-      doc.line(5, 88, 100, 88);
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        doc.text(ctn.colorName, 6, yCursor + 7);
 
-      // 7. 1D SSCC Barcode Section
-      // Calculate bars exactly as in print layout
-      const bars: boolean[] = [];
-      for (let i = 0; i < 10; i++) bars.push(false);
-      
-      const seed = ssccCode.replace(/[^0-9]/g, '');
-      for (let i = 0; i < seed.length; i++) {
-        const val = parseInt(seed.charAt(i), 10) || 0;
-        const pattern = [
-          [true, false, true, true, false, false],
-          [true, true, false, true, false, false],
-          [true, true, false, false, true, false],
-          [true, false, false, true, true, false],
-          [true, false, false, false, true, true],
-          [true, true, false, true, true, false],
-          [true, true, false, false, true, true],
-          [true, false, true, true, false, true],
-          [true, false, true, true, true, false],
-          [true, true, true, false, true, false]
-        ][val];
-        pattern.forEach(b => {
-          bars.push(b);
-          bars.push(b); // double width
+        // sizes line
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.text(colorSizeVal, 6, yCursor + 11);
+
+        yCursor += 14;
+        doc.setLineWidth(0.2);
+        doc.line(4, yCursor, labelW - 4, yCursor);
+      }
+
+      // 5. Logistics Metrics (Weights, SKU, Dimensions, Quantity)
+      if (visibleFields.logisticsMetrics) {
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text('WEIGHT DETAILS', 6, yCursor + 3);
+        doc.text('PRODUCT DETAILS', labelW / 2, yCursor + 3);
+
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Net: ${ctn.netWeight.toFixed(2)} KG`, 6, yCursor + 7);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(`Gross: ${ctn.grossWeight.toFixed(2)} KG`, 6, yCursor + 10);
+        doc.setFont('Helvetica', 'normal');
+        doc.text(`Vol: ${ctn.cbm.toFixed(4)} m3`, 6, yCursor + 13);
+
+        doc.text(`SKU: ${ctn.sku}`, labelW / 2, yCursor + 7);
+        doc.text(`Dim: ${ctn.dimensions} CM`, labelW / 2, yCursor + 10);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(`Qty: ${ctn.pcsPerCarton} PCS`, labelW / 2, yCursor + 13);
+
+        yCursor += 16;
+        doc.setLineWidth(0.2);
+        doc.line(4, yCursor, labelW - 4, yCursor);
+      }
+
+      // 6. Transit Route Index Strip
+      if (visibleFields.transitStrip) {
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.setTextColor(80, 80, 80);
+        doc.text('ROUTE INDEX', 6, yCursor + 3);
+        doc.text('COLOR CTN', 42, yCursor + 3);
+        doc.text('GLOBAL BOX', labelW - 28, yCursor + 3);
+
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        doc.text(routingZone, 6, yCursor + 7);
+        doc.setFont('Helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(`#${ctn.cartonNum} / ${flattenedCartons.filter(c => c.colorName === ctn.colorName).length}`, 42, yCursor + 7);
+        doc.text(`#${ctn.globalCartonNum} / ${flattenedCartons.length}`, labelW - 28, yCursor + 7);
+
+        yCursor += 10;
+        doc.setLineWidth(0.2);
+        doc.line(4, yCursor, labelW - 4, yCursor);
+      }
+
+      // 7. 1D Barcode / SSCC
+      if (visibleFields.barcode1D) {
+        const remainingH = labelH - yCursor - 4;
+        const barcodeH = Math.max(10, Math.min(18, remainingH - 8));
+        const barcodeY = yCursor + 2;
+
+        // Draw 1D Barcode rects in PDF
+        const bars: boolean[] = [];
+        for (let i = 0; i < 10; i++) bars.push(false);
+        const seed = ssccCode.replace(/[^0-9]/g, '');
+        for (let i = 0; i < seed.length; i++) {
+          const val = parseInt(seed.charAt(i), 10) || 0;
+          const pattern = [
+            [true, false, true, true, false, false],
+            [true, true, false, true, false, false],
+            [true, true, false, false, true, false],
+            [true, false, false, true, true, false],
+            [true, false, false, false, true, true],
+            [true, true, false, true, true, false],
+            [true, true, false, false, true, true],
+            [true, false, true, true, false, true],
+            [true, false, true, true, true, false],
+            [true, true, true, false, true, false]
+          ][val];
+          pattern.forEach(b => {
+            bars.push(b);
+            bars.push(b); // double width
+          });
+          bars.push(i % 2 === 0);
+          bars.push(false);
+        }
+        bars.push(true, true, false, false, true, true, true, false, true, true);
+        for (let i = 0; i < 10; i++) bars.push(false);
+
+        const barcodeXStart = 8;
+        const barcodeWidthTotal = labelW - 16;
+        const barWidth = barcodeWidthTotal / bars.length;
+
+        doc.setFillColor(0, 0, 0);
+        bars.forEach((bar, idx) => {
+          if (bar) {
+            doc.rect(barcodeXStart + idx * barWidth, barcodeY, barWidth, barcodeH, 'F');
+          }
         });
-        bars.push(i % 2 === 0);
-        bars.push(false);
+
+        // SSCC text under barcode
+        doc.setFont('Helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        doc.text(ssccWithAI, labelW / 2, barcodeY + barcodeH + 3.5, { align: 'center' });
       }
-      bars.push(true, true, false, false, true, true, true, false, true, true);
-      for (let i = 0; i < 10; i++) bars.push(false);
-
-      // Draw 1D Barcode rects in PDF
-      const barcodeXStart = 8;
-      const barcodeWidthTotal = 89; // 89 mm printable barcode area
-      const barcodeYStart = 92;
-      const barcodeHeight = 22;
-      const barWidth = barcodeWidthTotal / bars.length;
-
-      doc.setFillColor(0, 0, 0);
-      bars.forEach((bar, idx) => {
-        if (bar) {
-          doc.rect(barcodeXStart + idx * barWidth, barcodeYStart, barWidth, barcodeHeight, 'F');
-        }
-      });
-
-      // 8. SSCC text under barcode
-      doc.setFont('Helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text(ssccWithAI, 52.5, 120, { align: 'center' });
-
-      // 9. Additional Branding / Security Line
-      doc.setFont('Helvetica', 'normal');
-      doc.setFontSize(5);
-      doc.setTextColor(120, 120, 120);
-      doc.text('PRODUIT PAR NATY PACKING LIST PRO • SECURE LOGISTICS AGENT', 52.5, 133, { align: 'center' });
     });
 
     const timestamp = new Date().toISOString().slice(0, 10);
-    const pdfFilename = `ETIQUETTES_A6_${poNumber || 'PARCEL'}_${timestamp}.pdf`;
+    const pdfFilename = `ETIQUETTES_${labelFormat.toUpperCase()}_${poNumber || 'PARCEL'}_${timestamp}.pdf`;
     doc.save(pdfFilename);
     triggerToast(`🎉 PDF généré avec succès : "${pdfFilename}" !`, 'success');
   };
@@ -1092,11 +1268,90 @@ export default function ParcelLabelModule({
         {/* PREVIEW AND SELECTION CONTROLLER SIDE (5 cols) */}
         <div className="xl:col-span-5 space-y-6">
           
+          {/* VISUAL LABEL CUSTOMIZER PANEL */}
+          <div className={`p-4 rounded-xl border ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200 shadow-sm'} space-y-4`}>
+            <div className="flex items-center gap-2 pb-2 border-b border-dashed border-slate-850 dark:border-slate-800">
+              <Sliders className="w-3.5 h-3.5 text-orange-500" />
+              <h3 className={`text-xs font-mono font-extrabold uppercase ${darkMode ? 'text-slate-200' : 'text-slate-750'}`}>
+                🎛️ CONFIGURATION & FORMATS D'ÉTIQUETTES
+              </h3>
+            </div>
+
+            {/* Label Format Selection */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">
+                Format de l'étiquette thermique
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'a6', label: 'Standard A6', desc: '10.5 x 14.8 cm' },
+                  { id: '10x15', label: 'Thermique 10x15', desc: '10 x 15 cm' },
+                  { id: '10x10', label: 'Thermique 10x10', desc: '10 x 10 cm' }
+                ].map(fmt => (
+                  <button
+                    key={fmt.id}
+                    type="button"
+                    onClick={() => setLabelFormat(fmt.id as any)}
+                    className={`p-2 rounded-lg border text-center transition-all cursor-pointer ${
+                      labelFormat === fmt.id
+                        ? 'border-orange-500 bg-orange-500/10 text-orange-400 font-bold'
+                        : `${darkMode ? 'border-slate-800 bg-slate-900/40 text-slate-400 hover:text-white' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'}`
+                    }`}
+                  >
+                    <div className="text-[10px] font-mono whitespace-nowrap">{fmt.label}</div>
+                    <div className="text-[9px] font-mono text-slate-400">{fmt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Fields Switches */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">
+                Champs de l'étiquette à afficher
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: 'headerBranding', label: '🏢 En-tête & Logo' },
+                  { key: 'senderInfo', label: '📦 Expéditeur (Sender)' },
+                  { key: 'recipientInfo', label: '👤 Destinataire (Ship To)' },
+                  { key: 'orderMetadata', label: '📝 Commande / PO' },
+                  { key: 'colorAndSizes', label: '🎨 Couleur & Tailles' },
+                  { key: 'logisticsMetrics', label: '⚖️ Poids & Quantités' },
+                  { key: 'transitStrip', label: '🛣️ Zone de Tri (Transit)' },
+                  { key: 'barcode1D', label: '🏷️ Code-barres / SSCC' }
+                ].map(field => (
+                  <label
+                    key={field.key}
+                    className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer select-none transition-all ${
+                      (visibleFields as any)[field.key]
+                        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400 font-bold'
+                        : `${darkMode ? 'border-slate-800 bg-slate-900/20 text-slate-500' : 'border-slate-200 bg-slate-50 text-slate-500'}`
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono">{field.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={(visibleFields as any)[field.key]}
+                      onChange={() => {
+                        setVisibleFields((prev: any) => ({
+                          ...prev,
+                          [field.key]: !prev[field.key]
+                        }));
+                      }}
+                      className="rounded accent-emerald-500 cursor-pointer w-3.5 h-3.5"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          
           {/* A6 LIVE THERMAL RENDERING VIEW (high contrast) */}
           <div className="space-y-3.5">
             <h3 className={`text-xs font-mono font-bold tracking-tight uppercase flex items-center gap-1.5 ${darkMode ? 'text-slate-350' : 'text-slate-800'}`}>
               <Sparkles className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
-              Rendu Visuel Réaliste A6 Thermique
+              Aperçu en temps réel : format {labelFormat.toUpperCase()} ({labelFormat === '10x10' ? '10x10cm' : (labelFormat === '10x15' ? '10x15cm' : '10.5x14.8cm')})
             </h3>
 
             {visibleCartons.length === 0 ? (
@@ -1116,126 +1371,146 @@ export default function ParcelLabelModule({
                   {/* Sticky sheet card style */}
                   <div 
                     id="sticker-thermal-card-preview" 
-                    className="aspect-[105/148] w-full max-w-[340px] px-3.5 py-4 bg-white text-black border-[3.5px] border-black flex flex-col justify-between shadow-xl select-none select-text rounded-2xs relative tracking-wide select-none"
+                    className={`w-full max-w-[340px] px-3.5 py-4 bg-white text-black border-[3.5px] border-black flex flex-col justify-between shadow-xl select-none select-text rounded-2xs relative tracking-wide ${
+                      labelFormat === '10x10' ? 'aspect-square' : (labelFormat === '10x15' ? 'aspect-[100/150]' : 'aspect-[105/148]')
+                    }`}
                     style={{ fontFamily: 'monospace' }}
                   >
                     
                     {/* TOP SECTION: LOGO + CARRIER */}
-                    <div className="flex items-center justify-between border-b-[2.5px] border-black pb-1.5">
-                      <div>
-                        <span className="font-sans font-black text-xs inline-block tracking-tighter text-black uppercase">{customBranding}</span>
-                        <div className="text-[7px] font-mono leading-none tracking-tight opacity-75">SPECS LABELS THERMAL A6</div>
-                      </div>
-                      <div className="bg-black text-white px-2 py-0.5 font-sans font-extrabold text-[10px] tracking-wide rounded-xs">
-                        {carrier} EXP
-                      </div>
-                    </div>
-
-                    {/* SENDER & SHIP TO ADDRESS FIELDS */}
-                    <div className="flex border-b-[2px] border-black text-[7.5px] min-height-[52px]">
-                      <div className="w-1/2 border-r-[2px] border-black pr-1.5 pt-1 pb-1">
-                        <div className="text-[6px] font-black underline mb-0.5">SENDER:</div>
-                        <div className="font-extrabold">{senderName}</div>
-                        <div className="truncate">{senderAddress}</div>
-                        <div>{senderZipCity}</div>
-                        <div className="font-extrabold">{senderCountry}</div>
-                      </div>
-                      
-                      <div className="w-1/2 pl-1.5 pt-1 pb-1 relative">
-                        <div className="text-[6px] font-black underline mb-0.5">SHIP TO:</div>
-                        <div className="font-black text-[9px] leading-tight text-black line-clamp-1">{destName}</div>
-                        <div className="line-clamp-2 leading-none mt-0.5 text-[7px]">{destAddress}</div>
-                        <div className="font-extrabold mt-0.5">{destZipCity}</div>
-                        <div className="font-black text-[8px] tracking-wider mt-0.5 uppercase">{destCountry}</div>
-
-                        {/* Zone Stamp */}
-                        <div className="absolute right-0 top-1 text-xs font-black border-2 border-black rounded px-1.5 py-0.5 bg-white flex items-center justify-center">
-                          D
+                    {visibleFields.headerBranding && (
+                      <div className="flex items-center justify-between border-b-[2.5px] border-black pb-1.5">
+                        <div>
+                          <span className="font-sans font-black text-xs inline-block tracking-tighter text-black uppercase">{customBranding}</span>
+                          <div className="text-[7px] font-mono leading-none tracking-tight opacity-75">SPECS LABELS THERMAL A6</div>
+                        </div>
+                        <div className="bg-black text-white px-2 py-0.5 font-sans font-extrabold text-[10px] tracking-wide rounded-xs">
+                          {carrier} EXP
                         </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* SENDER & SHIP TO ADDRESS FIELDS */}
+                    {(visibleFields.senderInfo || visibleFields.recipientInfo) && (
+                      <div className="flex border-b-[2px] border-black text-[7.5px] min-height-[52px]">
+                        {visibleFields.senderInfo && (
+                          <div className={`${visibleFields.recipientInfo ? 'w-1/2 border-r-[2px] border-black pr-1.5' : 'w-full'} pt-1 pb-1`}>
+                            <div className="text-[6px] font-black underline mb-0.5">SENDER:</div>
+                            <div className="font-extrabold">{senderName}</div>
+                            <div className="truncate">{senderAddress}</div>
+                            <div>{senderZipCity}</div>
+                            <div className="font-extrabold">{senderCountry}</div>
+                          </div>
+                        )}
+                        
+                        {visibleFields.recipientInfo && (
+                          <div className={`${visibleFields.senderInfo ? 'w-1/2 pl-1.5' : 'w-full'} pt-1 pb-1 relative`}>
+                            <div className="text-[6px] font-black underline mb-0.5">SHIP TO:</div>
+                            <div className="font-black text-[9px] leading-tight text-black line-clamp-1">{destName}</div>
+                            <div className="line-clamp-2 leading-none mt-0.5 text-[7px]">{destAddress}</div>
+                            <div className="font-extrabold mt-0.5">{destZipCity}</div>
+                            <div className="font-black text-[8px] tracking-wider mt-0.5 uppercase">{destCountry}</div>
+
+                            {/* Zone Stamp */}
+                            <div className="absolute right-0 top-1 text-xs font-black border-2 border-black rounded px-1.5 py-0.5 bg-white flex items-center justify-center">
+                              D
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* INTERN METRICS */}
-                    <div className="grid grid-cols-3 border-b-[2px] border-black text-[8px] bg-slate-100">
-                      <div className="border-r-[1.5px] border-black p-1 text-center">
-                        <div className="text-[5.5px] opacity-75">COMMANDE:</div>
-                        <strong className="text-[8px] font-black block leading-none">{meta.order || '—'}</strong>
+                    {visibleFields.orderMetadata && (
+                      <div className="grid grid-cols-3 border-b-[2px] border-black text-[8px] bg-slate-100">
+                        <div className="border-r-[1.5px] border-black p-1 text-center">
+                          <div className="text-[5.5px] opacity-75">COMMANDE:</div>
+                          <strong className="text-[8px] font-black block leading-none">{meta.order || '—'}</strong>
+                        </div>
+                        <div className="border-r-[1.5px] border-black p-1 text-center">
+                          <div className="text-[5.5px] opacity-75">N° STYLE:</div>
+                          <strong className="text-[8px] font-black block leading-none">{meta.styleNumber || '—'}</strong>
+                        </div>
+                        <div className="p-1 text-center">
+                          <div className="text-[5.5px] opacity-75">PO CLIENT:</div>
+                          <strong className="text-[8px] font-black block leading-none truncate">{meta.po || meta.refClient || '—'}</strong>
+                        </div>
                       </div>
-                      <div className="border-r-[1.5px] border-black p-1 text-center">
-                        <div className="text-[5.5px] opacity-75">N° STYLE:</div>
-                        <strong className="text-[8px] font-black block leading-none">{meta.styleNumber || '—'}</strong>
-                      </div>
-                      <div className="p-1 text-center">
-                        <div className="text-[5.5px] opacity-75">PO CLIENT:</div>
-                        <strong className="text-[8px] font-black block leading-none truncate">{meta.po || meta.refClient || '—'}</strong>
-                      </div>
-                    </div>
+                    )}
 
                     {/* COLOR AND SIZES GRID INFO */}
-                    <div className="border-b-[2px] border-black p-1.5 bg-white">
-                      <div className="flex items-center justify-between text-[8.5px] font-bold mb-1">
-                        <div>COULEUR / COLOR: <strong className="text-[10px] font-black bg-slate-200 px-1 py-px rounded">{currentPreviewCarton.colorName}</strong></div>
-                        <div>#{currentPreviewCarton.type === 'mixed' ? 'MIXTE' : 'SOLIDE'}</div>
+                    {visibleFields.colorAndSizes && (
+                      <div className="border-b-[2px] border-black p-1.5 bg-white">
+                        <div className="flex items-center justify-between text-[8.5px] font-bold mb-1">
+                          <div>COULEUR / COLOR: <strong className="text-[10px] font-black bg-slate-200 px-1 py-px rounded">{currentPreviewCarton.colorName}</strong></div>
+                          <div>#{currentPreviewCarton.type === 'mixed' ? 'MIXTE' : 'SOLIDE'}</div>
+                        </div>
+                        <div className="text-[7.5px] font-mono font-bold leading-relaxed border border-slate-300 p-1 rounded-sm bg-slate-50/50 flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
+                          {Object.entries(currentPreviewCarton.sizes).map(([sz, qty]) => (
+                            <span key={sz} className="whitespace-nowrap"><span className="underline">{sz}</span>:&nbsp;<b>{qty}</b></span>
+                          ))}
+                        </div>
                       </div>
-                      <div className="text-[7.5px] font-mono font-bold leading-relaxed border border-slate-300 p-1 rounded-sm bg-slate-50/50 flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
-                        {Object.entries(currentPreviewCarton.sizes).map(([sz, qty]) => (
-                          <span key={sz} className="whitespace-nowrap"><span className="underline">{sz}</span>:&nbsp;<b>{qty}</b></span>
-                        ))}
-                      </div>
-                    </div>
+                    )}
 
                     {/* WEIGHTS, CBM, SKUS AND QUANTITIES */}
-                    <div className="grid grid-cols-2 border-b-[2px] border-black text-[8px] py-1">
-                      <div className="border-r-[1.5px] border-black pr-1.5 flex flex-col justify-center">
-                        <div className="leading-tight">POIDS NET: <b>{currentPreviewCarton.netWeight.toFixed(2)} KG</b></div>
-                        <div className="leading-tight font-black text-[8.5px]">POIDS BRUT: <b>{currentPreviewCarton.grossWeight.toFixed(2)} KG</b></div>
-                        <div className="leading-tight text-[7px]">VOL: &nbsp;<b>{currentPreviewCarton.cbm.toFixed(4)} m³</b></div>
+                    {visibleFields.logisticsMetrics && (
+                      <div className="grid grid-cols-2 border-b-[2px] border-black text-[8px] py-1">
+                        <div className="border-r-[1.5px] border-black pr-1.5 flex flex-col justify-center">
+                          <div className="leading-tight">POIDS NET: <b>{currentPreviewCarton.netWeight.toFixed(2)} KG</b></div>
+                          <div className="leading-tight font-black text-[8.5px]">POIDS BRUT: <b>{currentPreviewCarton.grossWeight.toFixed(2)} KG</b></div>
+                          <div className="leading-tight text-[7px]">VOL: &nbsp;<b>{currentPreviewCarton.cbm.toFixed(4)} m³</b></div>
+                        </div>
+                        <div className="pl-1.5 flex flex-col justify-center gap-px">
+                          <div className="leading-tight text-[7px] truncate font-extrabold text-black">SKU: {currentPreviewCarton.sku}</div>
+                          <div className="leading-tight text-[7px]">DIM: <b>{currentPreviewCarton.dimensions} CM</b></div>
+                          <div className="text-[8.5px] font-black tracking-tight leading-none text-black mt-0.5 uppercase">QTE: {currentPreviewCarton.pcsPerCarton} PCS</div>
+                        </div>
                       </div>
-                      <div className="pl-1.5 flex flex-col justify-center gap-px">
-                        <div className="leading-tight text-[7px] truncate font-extrabold text-black">SKU: {currentPreviewCarton.sku}</div>
-                        <div className="leading-tight text-[7px]">DIM: <b>{currentPreviewCarton.dimensions} CM</b></div>
-                        <div className="text-[8.5px] font-black tracking-tight leading-none text-black mt-0.5 uppercase">QTE: {currentPreviewCarton.pcsPerCarton} PCS</div>
-                      </div>
-                    </div>
+                    )}
 
                     {/* TRANSIT STRIP BARCODE/STAGE */}
-                    <div className="border-b-[2px] border-black py-1.5 px-1 bg-black text-white flex items-center justify-between text-[7px]">
-                      <div>ROUTE INDEX:<br/><strong className="text-[9.5px] font-bold tracking-wider">{routingZone}</strong></div>
-                      <div className="text-right">
-                        <span>COLOR CTN:</span>
-                        <div className="text-[11.5px] font-black leading-none mt-0.5">#{currentPreviewCarton.cartonNum} / {flattenedCartons.filter(c => c.colorName === currentPreviewCarton.colorName).length}</div>
+                    {visibleFields.transitStrip && (
+                      <div className="border-b-[2px] border-black py-1.5 px-1 bg-black text-white flex items-center justify-between text-[7px]">
+                        <div>ROUTE INDEX:<br/><strong className="text-[9.5px] font-bold tracking-wider">{routingZone}</strong></div>
+                        <div className="text-right">
+                          <span>COLOR CTN:</span>
+                          <div className="text-[11.5px] font-black leading-none mt-0.5 font-bold">#{currentPreviewCarton.cartonNum} / {flattenedCartons.filter(c => c.colorName === currentPreviewCarton.colorName).length}</div>
+                        </div>
+                        <div className="text-right border-l border-white/40 pl-1.5">
+                          <span>GLOBAL BOX:</span>
+                          <div className="text-[10px] font-black leading-none mt-0.5 font-bold">{currentPreviewCarton.globalCartonNum} / {flattenedCartons.length}</div>
+                        </div>
                       </div>
-                      <div className="text-right border-l border-white/40 pl-1.5">
-                        <span>GLOBAL BOX:</span>
-                        <div className="text-[10px] font-black leading-none mt-0.5">{currentPreviewCarton.globalCartonNum} / {flattenedCartons.length}</div>
-                      </div>
-                    </div>
+                    )}
 
                     {/* BARCODE DRAWING CANVAS (CSS) */}
-                    <div className="pt-2 flex flex-col items-center justify-center">
-                      {barcodeType === 'CODE128' ? (
-                        <>
-                          {/* Pseudo barcode graphic stripes */}
-                          <div className="flex gap-[0.5px] w-full h-8 justify-center items-stretch overflow-hidden">
-                            {Array.from({ length: 35 }).map((_, bIdx) => {
-                              const stripeWidth = (bIdx % 4 === 0) ? '3px' : (bIdx % 2 === 0) ? '1px' : '1.5px';
-                              const transparent = (bIdx % 5 === 1 && bIdx > 3 && bIdx < 31) ? 'opacity-0' : 'opacity-100';
-                              return <div key={bIdx} className={`bg-black h-full ${transparent}`} style={{ width: stripeWidth }} />;
-                            })}
-                          </div>
-                        </>
-                      ) : (
-                        currentPreviewCarton.qrCodeDataUrl ? (
-                          <img src={currentPreviewCarton.qrCodeDataUrl} className="w-14 h-14 object-contain" alt="QR Code" referrerPolicy="no-referrer" />
+                    {visibleFields.barcode1D && (
+                      <div className="pt-2 flex flex-col items-center justify-center">
+                        {barcodeType === 'CODE128' ? (
+                          <>
+                            {/* Pseudo barcode graphic stripes */}
+                            <div className="flex gap-[0.5px] w-full h-8 justify-center items-stretch overflow-hidden">
+                              {Array.from({ length: 35 }).map((_, bIdx) => {
+                                const stripeWidth = (bIdx % 4 === 0) ? '3px' : (bIdx % 2 === 0) ? '1px' : '1.5px';
+                                const transparent = (bIdx % 5 === 1 && bIdx > 3 && bIdx < 31) ? 'opacity-0' : 'opacity-100';
+                                return <div key={bIdx} className={`bg-black h-full ${transparent}`} style={{ width: stripeWidth }} />;
+                              })}
+                            </div>
+                          </>
                         ) : (
-                          <div className="w-14 h-14 bg-slate-200 animate-pulse rounded" />
-                        )
-                      )}
-                      
-                      <div className="text-[7.5px] font-bold tracking-widest uppercase text-black font-mono mt-1 select-text">
-                        {`BAR-${meta.order || 'ORD'}-${currentPreviewCarton.colorName}-${currentPreviewCarton.cartonNum}`.toUpperCase().replace(/\s+/g, '-')}
+                          currentPreviewCarton.qrCodeDataUrl ? (
+                            <img src={currentPreviewCarton.qrCodeDataUrl} className="w-14 h-14 object-contain" alt="QR Code" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-14 h-14 bg-slate-200 animate-pulse rounded" />
+                          )
+                        )}
+                        
+                        <div className="text-[7.5px] font-bold tracking-widest uppercase text-black font-mono mt-1 select-text">
+                          {`BAR-${meta.order || 'ORD'}-${currentPreviewCarton.colorName}-${currentPreviewCarton.cartonNum}`.toUpperCase().replace(/\s+/g, '-')}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                   </div>
                 </div>
