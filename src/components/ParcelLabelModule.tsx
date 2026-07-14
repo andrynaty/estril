@@ -339,7 +339,7 @@ export default function ParcelLabelModule({
           const sizesSummary = Object.entries(item.sizes)
             .map(([sz, qty]) => `${sz}:${qty}`)
             .join(', ');
-          const qrText = `BOX:${item.globalCartonNum}/${totalCartons}\nSTYLE:${styleNameOverride || 'N/A'}\nCOLOR:${item.colorName}\nCONTENT:${sizesSummary}\nQTY:${item.pcsPerCarton}\nGW:${item.grossWeight.toFixed(2)}KG\nSSCC:${getSSCC18ForCarton(item.globalCartonNum)}`;
+          const qrText = `BOX:${item.globalCartonNum}/${totalCartons}\nPO:${poNumber || 'N/A'}\nPO-ITEM:${poItem || 'N/A'}\nSTYLE:${styleNameOverride || 'N/A'}\nCOLOR:${item.colorName}\nCONTENT:${sizesSummary}\nQTY:${item.pcsPerCarton}\nGW:${item.grossWeight.toFixed(2)}KG\nSSCC:${getSSCC18ForCarton(item.globalCartonNum)}`;
           
           try {
             const qrCodeDataUrl = await QRCode.toDataURL(qrText, { margin: 1, width: 140 });
@@ -359,7 +359,7 @@ export default function ParcelLabelModule({
     };
 
     generateQRs();
-  }, [results, colors, globalPackingMode, forceSingleCarton, maxSizesPerBox, forceSubCapSolidInMixed, styleNameOverride, ssccCompanyPrefix]);
+  }, [results, colors, globalPackingMode, forceSingleCarton, maxSizesPerBox, forceSubCapSolidInMixed, styleNameOverride, ssccCompanyPrefix, poNumber, poItem, senderId, quantityQ, materialOverride, destinationDepot]);
 
   const parseCartonRange = (rangeStr: string): number[] => {
     const parts = rangeStr.split('-').map(s => parseInt(s.trim(), 10));
@@ -1263,6 +1263,210 @@ export default function ParcelLabelModule({
             </div>
           </div>
 
+          {/* SECTION 4: CONTENU & MARQUAGE (SHIPPING MARK / PL DATA ALIGNMENT) */}
+          <div className={`p-5 rounded-xl border ${darkMode ? 'bg-[#161a23] border-slate-800' : 'bg-white border-slate-200 shadow-sm'} space-y-4`}>
+            <div className="flex items-center justify-between pb-2 border-b border-dashed border-slate-850 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-3.5 h-3.5 text-orange-500" />
+                <h3 className={`text-xs font-mono font-extrabold uppercase ${darkMode ? 'text-slate-200' : 'text-slate-705'}`}>
+                  4. PERSONNALISATION DES CHAMPS MARQUAGE / GS1 / PO
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPoNumber(meta.po || '');
+                  setPoItem('00040');
+                  setSenderId('6076032');
+                  setQuantityQ('1');
+                  setStyleNameOverride(meta.style ? `${meta.style} ${meta.styleNumber || ''}`.trim() : '');
+                  setMaterialOverride(meta.sku || '50527573');
+                  setDestinationDepot(meta.destination || '');
+                  triggerToast("🔄 Champs alignés avec succès sur les données du Packing List !", "success");
+                }}
+                className={`px-2 py-1 rounded border text-[9px] font-bold font-mono uppercase cursor-pointer transition-all bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20`}
+                title="Synchroniser automatiquement avec les valeurs de la fiche de colisage courante"
+              >
+                🔄 Aligner sur PL
+              </button>
+            </div>
+
+            <p className="text-[10px] text-slate-400 font-sans leading-relaxed">
+              Ces champs sont utilisés pour générer le marquage standardisé des colis (Shipping Mark) et les codes-barres GS1/SSCC. Cliquez sur le bouton ci-dessus pour pré-remplir avec les données de la Packing List.
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Purchase Order (PO Number)</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setPoNumber(meta.po || '')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Reset PL
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={poNumber}
+                  onChange={(e) => setPoNumber(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">PO-ITEM / Référence</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setPoItem('00040')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Défaut
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={poItem}
+                  onChange={(e) => setPoItem(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Style Name / Modèle</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setStyleNameOverride(meta.style ? `${meta.style} ${meta.styleNumber || ''}`.trim() : '')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Reset PL
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={styleNameOverride}
+                  onChange={(e) => setStyleNameOverride(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Material ID / SKU</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setMaterialOverride(meta.sku || '50527573')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Reset PL
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={materialOverride}
+                  onChange={(e) => setMaterialOverride(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Dépôt Destination (Hub)</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setDestinationDepot(meta.destination || '')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Reset PL
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={destinationDepot}
+                  onChange={(e) => setDestinationDepot(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">SENDER ID (Fournisseur)</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setSenderId('6076032')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Défaut
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={senderId}
+                  onChange={(e) => setSenderId(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">Prefix SSCC (12 chiffres)</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setSsccCompanyPrefix('340214040296')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Défaut
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  maxLength={12}
+                  value={ssccCompanyPrefix}
+                  onChange={(e) => setSsccCompanyPrefix(e.target.value.replace(/\D/g, ''))}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">QTY (Quantité colis)</label>
+                  <button 
+                    type="button" 
+                    onClick={() => setQuantityQ('1')} 
+                    className="text-[9px] text-orange-400 hover:underline font-mono"
+                  >
+                    Défaut
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={quantityQ}
+                  onChange={(e) => setQuantityQ(e.target.value)}
+                  className={`w-full text-[11px] font-mono rounded-lg px-2.5 py-2 block border focus:outline-none transition-all ${
+                    darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-orange-500' : 'bg-[#f4f6fb] border-slate-250 text-slate-900 focus:border-[#ff5000]'
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+
         </div>
 
         {/* PREVIEW AND SELECTION CONTROLLER SIDE (5 cols) */}
@@ -1422,18 +1626,28 @@ export default function ParcelLabelModule({
 
                     {/* INTERN METRICS */}
                     {visibleFields.orderMetadata && (
-                      <div className="grid grid-cols-3 border-b-[2px] border-black text-[8px] bg-slate-100">
-                        <div className="border-r-[1.5px] border-black p-1 text-center">
-                          <div className="text-[5.5px] opacity-75">COMMANDE:</div>
-                          <strong className="text-[8px] font-black block leading-none">{meta.order || '—'}</strong>
+                      <div className="border-b-[2px] border-black text-[8px] p-1.5 bg-slate-100 font-mono">
+                        <div className="grid grid-cols-4 gap-1 text-center mb-1 border-b border-black/10 pb-1">
+                          <div className="border-r border-black/20 pr-0.5">
+                            <div className="text-[5.5px] font-bold text-slate-500">PO:</div>
+                            <strong className="text-[8.5px] font-black block leading-none truncate">{poNumber || '—'}</strong>
+                          </div>
+                          <div className="border-r border-black/20 px-0.5">
+                            <div className="text-[5.5px] font-bold text-slate-500">PO-ITEM:</div>
+                            <strong className="text-[8.5px] font-black block leading-none truncate">{poItem || '—'}</strong>
+                          </div>
+                          <div className="border-r border-black/20 px-0.5">
+                            <div className="text-[5.5px] font-bold text-slate-500">SENDER:</div>
+                            <strong className="text-[8.5px] font-black block leading-none truncate">{senderId || '—'}</strong>
+                          </div>
+                          <div className="pl-0.5">
+                            <div className="text-[5.5px] font-bold text-slate-500">QTY:</div>
+                            <strong className="text-[8.5px] font-black block leading-none truncate">{quantityQ || '—'}</strong>
+                          </div>
                         </div>
-                        <div className="border-r-[1.5px] border-black p-1 text-center">
-                          <div className="text-[5.5px] opacity-75">N° STYLE:</div>
-                          <strong className="text-[8px] font-black block leading-none">{meta.styleNumber || '—'}</strong>
-                        </div>
-                        <div className="p-1 text-center">
-                          <div className="text-[5.5px] opacity-75">PO CLIENT:</div>
-                          <strong className="text-[8px] font-black block leading-none truncate">{meta.po || meta.refClient || '—'}</strong>
+                        <div className="flex justify-between items-center px-0.5 text-[7px] leading-none">
+                          <span className="text-slate-500 font-bold">STYLENAME:</span>
+                          <strong className="font-black text-black truncate max-w-[200px]">{styleNameOverride || 'N/A'}</strong>
                         </div>
                       </div>
                     )}
@@ -1462,7 +1676,7 @@ export default function ParcelLabelModule({
                           <div className="leading-tight text-[7px]">VOL: &nbsp;<b>{currentPreviewCarton.cbm.toFixed(4)} m³</b></div>
                         </div>
                         <div className="pl-1.5 flex flex-col justify-center gap-px">
-                          <div className="leading-tight text-[7px] truncate font-extrabold text-black">SKU: {currentPreviewCarton.sku}</div>
+                          <div className="leading-tight text-[7px] truncate font-extrabold text-black">SKU: {materialOverride || currentPreviewCarton.sku || '50527573'}</div>
                           <div className="leading-tight text-[7px]">DIM: <b>{currentPreviewCarton.dimensions} CM</b></div>
                           <div className="text-[8.5px] font-black tracking-tight leading-none text-black mt-0.5 uppercase">QTE: {currentPreviewCarton.pcsPerCarton} PCS</div>
                         </div>
