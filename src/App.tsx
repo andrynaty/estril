@@ -66,6 +66,7 @@ import BoxModal from './components/BoxModal';
 import MajBsdModal from './components/MajBsdModal';
 import ScreenshotTool from './components/ScreenshotTool';
 import ParcelLabelModule from './components/ParcelLabelModule';
+import CartonVisualizer from './components/CartonVisualizer';
 import {
   OrderMeta,
   SizeDetails,
@@ -373,7 +374,7 @@ export default function App() {
 
   // Calculations Results display
   const [results, setResults] = useState<ColorResult[]>([]);
-  const [packingListSubTab, setPackingListSubTab] = useState<'table' | 'labels_gs1'>('table');
+  const [packingListSubTab, setPackingListSubTab] = useState<'table' | 'visual' | 'labels_gs1'>('table');
   const [selectedLabelCarton, setSelectedLabelCarton] = useState<number>(1);
   const [ssccCompanyPrefix, setSsccCompanyPrefix] = useState<string>('3370001');
   const [gs1BarcodeType, setGs1BarcodeType] = useState<'standard' | 'minimal'>('standard');
@@ -5285,6 +5286,28 @@ export default function App() {
                                   >
                                     <span>✔️</span> Valider les restes
                                   </button>
+
+                                  {(activeColorConfig.customRemainders && activeColorConfig.customRemainders.length > 0) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (window.confirm("Êtes-vous sûr de vouloir supprimer TOUS les cartons de reste personnalisés pour cette couleur ?")) {
+                                          const nextColors = [...colors];
+                                          nextColors[activeColorIdx] = {
+                                            ...activeColorConfig,
+                                            customRemainders: []
+                                          };
+                                          setColors(nextColors);
+                                          setHasGenerated(false);
+                                          triggerToast("🗑️ Tous les cartons personnalisés ont été effacés !", "info");
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all inline-flex items-center gap-1 cursor-pointer bg-rose-600 hover:bg-rose-500 text-white"
+                                      title="Supprimer tous les cartons de reste de cette couleur"
+                                    >
+                                      <span>🗑️</span> Vider tout
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -5327,22 +5350,79 @@ export default function App() {
                                               CARTON DE RESTE #{cIdx + 1}
                                             </span>
                                           </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const nextColors = [...colors];
-                                              nextColors[activeColorIdx] = {
-                                                ...activeColorConfig,
-                                                customRemainders: (activeColorConfig.customRemainders || []).filter(item => item.id !== cc.id)
-                                              };
-                                              setColors(nextColors);
-                                              setHasGenerated(false);
-                                            }}
-                                            className="text-red-500 hover:text-red-600 font-bold text-xs p-1 rounded transition-all cursor-pointer"
-                                            title="Supprimer ce carton"
-                                          >
-                                            Supprimer
-                                          </button>
+                                          <div className="flex items-center gap-1.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const cleanSizes: { [size: string]: number } = {};
+                                                activeColorConfig.tailles.forEach(sz => {
+                                                  cleanSizes[sz] = 0;
+                                                });
+                                                const nextColors = [...colors];
+                                                const updatedRemainders = (activeColorConfig.customRemainders || []).map(item => {
+                                                  if (item.id === cc.id) {
+                                                    return {
+                                                      ...item,
+                                                      sizes: cleanSizes,
+                                                      writtenWords: {}
+                                                    };
+                                                  }
+                                                  return item;
+                                                });
+                                                nextColors[activeColorIdx] = {
+                                                  ...activeColorConfig,
+                                                  customRemainders: updatedRemainders
+                                                };
+                                                setColors(nextColors);
+                                                setHasGenerated(false);
+                                                triggerToast("🔄 Carton de reste réinitialisé !", "info");
+                                              }}
+                                              className="text-amber-500 hover:text-amber-600 font-bold text-[10px] uppercase font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer border border-amber-500/10 hover:border-amber-500/20 bg-amber-500/5"
+                                              title="Décocher toutes les tailles de ce carton"
+                                            >
+                                              Vider
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const duplicatedCarton: CustomRemainderCarton = {
+                                                  id: 'rc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                                                  sizes: { ...cc.sizes },
+                                                  writtenWords: cc.writtenWords ? { ...cc.writtenWords } : {}
+                                                };
+                                                const nextColors = [...colors];
+                                                nextColors[activeColorIdx] = {
+                                                  ...activeColorConfig,
+                                                  customRemainders: [...(activeColorConfig.customRemainders || []), duplicatedCarton]
+                                                };
+                                                setColors(nextColors);
+                                                setHasGenerated(false);
+                                                triggerToast("📋 Carton de reste dupliqué !", "success");
+                                              }}
+                                              className="text-blue-500 hover:text-blue-600 font-bold text-[10px] uppercase font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer border border-blue-500/10 hover:border-blue-500/20 bg-blue-500/5"
+                                              title="Dupliquer ce carton de reste"
+                                            >
+                                              Copier
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const nextColors = [...colors];
+                                                nextColors[activeColorIdx] = {
+                                                  ...activeColorConfig,
+                                                  customRemainders: (activeColorConfig.customRemainders || []).filter(item => item.id !== cc.id)
+                                                };
+                                                setColors(nextColors);
+                                                setHasGenerated(false);
+                                              }}
+                                              className="text-red-500 hover:text-red-600 font-bold text-[10px] uppercase font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer border border-red-500/10 hover:border-red-500/20 bg-red-500/5"
+                                              title="Supprimer ce carton"
+                                            >
+                                              Supprimer
+                                            </button>
+                                          </div>
                                         </div>
 
                                         <div className="space-y-2 mb-3">
@@ -5668,7 +5748,36 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {/* Color Selector Filter Control */}
+                      {/* Sub-Tab Navigation for Packing List Views */}
+                      <div className="flex border-b pb-1 gap-2 border-slate-700/10 print:hidden">
+                        <button
+                          type="button"
+                          onClick={() => setPackingListSubTab('table')}
+                          className={`px-4 py-2 text-xs font-black font-mono uppercase transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                            packingListSubTab === 'table'
+                              ? 'border-[#fc55b2] text-[#fc55b2]'
+                              : 'border-transparent text-slate-400 hover:text-slate-300'
+                          }`}
+                        >
+                          📋 Tableau de Colisage
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPackingListSubTab('visual')}
+                          className={`px-4 py-2 text-xs font-black font-mono uppercase transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
+                            packingListSubTab === 'visual'
+                              ? 'border-[#fc55b2] text-[#fc55b2]'
+                              : 'border-transparent text-slate-400 hover:text-slate-300'
+                          }`}
+                        >
+                          <span>📦 Remplissage des Cartons</span>
+                          <span className="bg-emerald-500/10 text-emerald-500 text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">NOUVEAU</span>
+                        </button>
+                      </div>
+
+                      {packingListSubTab === 'table' ? (
+                        <>
+                          {/* Color Selector Filter Control */}
                       {results.length > 1 && (
                         <div id="color-filter-card" className={`p-4 rounded-xl border print:hidden shadow-sm transition-colors ${
                           darkMode ? 'bg-[#0F0F12] border-white/10' : 'bg-white border-slate-205'
@@ -6027,6 +6136,24 @@ export default function App() {
                             </table>
                           </div>
                         </div>
+                      )}
+                        </>
+                      ) : (
+                        <CartonVisualizer
+                          activeResults={activeResults}
+                          colors={colors}
+                          darkMode={darkMode}
+                          onSelectCartonLabel={(cartonNum, colorName) => {
+                            setSelectedLabelCarton(cartonNum);
+                            const colIdx = colors.findIndex(c => c.nom === colorName);
+                            if (colIdx !== -1) {
+                              setActiveColorIdx(colIdx);
+                            }
+                          }}
+                          onSwitchToLabels={() => {
+                            setActiveInputTab('labels');
+                          }}
+                        />
                       )}
                     </div>
                   )}
