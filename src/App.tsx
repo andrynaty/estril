@@ -5350,8 +5350,18 @@ export default function App() {
                                           <div className="grid grid-cols-2 gap-2">
                                             {activeColorConfig.tailles.map(sz => {
                                               const qTot = activeColorConfig.sizes[sz]?.qtyTot || 0;
-                                              const cap = activeColorConfig.sizes[sz]?.cap || 25;
-                                              const r = qTot % cap;
+                                              const bgCap = activeColorConfig.sizes[sz]?.cap || 25;
+                                              const r = qTot % bgCap;
+
+                                              const isIncluded = (cc.sizes[sz] || 0) > 0;
+                                              const isAllocatedInOtherCartons = (activeColorConfig.customRemainders || []).some(
+                                                (otherCc) => otherCc.id !== cc.id && (otherCc.sizes[sz] || 0) > 0
+                                              );
+
+                                              // If this leftover size is already selected/allocated in another carton, hide it from this one
+                                              if (!isIncluded && isAllocatedInOtherCartons) {
+                                                return null;
+                                              }
 
                                               if (r === 0) {
                                                 return (
@@ -5364,7 +5374,6 @@ export default function App() {
                                                 );
                                               }
 
-                                              const isIncluded = (cc.sizes[sz] || 0) > 0;
                                               const userSpelling = (cc.writtenWords?.[sz] || '').trim();
                                               const correctSpelling = numberToFrenchWords(r);
                                               const isSpellingCorrect = userSpelling.toLowerCase() === correctSpelling.toLowerCase();
@@ -5464,47 +5473,86 @@ export default function App() {
                                                   </div>
 
                                                   {isIncluded && (
-                                                    <div className="mt-2 pt-1 border-t border-slate-500/10 space-y-1">
-                                                      <div className="flex justify-between items-center text-[9px] font-mono font-bold">
-                                                        <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>CONFIRMER :</span>
-                                                        {isSpellingCorrect ? (
-                                                          <span className="text-emerald-500">✔️ OK</span>
-                                                        ) : (
-                                                          <span className="text-red-500 font-mono">"{correctSpelling}"</span>
-                                                        )}
+                                                    <div className="mt-2 pt-1 border-t border-slate-500/10 space-y-2">
+                                                      {/* Option : Valider par case à cocher sans écrire */}
+                                                      <div className={`flex items-center gap-1.5 p-1.5 rounded-lg border text-[10px] ${
+                                                        darkMode ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-indigo-50/50 border-indigo-200'
+                                                      }`}>
+                                                        <input
+                                                          type="checkbox"
+                                                          id={`chk_spell_confirm_${cc.id}_${sz}`}
+                                                          checked={isSpellingCorrect}
+                                                          onChange={(e) => {
+                                                            const checked = e.target.checked;
+                                                            const nextColors = [...colors];
+                                                            const updatedRemainders = (activeColorConfig.customRemainders || []).map(item => {
+                                                              if (item.id === cc.id) {
+                                                                return {
+                                                                  ...item,
+                                                                  writtenWords: {
+                                                                    ...(item.writtenWords || {}),
+                                                                    [sz]: checked ? correctSpelling : ''
+                                                                  }
+                                                                };
+                                                              }
+                                                              return item;
+                                                            });
+                                                            nextColors[activeColorIdx] = {
+                                                              ...activeColorConfig,
+                                                              customRemainders: updatedRemainders
+                                                            };
+                                                            setColors(nextColors);
+                                                            setHasGenerated(false);
+                                                          }}
+                                                          className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                                        />
+                                                        <label htmlFor={`chk_spell_confirm_${cc.id}_${sz}`} className="font-bold text-slate-500 cursor-pointer select-none leading-tight flex-1">
+                                                          Valider <span className="text-indigo-600 font-mono font-black">{r} ({correctSpelling})</span>
+                                                        </label>
                                                       </div>
-                                                      <input
-                                                        type="text"
-                                                        placeholder={`écrire "${correctSpelling}"`}
-                                                        value={cc.writtenWords?.[sz] || ''}
-                                                        onChange={(e) => {
-                                                          const textVal = e.target.value;
-                                                          const nextColors = [...colors];
-                                                          const updatedRemainders = (activeColorConfig.customRemainders || []).map(item => {
-                                                            if (item.id === cc.id) {
-                                                              return {
-                                                                ...item,
-                                                                writtenWords: {
-                                                                  ...(item.writtenWords || {}),
-                                                                  [sz]: textVal
-                                                                }
-                                                              };
-                                                            }
-                                                            return item;
-                                                          });
-                                                          nextColors[activeColorIdx] = {
-                                                            ...activeColorConfig,
-                                                            customRemainders: updatedRemainders
-                                                          };
-                                                          setColors(nextColors);
-                                                          setHasGenerated(false);
-                                                        }}
-                                                        className={`w-full px-1.5 py-0.5 rounded text-[10px] text-center focus:outline-none focus:ring-1 ${
-                                                          isSpellingCorrect 
-                                                            ? (darkMode ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300' : 'bg-emerald-50 border border-emerald-250 text-emerald-800') 
-                                                            : (darkMode ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-800')
-                                                        }`}
-                                                      />
+
+                                                      <div className="space-y-1">
+                                                        <div className="flex justify-between items-center text-[9px] font-mono font-bold">
+                                                          <span className={darkMode ? 'text-slate-400' : 'text-slate-500'}>CONFIRMER :</span>
+                                                          {isSpellingCorrect ? (
+                                                            <span className="text-emerald-500">✔️ OK</span>
+                                                          ) : (
+                                                            <span className="text-red-500 font-mono">"{correctSpelling}"</span>
+                                                          )}
+                                                        </div>
+                                                        <input
+                                                          type="text"
+                                                          placeholder={`écrire "${correctSpelling}"`}
+                                                          value={cc.writtenWords?.[sz] || ''}
+                                                          onChange={(e) => {
+                                                            const textVal = e.target.value;
+                                                            const nextColors = [...colors];
+                                                            const updatedRemainders = (activeColorConfig.customRemainders || []).map(item => {
+                                                              if (item.id === cc.id) {
+                                                                return {
+                                                                  ...item,
+                                                                  writtenWords: {
+                                                                    ...(item.writtenWords || {}),
+                                                                    [sz]: textVal
+                                                                  }
+                                                                };
+                                                              }
+                                                              return item;
+                                                            });
+                                                            nextColors[activeColorIdx] = {
+                                                              ...activeColorConfig,
+                                                              customRemainders: updatedRemainders
+                                                            };
+                                                            setColors(nextColors);
+                                                            setHasGenerated(false);
+                                                          }}
+                                                          className={`w-full px-1.5 py-0.5 rounded text-[10px] text-center focus:outline-none focus:ring-1 ${
+                                                            isSpellingCorrect 
+                                                              ? (darkMode ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300' : 'bg-emerald-50 border border-emerald-250 text-emerald-800') 
+                                                              : (darkMode ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-800')
+                                                          }`}
+                                                        />
+                                                      </div>
                                                     </div>
                                                   )}
                                                 </div>
