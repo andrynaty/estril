@@ -14,7 +14,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
-import { db, auth } from './firebase';
+import { db as firestoreDb, auth } from './firebase';
 import {
   Package,
   Plus,
@@ -530,7 +530,7 @@ export default function App() {
     if (!activeCloudDocId) return;
 
     setIsCloudSyncing(true);
-    const docRef = doc(db, 'packingLists', activeCloudDocId);
+    const docRef = doc(firestoreDb, 'packingLists', activeCloudDocId);
     
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -566,7 +566,7 @@ export default function App() {
     const syncToCloud = async () => {
       setIsCloudSyncing(true);
       try {
-        const docRef = doc(db, 'packingLists', activeCloudDocId);
+        const docRef = doc(firestoreDb, 'packingLists', activeCloudDocId);
         await setDoc(docRef, {
           meta,
           colors,
@@ -2014,7 +2014,7 @@ export default function App() {
   // Load and subscribe to cloud packing lists list
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'packingLists'), orderBy('updatedAt', 'desc'));
+    const q = query(collection(firestoreDb, 'packingLists'), orderBy('updatedAt', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const lists: any[] = [];
       querySnapshot.forEach((doc) => {
@@ -2045,7 +2045,7 @@ export default function App() {
 
       const finalName = customName.trim() || `${autoLabel} (${timestamp})`;
       
-      const docRef = await addDoc(collection(db, 'packingLists'), {
+      const docRef = await addDoc(collection(firestoreDb, 'packingLists'), {
         name: finalName,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -2083,7 +2083,7 @@ export default function App() {
 
   const handleDeleteCloudList = async (listId: string, name: string) => {
     try {
-      await deleteDoc(doc(db, 'packingLists', listId));
+      await deleteDoc(doc(firestoreDb, 'packingLists', listId));
       if (activeCloudDocId === listId) {
         setActiveCloudDocId(null);
       }
@@ -7084,25 +7084,45 @@ export default function App() {
                           Publiez cette fiche sur le Cloud pour permettre à vos collaborateurs d'y accéder en temps réel depuis n'importe quel poste.
                         </p>
 
-                        <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-1">
-                          <input
-                            type="text"
-                            value={saveNameInput}
-                            onChange={(e) => setSaveNameInput(e.target.value)}
-                            placeholder="Nom de la fiche Cloud (vide = auto-génération)"
-                            className={`flex-1 text-xs font-mono rounded-lg border px-3 py-2.5 focus:outline-none transition-all ${
-                              darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-blue-500' : 'bg-[#f4f6fb] border-slate-300 text-slate-900 focus:border-[#4f8ef7]'
-                            }`}
-                          />
-                          <button
-                            onClick={() => handlePublishToCloud(saveNameInput)}
-                            disabled={isCloudSyncing}
-                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/10 hover:scale-[1.01] active:scale-[0.99]"
-                          >
-                            <Globe className={`w-4 h-4 ${isCloudSyncing ? 'animate-spin' : ''}`} />
-                            <span>PUBLIER & COLLABORER</span>
-                          </button>
-                        </div>
+                        {!user ? (
+                          <div className={`p-4 rounded-xl border ${darkMode ? 'border-amber-500/20 bg-amber-500/5 text-amber-200' : 'border-amber-300 bg-amber-50/50 text-amber-800'} space-y-3`}>
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                              <span className="font-bold text-xs uppercase font-mono tracking-wider">Mode Local Uniquement (Authentification requise)</span>
+                            </div>
+                            <p className="text-[11px] leading-relaxed text-slate-400 font-sans">
+                              Vous êtes actuellement connecté via l'<strong>Accès Rapide</strong> (sans compte Cloud). Pour pouvoir publier vos fiches et collaborer en direct :
+                            </p>
+                            <div className="flex flex-col gap-1.5 pl-2 text-[10.5px] font-sans text-slate-300">
+                              <div>1. Cliquez sur le bouton <strong className="text-rose-400">Déconnexion</strong> en haut à droite.</div>
+                              <div>2. Allez sur l'onglet <strong>"Comptes Équipe"</strong> de l'écran d'accueil.</div>
+                              <div>3. Saisissez votre adresse e-mail et votre mot de passe (ou cliquez sur <strong>"Créer un compte"</strong> pour en enregistrer un nouveau).</div>
+                            </div>
+                            <div className="pt-2 text-[9px] font-mono text-slate-500 border-t border-white/5">
+                              Remarque : L'accès anonyme rapide est restreint par les règles Firebase de votre projet.
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-1">
+                            <input
+                              type="text"
+                              value={saveNameInput}
+                              onChange={(e) => setSaveNameInput(e.target.value)}
+                              placeholder="Nom de la fiche Cloud (vide = auto-génération)"
+                              className={`flex-1 text-xs font-mono rounded-lg border px-3 py-2.5 focus:outline-none transition-all ${
+                                darkMode ? 'bg-[#1f2430] border-slate-800 text-white focus:border-blue-500' : 'bg-[#f4f6fb] border-slate-300 text-slate-900 focus:border-[#4f8ef7]'
+                              }`}
+                            />
+                            <button
+                              onClick={() => handlePublishToCloud(saveNameInput)}
+                              disabled={isCloudSyncing}
+                              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/10 hover:scale-[1.01] active:scale-[0.99]"
+                            >
+                              <Globe className={`w-4 h-4 ${isCloudSyncing ? 'animate-spin' : ''}`} />
+                              <span>PUBLIER & COLLABORER</span>
+                            </button>
+                          </div>
+                        )}
 
                         {/* Cloud Files List */}
                         <div className="pt-3 space-y-3 max-h-[500px] overflow-y-auto pr-1">
