@@ -67,6 +67,7 @@ import MajBsdModal from './components/MajBsdModal';
 import ScreenshotTool from './components/ScreenshotTool';
 import ParcelLabelModule from './components/ParcelLabelModule';
 import CartonVisualizer from './components/CartonVisualizer';
+import ContainerVisualizer from './components/ContainerVisualizer';
 import {
   OrderMeta,
   SizeDetails,
@@ -7075,6 +7076,14 @@ export default function App() {
                               </div>
                             );
                           })()}
+
+                          {/* Interactive Container Simulator */}
+                          <ContainerVisualizer
+                            totalVolume={grandTotals.v}
+                            totalWeight={grandTotals.g}
+                            results={activeResults}
+                            darkMode={darkMode}
+                          />
                         </div>
 
                         {/* Bottom Row: Detailed Recap Matrix */}
