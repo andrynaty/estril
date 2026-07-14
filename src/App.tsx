@@ -228,6 +228,17 @@ export default function App() {
   const [activeColorIdx, setActiveColorIdx] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Remainders mixing layout states (inline or popup modal)
+  const [remaindersDisplayMode, setRemaindersDisplayMode] = useState<'inline' | 'popup'>(() => {
+    return (localStorage.getItem('packing_list_pro_remainders_display_mode') as 'inline' | 'popup') || 'inline';
+  });
+  const [isRemaindersModalOpen, setIsRemaindersModalOpen] = useState<boolean>(false);
+
+  const updateRemaindersDisplayMode = (mode: 'inline' | 'popup') => {
+    setRemaindersDisplayMode(mode);
+    localStorage.setItem('packing_list_pro_remainders_display_mode', mode);
+  };
+
   // Saved snapshots lists history database
   const [savedLists, setSavedLists] = useState<LocalSaveListItem[]>(() => {
     const saved = localStorage.getItem('packing_list_pro_saved_lists');
@@ -5181,8 +5192,10 @@ export default function App() {
                             <span>ℹ️</span>
                             <span>Le colisage automatique est actif. Les {sumQtyLastPcs} pièces restantes seront réparties selon la méthode classique de la stratégie globale.</span>
                           </div>
-                        ) : (
-                          <div className="space-y-6">
+                        ) : (() => {
+                          const renderRemaindersCustomizerContent = () => {
+                            return (
+                              <div className="space-y-6">
                             {/* 1. Recoupment table of remainder pieces */}
                             <div className={`p-4 rounded-xl border ${darkMode ? 'bg-[#0A0A0C] border-white/5' : 'bg-white border-slate-100'}`}>
                               <h5 className={`text-xs font-mono font-bold uppercase mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -5703,7 +5716,218 @@ export default function App() {
                               }
                             })()}
                           </div>
-                        )}
+                        );
+                      };
+
+                            return (
+                              <div className="space-y-4">
+                                {/* Display mode toggles */}
+                                <div className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-xl border ${
+                                  darkMode ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
+                                }`}>
+                                  <div className="space-y-0.5">
+                                    <span className={`text-[11px] font-mono font-bold uppercase tracking-wider ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                      🛠️ ESPACE DE TRAVAIL DES RESTES
+                                    </span>
+                                    <p className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                      Sélectionnez comment afficher l'outil de personnalisation.
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center bg-slate-800/10 dark:bg-black/30 p-1 rounded-lg border border-slate-200/50 dark:border-white/5">
+                                    <button
+                                      type="button"
+                                      onClick={() => updateRemaindersDisplayMode('inline')}
+                                      className={`px-3 py-1.5 rounded-md text-[11px] font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                                        remaindersDisplayMode === 'inline'
+                                          ? darkMode
+                                            ? 'bg-slate-150 text-slate-950 shadow-xs'
+                                            : 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                                          : 'text-slate-400 hover:text-slate-200'
+                                      }`}
+                                    >
+                                      <span>🧩</span>
+                                      <span>Intégré</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateRemaindersDisplayMode('popup')}
+                                      className={`px-3 py-1.5 rounded-md text-[11px] font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                                        remaindersDisplayMode === 'popup'
+                                          ? darkMode
+                                            ? 'bg-slate-150 text-slate-950 shadow-xs'
+                                            : 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                                          : 'text-slate-400 hover:text-slate-200'
+                                      }`}
+                                    >
+                                      <span>🖥️</span>
+                                      <span>Pop-up</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {remaindersDisplayMode === 'popup' ? (
+                                  <>
+                                    <div className={`p-6 rounded-xl border-2 border-dashed text-center flex flex-col items-center justify-center gap-4 ${
+                                      darkMode ? 'bg-[#121620]/60 border-slate-700/60' : 'bg-slate-50/50 border-slate-200 shadow-xs'
+                                    }`}>
+                                      <div className="p-3.5 rounded-full bg-indigo-500/10 text-indigo-400">
+                                        <Sliders className="w-6 h-6" />
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        <h5 className={`text-xs font-mono font-black uppercase tracking-wider ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+                                          🖥️ Atelier de personnalisation déporté (Pop-up Actif)
+                                        </h5>
+                                        <p className={`text-xs max-w-md mx-auto leading-relaxed ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                                          L'interface de mélange manuel est configurée pour s'ouvrir dans une fenêtre flottante professionnelle, vous offrant un espace de travail spacieux pour composer vos colisages.
+                                        </p>
+                                        {/* Visual stats in the banner */}
+                                        <div className="flex justify-center gap-6 mt-3 text-[10px] font-mono uppercase tracking-wide">
+                                          <span className="px-2.5 py-1 rounded bg-slate-800/20 text-slate-400 border border-slate-700/30">
+                                            📦 Cartons créés : <strong className={darkMode ? 'text-white' : 'text-slate-800'}>{activeColorConfig.customRemainders?.length || 0}</strong>
+                                          </span>
+                                          <span className="px-2.5 py-1 rounded bg-slate-800/20 text-slate-400 border border-slate-700/30">
+                                            🎨 Couleur : <strong style={{ color: activeColorConfig.color }} className="font-black">{activeColorConfig.nom}</strong>
+                                          </span>
+                                        </div>
+                                      </div>
+                                      
+                                      <button
+                                        type="button"
+                                        onClick={() => setIsRemaindersModalOpen(true)}
+                                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-black text-xs tracking-wider uppercase rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-500/25 flex items-center gap-2 cursor-pointer"
+                                      >
+                                        <Sliders className="w-4 h-4" />
+                                        <span>Ouvrir l'atelier de personnalisation ({activeColorConfig.customRemainders?.length || 0} cartons)</span>
+                                      </button>
+                                    </div>
+
+                                    {isRemaindersModalOpen && (
+                                      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
+                                        <div className={`w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden border ${
+                                          darkMode ? 'bg-[#0f111a] border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'
+                                        } flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-250`}>
+                                          
+                                          {/* Modal Header */}
+                                          <div className={`px-6 py-4 border-b flex items-center justify-between ${
+                                            darkMode ? 'border-slate-800 bg-[#141724]' : 'bg-slate-50 border-slate-150'
+                                          }`}>
+                                            <div className="flex items-center gap-3">
+                                              <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
+                                                <Sliders className="w-5 h-5" />
+                                              </span>
+                                              <div>
+                                                <h3 className={`text-sm font-sans font-black uppercase tracking-wider ${darkMode ? 'text-white' : 'text-slate-800'}`}>
+                                                  📦 Atelier de Personnalisation des Restes
+                                                </h3>
+                                                <p className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                                                  <span>Couleur :</span>
+                                                  <span className="px-2 py-0.5 rounded-sm font-black text-[10px] text-white" style={{ backgroundColor: activeColorConfig.color }}>
+                                                    {activeColorConfig.nom}
+                                                  </span>
+                                                  <span>• {sumQtyLastPcs} pièces totales</span>
+                                                </p>
+                                              </div>
+                                            </div>
+                                            
+                                            <button
+                                              type="button"
+                                              onClick={() => setIsRemaindersModalOpen(false)}
+                                              className={`p-2 rounded-full transition-all cursor-pointer ${
+                                                darkMode ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-200 text-slate-500 hover:text-slate-800'
+                                              }`}
+                                            >
+                                              <X className="w-5 h-5" />
+                                            </button>
+                                          </div>
+                                          
+                                          {/* Modal Body - Scrollable content */}
+                                          <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                                            {renderRemaindersCustomizerContent()}
+                                          </div>
+                                          
+                                          {/* Modal Footer */}
+                                          <div className={`px-6 py-4 border-t flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
+                                            darkMode ? 'border-slate-800 bg-[#141724]' : 'bg-slate-50 border-slate-150'
+                                          }`}>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={handleAutoGroupRemainders}
+                                                className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                                  darkMode
+                                                    ? 'bg-amber-600/15 border-amber-500/20 text-amber-400 hover:bg-amber-600/25'
+                                                    : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                                                }`}
+                                              >
+                                                <span>💡</span>
+                                                <span>Auto-configurer</span>
+                                              </button>
+                                              
+                                              {(activeColorConfig.customRemainders && activeColorConfig.customRemainders.length > 0) && (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    if (window.confirm("Êtes-vous sûr de vouloir supprimer TOUS les cartons de reste personnalisés pour cette couleur ?")) {
+                                                      const nextColors = [...colors];
+                                                      nextColors[activeColorIdx] = {
+                                                        ...activeColorConfig,
+                                                        customRemainders: []
+                                                      };
+                                                      setColors(nextColors);
+                                                      setHasGenerated(false);
+                                                      triggerToast("🗑️ Tous les cartons personnalisés ont été effacés !", "info");
+                                                    }
+                                                  }}
+                                                  className={`px-4 py-2 rounded-lg text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                                    darkMode
+                                                      ? 'bg-rose-600/15 border-rose-500/20 text-rose-400 hover:bg-rose-600/25'
+                                                      : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100'
+                                                  }`}
+                                                >
+                                                  <span>🗑️</span>
+                                                  <span>Vider tout</span>
+                                                </button>
+                                              )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  handleGenerateList();
+                                                  setIsRemaindersModalOpen(false);
+                                                }}
+                                                className="px-5 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:brightness-110 text-white font-mono font-black text-xs tracking-wider uppercase rounded-lg shadow-md transition-all cursor-pointer"
+                                              >
+                                                <span>✔️</span>
+                                                <span>Valider & Générer</span>
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => setIsRemaindersModalOpen(false)}
+                                                className={`px-5 py-2 border rounded-lg text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer ${
+                                                  darkMode
+                                                    ? 'border-slate-800 hover:bg-white/5 text-slate-300'
+                                                    : 'border-slate-300 hover:bg-slate-100 text-slate-700'
+                                                }`}
+                                              >
+                                                Fermer
+                                              </button>
+                                            </div>
+                                          </div>
+                                          
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="p-1">
+                                    {renderRemaindersCustomizerContent()}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                       </div>
                     </div>
                   );

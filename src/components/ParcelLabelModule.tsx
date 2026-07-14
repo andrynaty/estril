@@ -17,7 +17,10 @@ import {
   Sliders,
   Sparkles,
   Layers,
-  FileText
+  FileText,
+  GripVertical,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { ColorResult, OrderMeta, PackedRow } from '../types';
 
@@ -125,6 +128,75 @@ export default function ParcelLabelModule({
     localStorage.setItem('label_format', labelFormat);
     localStorage.setItem('label_visible_fields', JSON.stringify(visibleFields));
   }, [labelFormat, visibleFields]);
+
+  // Fields Order state for Drag and Drop visual customization
+  const [fieldsOrder, setFieldsOrder] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('label_fields_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length === 7) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return [
+      'headerBranding',
+      'addresses',
+      'orderMetadata',
+      'colorAndSizes',
+      'logisticsMetrics',
+      'transitStrip',
+      'barcode1D'
+    ];
+  });
+
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('label_fields_order', JSON.stringify(fieldsOrder));
+  }, [fieldsOrder]);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    const reordered = [...fieldsOrder];
+    const item = reordered.splice(draggedIndex, 1)[0];
+    reordered.splice(index, 0, item);
+    setDraggedIndex(index);
+    setFieldsOrder(reordered);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const moveFieldUp = (index: number) => {
+    if (index === 0) return;
+    const reordered = [...fieldsOrder];
+    const temp = reordered[index];
+    reordered[index] = reordered[index - 1];
+    reordered[index - 1] = temp;
+    setFieldsOrder(reordered);
+    triggerToast("✨ Ordre mis à jour !", "success");
+  };
+
+  const moveFieldDown = (index: number) => {
+    if (index === fieldsOrder.length - 1) return;
+    const reordered = [...fieldsOrder];
+    const temp = reordered[index];
+    reordered[index] = reordered[index + 1];
+    reordered[index + 1] = temp;
+    setFieldsOrder(reordered);
+    triggerToast("✨ Ordre mis à jour !", "success");
+  };
 
   // 4. Flattened & filtered list of Cartons
   const [flattenedCartons, setFlattenedCartons] = useState<FlattenedCarton[]>([]);
@@ -537,129 +609,140 @@ export default function ParcelLabelModule({
           justify-content: flex-start;
           gap: 10px;
         ">
-          <!-- TOP ROW: LOGO + CARRIER -->
-          ${visibleFields.headerBranding ? `
-          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-bottom: 2px solid black; padding-bottom: 4px;">
-            <span style="font-size: 11px; font-weight: 900; text-transform: uppercase;">${customBranding}</span>
-            <span style="background: black; color: white; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 2px;">${carrier} EXP</span>
-          </div>
-          ` : ''}
-
-          <!-- SENDER & SHIP TO ADDRESS FIELDS -->
-          ${(visibleFields.senderInfo || visibleFields.recipientInfo) ? `
-          <div style="display: flex; border-bottom: 1.5px solid black; font-size: 8px; padding-bottom: 4px;">
-            ${visibleFields.senderInfo ? `
-            <div style="width: 50%; padding-right: 8px; ${visibleFields.recipientInfo ? 'border-right: 1.5px solid black;' : ''}">
-              <div style="font-size: 6px; font-weight: bold; text-decoration: underline; margin-bottom: 2px;">SENDER:</div>
-              <div style="font-weight: bold;">${senderName}</div>
-              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${senderAddress}</div>
-              <div>${senderZipCity}</div>
-              <div style="font-weight: bold;">${senderCountry}</div>
-            </div>
-            ` : ''}
-            
-            ${visibleFields.recipientInfo ? `
-            <div style="width: ${visibleFields.senderInfo ? '50%' : '100%'}; padding-left: ${visibleFields.senderInfo ? '8px' : '0'};">
-              <div style="font-size: 6px; font-weight: bold; text-decoration: underline; margin-bottom: 2px;">SHIP TO:</div>
-              <div style="font-weight: 900; font-size: 9px;">${destName}</div>
-              <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${destAddress}</div>
-              <div style="font-weight: bold;">${destZipCity}</div>
-              <div style="font-weight: bold;">${destCountry}</div>
-            </div>
-            ` : ''}
-          </div>
-          ` : ''}
-
-          <!-- METADATA (PO, PO-ITEM, SENDER, Q, STYLENAME) + QR -->
-          ${visibleFields.orderMetadata ? `
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; border-bottom: 1.5px solid black; padding-bottom: 4px; font-size: 8px;">
-            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-              <div>
-                <div style="font-weight: bold; font-size: 6px; color: #555;">PO</div>
-                <div style="font-size: 11px; font-weight: 900;">${poNumber}</div>
-              </div>
-              <div>
-                <div style="font-weight: bold; font-size: 6px; color: #555;">PO-ITEM</div>
-                <div style="font-size: 11px; font-weight: 900;">${poItem}</div>
-              </div>
-              <div>
-                <div style="font-weight: bold; font-size: 6px; color: #555;">SENDER ID</div>
-                <div style="font-size: 11px; font-weight: 900;">${senderId}</div>
-              </div>
-              <div>
-                <div style="font-weight: bold; font-size: 6px; color: #555;">QTY</div>
-                <div style="font-size: 11px; font-weight: 900;">${quantityQ}</div>
-              </div>
-              <div style="width: 100%;">
-                <div style="font-weight: bold; font-size: 6px; color: #555;">STYLENAME</div>
-                <div style="font-size: 11px; font-weight: 900;">${styleNameOverride}</div>
-              </div>
-            </div>
-            <div style="width: 44px; height: 44px; flex-shrink: 0;">
-              ${ctn.qrCodeDataUrl ? `<img src="${ctn.qrCodeDataUrl}" style="width: 100%; height: 100%;" />` : ''}
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- COLOR & SIZES -->
-          ${visibleFields.colorAndSizes ? `
-          <div style="border-bottom: 1.5px solid black; padding-bottom: 4px;">
-            <div style="font-size: 8px; font-weight: bold; margin-bottom: 2px;">
-              COULEUR : <span style="font-size: 10px; font-weight: 900; background: #eee; padding: 1px 4px; border-radius: 2px;">${ctn.colorName}</span>
-            </div>
-            <div style="font-size: 7.5px; font-family: monospace; display: flex; flex-wrap: wrap; gap: 6px;">
-              ${Object.entries(ctn.sizes).map(([sz, qty]) => `
-                <span><u>${sz}</u>: <b>${qty}</b></span>
-              `).join('')}
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- LOGISTICS METRICS (WEIGHT, DIMENSIONS, SKU, QUANTITY) -->
-          ${visibleFields.logisticsMetrics ? `
-          <div style="display: flex; justify-content: space-between; border-bottom: 1.5px solid black; padding-bottom: 4px; font-size: 8px;">
-            <div>
-              <div>NET WEIGHT: <b>${ctn.netWeight.toFixed(2)} KG</b></div>
-              <div style="font-size: 9px; font-weight: 900;">GROSS WEIGHT: <b>${ctn.grossWeight.toFixed(2)} KG</b></div>
-              <div>VOLUME: <b>${ctn.cbm.toFixed(4)} m³</b></div>
-            </div>
-            <div style="text-align: right;">
-              <div>SKU: <b>${ctn.sku}</b></div>
-              <div>DIM: <b>${ctn.dimensions} CM</b></div>
-              <div style="font-size: 9px; font-weight: 900; margin-top: 1px;">QTE: ${ctn.pcsPerCarton} PCS</div>
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- TRANSIT ROUTE STRIP -->
-          ${visibleFields.transitStrip ? `
-          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 4px; font-size: 8px;">
-            <div>
-              <div style="font-size: 6px; color: #555;">ROUTE INDEX:</div>
-              <div style="font-size: 12px; font-weight: 950; letter-spacing: 0.5px;">${routingZone}</div>
-            </div>
-            <div style="text-align: right;">
-              <div>CARTON DE COULEUR : <b>#${ctn.cartonNum} / ${flattenedCartons.filter(c => c.colorName === ctn.colorName).length}</b></div>
-              <div>COLIS GLOBAL : <b>#${ctn.globalCartonNum} / ${flattenedCartons.length}</b></div>
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- 1D SSCC BARCODE -->
-          ${visibleFields.barcode1D ? `
-          <div style="display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: auto;">
-            <div style="width: 100%; height: 50px;">
-              <svg viewBox="0 0 ${bars.length} 100" preserveAspectRatio="none" style="width: 100%; height: 100%;" shape-rendering="crispEdges">
-                <g fill="black">
-                  ${barcodeRectsHTML}
-                </g>
-              </svg>
-            </div>
-            <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.5px; text-align: center; margin-top: 3px;">
-              ${ssccWithAI}
-            </div>
-          </div>
-          ` : ''}
+          ${fieldsOrder.map((fieldKey) => {
+            if (fieldKey === 'headerBranding' && visibleFields.headerBranding) {
+              return `
+                <!-- TOP ROW: LOGO + CARRIER -->
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-bottom: 2px solid black; padding-bottom: 4px; margin-bottom: 4px;">
+                  <span style="font-size: 11px; font-weight: 900; text-transform: uppercase;">${customBranding}</span>
+                  <span style="background: black; color: white; padding: 2px 6px; font-size: 10px; font-weight: bold; border-radius: 2px;">${carrier} EXP</span>
+                </div>
+              `;
+            }
+            if (fieldKey === 'addresses' && (visibleFields.senderInfo || visibleFields.recipientInfo)) {
+              return `
+                <!-- SENDER & SHIP TO ADDRESS FIELDS -->
+                <div style="display: flex; border-bottom: 1.5px solid black; font-size: 8px; padding-bottom: 4px; margin-bottom: 4px;">
+                  ${visibleFields.senderInfo ? `
+                  <div style="width: 50%; padding-right: 8px; ${visibleFields.recipientInfo ? 'border-right: 1.5px solid black;' : ''}">
+                    <div style="font-size: 6px; font-weight: bold; text-decoration: underline; margin-bottom: 2px;">SENDER:</div>
+                    <div style="font-weight: bold;">${senderName}</div>
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${senderAddress}</div>
+                    <div>${senderZipCity}</div>
+                    <div style="font-weight: bold;">${senderCountry}</div>
+                  </div>
+                  ` : ''}
+                  
+                  ${visibleFields.recipientInfo ? `
+                  <div style="width: ${visibleFields.senderInfo ? '50%' : '100%'}; padding-left: ${visibleFields.senderInfo ? '8px' : '0'};">
+                    <div style="font-size: 6px; font-weight: bold; text-decoration: underline; margin-bottom: 2px;">SHIP TO:</div>
+                    <div style="font-weight: 900; font-size: 9px;">${destName}</div>
+                    <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${destAddress}</div>
+                    <div style="font-weight: bold;">${destZipCity}</div>
+                    <div style="font-weight: bold;">${destCountry}</div>
+                  </div>
+                  ` : ''}
+                </div>
+              `;
+            }
+            if (fieldKey === 'orderMetadata' && visibleFields.orderMetadata) {
+              return `
+                <!-- METADATA (PO, PO-ITEM, SENDER, Q, STYLENAME) + QR -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; border-bottom: 1.5px solid black; padding-bottom: 4px; margin-bottom: 4px; font-size: 8px;">
+                  <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                    <div>
+                      <div style="font-weight: bold; font-size: 6px; color: #555;">PO</div>
+                      <div style="font-size: 11px; font-weight: 900;">${poNumber}</div>
+                    </div>
+                    <div>
+                      <div style="font-weight: bold; font-size: 6px; color: #555;">PO-ITEM</div>
+                      <div style="font-size: 11px; font-weight: 900;">${poItem}</div>
+                    </div>
+                    <div>
+                      <div style="font-weight: bold; font-size: 6px; color: #555;">SENDER ID</div>
+                      <div style="font-size: 11px; font-weight: 900;">${senderId}</div>
+                    </div>
+                    <div>
+                      <div style="font-weight: bold; font-size: 6px; color: #555;">QTY</div>
+                      <div style="font-size: 11px; font-weight: 900;">${quantityQ}</div>
+                    </div>
+                    <div style="width: 100%;">
+                      <div style="font-weight: bold; font-size: 6px; color: #555;">STYLENAME</div>
+                      <div style="font-size: 11px; font-weight: 900;">${styleNameOverride}</div>
+                    </div>
+                  </div>
+                  <div style="width: 44px; height: 44px; flex-shrink: 0;">
+                    ${ctn.qrCodeDataUrl ? `<img src="${ctn.qrCodeDataUrl}" style="width: 100%; height: 100%;" />` : ''}
+                  </div>
+                </div>
+              `;
+            }
+            if (fieldKey === 'colorAndSizes' && visibleFields.colorAndSizes) {
+              return `
+                <!-- COLOR & SIZES -->
+                <div style="border-bottom: 1.5px solid black; padding-bottom: 4px; margin-bottom: 4px;">
+                  <div style="font-size: 8px; font-weight: bold; margin-bottom: 2px;">
+                    COULEUR : <span style="font-size: 10px; font-weight: 900; background: #eee; padding: 1px 4px; border-radius: 2px;">${ctn.colorName}</span>
+                  </div>
+                  <div style="font-size: 7.5px; font-family: monospace; display: flex; flex-wrap: wrap; gap: 6px;">
+                    ${Object.entries(ctn.sizes).map(([sz, qty]) => `
+                      <span><u>${sz}</u>: <b>${qty}</b></span>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }
+            if (fieldKey === 'logisticsMetrics' && visibleFields.logisticsMetrics) {
+              return `
+                <!-- LOGISTICS METRICS (WEIGHT, DIMENSIONS, SKU, QUANTITY) -->
+                <div style="display: flex; justify-content: space-between; border-bottom: 1.5px solid black; padding-bottom: 4px; margin-bottom: 4px; font-size: 8px;">
+                  <div>
+                    <div>NET WEIGHT: <b>${ctn.netWeight.toFixed(2)} KG</b></div>
+                    <div style="font-size: 9px; font-weight: 900;">GROSS WEIGHT: <b>${ctn.grossWeight.toFixed(2)} KG</b></div>
+                    <div>VOLUME: <b>${ctn.cbm.toFixed(4)} m³</b></div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div>SKU: <b>${ctn.sku}</b></div>
+                    <div>DIM: <b>${ctn.dimensions} CM</b></div>
+                    <div style="font-size: 9px; font-weight: 900; margin-top: 1px;">QTE: ${ctn.pcsPerCarton} PCS</div>
+                  </div>
+                </div>
+              `;
+            }
+            if (fieldKey === 'transitStrip' && visibleFields.transitStrip) {
+              return `
+                <!-- TRANSIT ROUTE STRIP -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid black; padding-bottom: 4px; margin-bottom: 4px; font-size: 8px;">
+                  <div>
+                    <div style="font-size: 6px; color: #555;">ROUTE INDEX:</div>
+                    <div style="font-size: 12px; font-weight: 950; letter-spacing: 0.5px;">${routingZone}</div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div>CARTON DE COULEUR : <b>#${ctn.cartonNum} / ${flattenedCartons.filter(c => c.colorName === ctn.colorName).length}</b></div>
+                    <div>COLIS GLOBAL : <b>#${ctn.globalCartonNum} / ${flattenedCartons.length}</b></div>
+                  </div>
+                </div>
+              `;
+            }
+            if (fieldKey === 'barcode1D' && visibleFields.barcode1D) {
+              return `
+                <!-- 1D SSCC BARCODE -->
+                <div style="display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: auto;">
+                  <div style="width: 100%; height: 50px;">
+                    <svg viewBox="0 0 ${bars.length} 100" preserveAspectRatio="none" style="width: 100%; height: 100%;" shape-rendering="crispEdges">
+                      <g fill="black">
+                        ${barcodeRectsHTML}
+                      </g>
+                    </svg>
+                  </div>
+                  <div style="font-size: 11px; font-weight: 900; letter-spacing: 0.5px; text-align: center; margin-top: 3px;">
+                    ${ssccWithAI}
+                  </div>
+                </div>
+              `;
+            }
+            return '';
+          }).filter(Boolean).join('')}
         </div>
       `;
     }).join('');
@@ -747,232 +830,234 @@ export default function ParcelLabelModule({
 
       let yCursor = 4;
 
-      // 1. Header/Branding
-      if (visibleFields.headerBranding) {
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        doc.text(customBranding, 6, yCursor + 5);
-
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.text(`${carrier} EXP`, labelW - 20, yCursor + 5);
-
-        yCursor += 8;
-        doc.setLineWidth(0.2);
-        doc.line(4, yCursor, labelW - 4, yCursor);
-      }
-
-      // 2. Sender & Ship To Addresses
-      if (visibleFields.senderInfo || visibleFields.recipientInfo) {
-        const startY = yCursor;
-        let senderY = startY + 3;
-        let recipientY = startY + 3;
-
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-
-        if (visibleFields.senderInfo) {
-          doc.text('SENDER:', 6, senderY);
+      fieldsOrder.forEach((fieldKey) => {
+        // 1. Header/Branding
+        if (fieldKey === 'headerBranding' && visibleFields.headerBranding) {
           doc.setFont('Helvetica', 'bold');
-          doc.setFontSize(7);
+          doc.setFontSize(9);
           doc.setTextColor(0, 0, 0);
-          doc.text(senderName.slice(0, 22), 6, senderY + 4);
-          doc.setFont('Helvetica', 'normal');
-          doc.setFontSize(6);
-          doc.text(senderAddress.slice(0, 24), 6, senderY + 7);
-          doc.text(senderZipCity, 6, senderY + 10);
-          doc.text(senderCountry, 6, senderY + 13);
+          doc.text(customBranding, 6, yCursor + 5);
+
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.text(`${carrier} EXP`, labelW - 20, yCursor + 5);
+
+          yCursor += 8;
+          doc.setLineWidth(0.2);
+          doc.line(4, yCursor, labelW - 4, yCursor);
         }
 
-        const rightColX = visibleFields.senderInfo ? (labelW / 2) + 2 : 6;
-        if (visibleFields.recipientInfo) {
+        // 2. Sender & Ship To Addresses
+        if (fieldKey === 'addresses' && (visibleFields.senderInfo || visibleFields.recipientInfo)) {
+          const startY = yCursor;
+          let senderY = startY + 3;
+          let recipientY = startY + 3;
+
           doc.setFont('Helvetica', 'normal');
           doc.setFontSize(5);
           doc.setTextColor(80, 80, 80);
-          doc.text('SHIP TO:', rightColX, recipientY);
+
+          if (visibleFields.senderInfo) {
+            doc.text('SENDER:', 6, senderY);
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(7);
+            doc.setTextColor(0, 0, 0);
+            doc.text(senderName.slice(0, 22), 6, senderY + 4);
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(6);
+            doc.text(senderAddress.slice(0, 24), 6, senderY + 7);
+            doc.text(senderZipCity, 6, senderY + 10);
+            doc.text(senderCountry, 6, senderY + 13);
+          }
+
+          const rightColX = visibleFields.senderInfo ? (labelW / 2) + 2 : 6;
+          if (visibleFields.recipientInfo) {
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(5);
+            doc.setTextColor(80, 80, 80);
+            doc.text('SHIP TO:', rightColX, recipientY);
+            doc.setFont('Helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(0, 0, 0);
+            doc.text(destName.slice(0, 20), rightColX, recipientY + 4);
+            doc.setFont('Helvetica', 'normal');
+            doc.setFontSize(6);
+            doc.text(destAddress.slice(0, 24), rightColX, recipientY + 7);
+            doc.text(destZipCity, rightColX, recipientY + 10);
+            doc.text(destCountry, rightColX, recipientY + 13);
+          }
+
+          yCursor += 18;
+          doc.setLineWidth(0.2);
+          doc.line(4, yCursor, labelW - 4, yCursor);
+        }
+
+        // 3. Metadata (PO, PO-ITEM, SENDER, Q, STYLENAME) + QR
+        if (fieldKey === 'orderMetadata' && visibleFields.orderMetadata) {
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(80, 80, 80);
+          doc.text('PO', 6, yCursor + 3);
+          doc.text('PO-ITEM', 24, yCursor + 3);
+          doc.text('SENDER ID', 42, yCursor + 3);
+          doc.text('QTY', 60, yCursor + 3);
+
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.setTextColor(0, 0, 0);
+          doc.text(poNumber, 6, yCursor + 7);
+          doc.text(poItem, 24, yCursor + 7);
+          doc.text(senderId, 42, yCursor + 7);
+          doc.text(quantityQ, 60, yCursor + 7);
+
+          // STYLENAME line
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(80, 80, 80);
+          doc.text('STYLENAME', 6, yCursor + 11);
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.setTextColor(0, 0, 0);
+          doc.text(styleNameOverride || 'N/A', 6, yCursor + 15);
+
+          // QR Code
+          if (ctn.qrCodeDataUrl) {
+            try {
+              doc.addImage(ctn.qrCodeDataUrl, 'PNG', labelW - 20, yCursor + 1, 14, 14);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+
+          yCursor += 18;
+          doc.setLineWidth(0.2);
+          doc.line(4, yCursor, labelW - 4, yCursor);
+        }
+
+        // 4. Color & Sizes
+        if (fieldKey === 'colorAndSizes' && visibleFields.colorAndSizes) {
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(80, 80, 80);
+          doc.text('COULEUR / COLOR', 6, yCursor + 3);
+
           doc.setFont('Helvetica', 'bold');
           doc.setFontSize(8);
           doc.setTextColor(0, 0, 0);
-          doc.text(destName.slice(0, 20), rightColX, recipientY + 4);
+          doc.text(ctn.colorName, 6, yCursor + 7);
+
+          // sizes line
           doc.setFont('Helvetica', 'normal');
-          doc.setFontSize(6);
-          doc.text(destAddress.slice(0, 24), rightColX, recipientY + 7);
-          doc.text(destZipCity, rightColX, recipientY + 10);
-          doc.text(destCountry, rightColX, recipientY + 13);
+          doc.setFontSize(6.5);
+          doc.text(colorSizeVal, 6, yCursor + 11);
+
+          yCursor += 14;
+          doc.setLineWidth(0.2);
+          doc.line(4, yCursor, labelW - 4, yCursor);
         }
 
-        yCursor += 18;
-        doc.setLineWidth(0.2);
-        doc.line(4, yCursor, labelW - 4, yCursor);
-      }
+        // 5. Logistics Metrics (Weights, SKU, Dimensions, Quantity)
+        if (fieldKey === 'logisticsMetrics' && visibleFields.logisticsMetrics) {
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(80, 80, 80);
+          doc.text('WEIGHT DETAILS', 6, yCursor + 3);
+          doc.text('PRODUCT DETAILS', labelW / 2, yCursor + 3);
 
-      // 3. Metadata (PO, PO-ITEM, SENDER, Q, STYLENAME) + QR
-      if (visibleFields.orderMetadata) {
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-        doc.text('PO', 6, yCursor + 3);
-        doc.text('PO-ITEM', 24, yCursor + 3);
-        doc.text('SENDER ID', 42, yCursor + 3);
-        doc.text('QTY', 60, yCursor + 3);
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`Net: ${ctn.netWeight.toFixed(2)} KG`, 6, yCursor + 7);
+          doc.setFont('Helvetica', 'bold');
+          doc.text(`Gross: ${ctn.grossWeight.toFixed(2)} KG`, 6, yCursor + 10);
+          doc.setFont('Helvetica', 'normal');
+          doc.text(`Vol: ${ctn.cbm.toFixed(4)} m3`, 6, yCursor + 13);
 
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        doc.text(poNumber, 6, yCursor + 7);
-        doc.text(poItem, 24, yCursor + 7);
-        doc.text(senderId, 42, yCursor + 7);
-        doc.text(quantityQ, 60, yCursor + 7);
+          doc.text(`SKU: ${ctn.sku}`, labelW / 2, yCursor + 7);
+          doc.text(`Dim: ${ctn.dimensions} CM`, labelW / 2, yCursor + 10);
+          doc.setFont('Helvetica', 'bold');
+          doc.text(`Qty: ${ctn.pcsPerCarton} PCS`, labelW / 2, yCursor + 13);
 
-        // STYLENAME line
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-        doc.text('STYLENAME', 6, yCursor + 11);
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        doc.text(styleNameOverride || 'N/A', 6, yCursor + 15);
+          yCursor += 16;
+          doc.setLineWidth(0.2);
+          doc.line(4, yCursor, labelW - 4, yCursor);
+        }
 
-        // QR Code
-        if (ctn.qrCodeDataUrl) {
-          try {
-            doc.addImage(ctn.qrCodeDataUrl, 'PNG', labelW - 20, yCursor + 1, 14, 14);
-          } catch (e) {
-            console.error(e);
+        // 6. Transit Route Index Strip
+        if (fieldKey === 'transitStrip' && visibleFields.transitStrip) {
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(5);
+          doc.setTextColor(80, 80, 80);
+          doc.text('ROUTE INDEX', 6, yCursor + 3);
+          doc.text('COLOR CTN', 42, yCursor + 3);
+          doc.text('GLOBAL BOX', labelW - 28, yCursor + 3);
+
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
+          doc.text(routingZone, 6, yCursor + 7);
+          doc.setFont('Helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.text(`#${ctn.cartonNum} / ${flattenedCartons.filter(c => c.colorName === ctn.colorName).length}`, 42, yCursor + 7);
+          doc.text(`#${ctn.globalCartonNum} / ${flattenedCartons.length}`, labelW - 28, yCursor + 7);
+
+          yCursor += 10;
+          doc.setLineWidth(0.2);
+          doc.line(4, yCursor, labelW - 4, yCursor);
+        }
+
+        // 7. 1D Barcode / SSCC
+        if (fieldKey === 'barcode1D' && visibleFields.barcode1D) {
+          const remainingH = labelH - yCursor - 4;
+          const barcodeH = Math.max(10, Math.min(18, remainingH - 8));
+          const barcodeY = yCursor + 2;
+
+          // Draw 1D Barcode rects in PDF
+          const bars: boolean[] = [];
+          for (let i = 0; i < 10; i++) bars.push(false);
+          const seed = ssccCode.replace(/[^0-9]/g, '');
+          for (let i = 0; i < seed.length; i++) {
+            const val = parseInt(seed.charAt(i), 10) || 0;
+            const pattern = [
+              [true, false, true, true, false, false],
+              [true, true, false, true, false, false],
+              [true, true, false, false, true, false],
+              [true, false, false, true, true, false],
+              [true, false, false, false, true, true],
+              [true, true, false, true, true, false],
+              [true, true, false, false, true, true],
+              [true, false, true, true, false, true],
+              [true, false, true, true, true, false],
+              [true, true, true, false, true, false]
+            ][val];
+            pattern.forEach(b => {
+              bars.push(b);
+              bars.push(b); // double width
+            });
+            bars.push(i % 2 === 0);
+            bars.push(false);
           }
-        }
+          bars.push(true, true, false, false, true, true, true, false, true, true);
+          for (let i = 0; i < 10; i++) bars.push(false);
 
-        yCursor += 18;
-        doc.setLineWidth(0.2);
-        doc.line(4, yCursor, labelW - 4, yCursor);
-      }
+          const barcodeXStart = 8;
+          const barcodeWidthTotal = labelW - 16;
+          const barWidth = barcodeWidthTotal / bars.length;
 
-      // 4. Color & Sizes
-      if (visibleFields.colorAndSizes) {
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-        doc.text('COULEUR / COLOR', 6, yCursor + 3);
-
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(0, 0, 0);
-        doc.text(ctn.colorName, 6, yCursor + 7);
-
-        // sizes line
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(6.5);
-        doc.text(colorSizeVal, 6, yCursor + 11);
-
-        yCursor += 14;
-        doc.setLineWidth(0.2);
-        doc.line(4, yCursor, labelW - 4, yCursor);
-      }
-
-      // 5. Logistics Metrics (Weights, SKU, Dimensions, Quantity)
-      if (visibleFields.logisticsMetrics) {
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-        doc.text('WEIGHT DETAILS', 6, yCursor + 3);
-        doc.text('PRODUCT DETAILS', labelW / 2, yCursor + 3);
-
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(7);
-        doc.setTextColor(0, 0, 0);
-        doc.text(`Net: ${ctn.netWeight.toFixed(2)} KG`, 6, yCursor + 7);
-        doc.setFont('Helvetica', 'bold');
-        doc.text(`Gross: ${ctn.grossWeight.toFixed(2)} KG`, 6, yCursor + 10);
-        doc.setFont('Helvetica', 'normal');
-        doc.text(`Vol: ${ctn.cbm.toFixed(4)} m3`, 6, yCursor + 13);
-
-        doc.text(`SKU: ${ctn.sku}`, labelW / 2, yCursor + 7);
-        doc.text(`Dim: ${ctn.dimensions} CM`, labelW / 2, yCursor + 10);
-        doc.setFont('Helvetica', 'bold');
-        doc.text(`Qty: ${ctn.pcsPerCarton} PCS`, labelW / 2, yCursor + 13);
-
-        yCursor += 16;
-        doc.setLineWidth(0.2);
-        doc.line(4, yCursor, labelW - 4, yCursor);
-      }
-
-      // 6. Transit Route Index Strip
-      if (visibleFields.transitStrip) {
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.setTextColor(80, 80, 80);
-        doc.text('ROUTE INDEX', 6, yCursor + 3);
-        doc.text('COLOR CTN', 42, yCursor + 3);
-        doc.text('GLOBAL BOX', labelW - 28, yCursor + 3);
-
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text(routingZone, 6, yCursor + 7);
-        doc.setFont('Helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.text(`#${ctn.cartonNum} / ${flattenedCartons.filter(c => c.colorName === ctn.colorName).length}`, 42, yCursor + 7);
-        doc.text(`#${ctn.globalCartonNum} / ${flattenedCartons.length}`, labelW - 28, yCursor + 7);
-
-        yCursor += 10;
-        doc.setLineWidth(0.2);
-        doc.line(4, yCursor, labelW - 4, yCursor);
-      }
-
-      // 7. 1D Barcode / SSCC
-      if (visibleFields.barcode1D) {
-        const remainingH = labelH - yCursor - 4;
-        const barcodeH = Math.max(10, Math.min(18, remainingH - 8));
-        const barcodeY = yCursor + 2;
-
-        // Draw 1D Barcode rects in PDF
-        const bars: boolean[] = [];
-        for (let i = 0; i < 10; i++) bars.push(false);
-        const seed = ssccCode.replace(/[^0-9]/g, '');
-        for (let i = 0; i < seed.length; i++) {
-          const val = parseInt(seed.charAt(i), 10) || 0;
-          const pattern = [
-            [true, false, true, true, false, false],
-            [true, true, false, true, false, false],
-            [true, true, false, false, true, false],
-            [true, false, false, true, true, false],
-            [true, false, false, false, true, true],
-            [true, true, false, true, true, false],
-            [true, true, false, false, true, true],
-            [true, false, true, true, false, true],
-            [true, false, true, true, true, false],
-            [true, true, true, false, true, false]
-          ][val];
-          pattern.forEach(b => {
-            bars.push(b);
-            bars.push(b); // double width
+          doc.setFillColor(0, 0, 0);
+          bars.forEach((bar, idx) => {
+            if (bar) {
+              doc.rect(barcodeXStart + idx * barWidth, barcodeY, barWidth, barcodeH, 'F');
+            }
           });
-          bars.push(i % 2 === 0);
-          bars.push(false);
+
+          // SSCC text under barcode
+          doc.setFont('Helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(0, 0, 0);
+          doc.text(ssccWithAI, labelW / 2, barcodeY + barcodeH + 3.5, { align: 'center' });
         }
-        bars.push(true, true, false, false, true, true, true, false, true, true);
-        for (let i = 0; i < 10; i++) bars.push(false);
-
-        const barcodeXStart = 8;
-        const barcodeWidthTotal = labelW - 16;
-        const barWidth = barcodeWidthTotal / bars.length;
-
-        doc.setFillColor(0, 0, 0);
-        bars.forEach((bar, idx) => {
-          if (bar) {
-            doc.rect(barcodeXStart + idx * barWidth, barcodeY, barWidth, barcodeH, 'F');
-          }
-        });
-
-        // SSCC text under barcode
-        doc.setFont('Helvetica', 'bold');
-        doc.setFontSize(8);
-        doc.setTextColor(0, 0, 0);
-        doc.text(ssccWithAI, labelW / 2, barcodeY + barcodeH + 3.5, { align: 'center' });
-      }
+      });
     });
 
     const timestamp = new Date().toISOString().slice(0, 10);
@@ -1509,44 +1594,131 @@ export default function ParcelLabelModule({
               </div>
             </div>
 
-            {/* Active Fields Switches */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">
-                Champs de l'étiquette à afficher
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'headerBranding', label: '🏢 En-tête & Logo' },
-                  { key: 'senderInfo', label: '📦 Expéditeur (Sender)' },
-                  { key: 'recipientInfo', label: '👤 Destinataire (Ship To)' },
-                  { key: 'orderMetadata', label: '📝 Commande / PO' },
-                  { key: 'colorAndSizes', label: '🎨 Couleur & Tailles' },
-                  { key: 'logisticsMetrics', label: '⚖️ Poids & Quantités' },
-                  { key: 'transitStrip', label: '🛣️ Zone de Tri (Transit)' },
-                  { key: 'barcode1D', label: '🏷️ Code-barres / SSCC' }
-                ].map(field => (
-                  <label
-                    key={field.key}
-                    className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer select-none transition-all ${
-                      (visibleFields as any)[field.key]
-                        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400 font-bold'
-                        : `${darkMode ? 'border-slate-800 bg-slate-900/20 text-slate-500' : 'border-slate-200 bg-slate-50 text-slate-500'}`
-                    }`}
-                  >
-                    <span className="text-[10px] font-mono">{field.label}</span>
-                    <input
-                      type="checkbox"
-                      checked={(visibleFields as any)[field.key]}
-                      onChange={() => {
-                        setVisibleFields((prev: any) => ({
-                          ...prev,
-                          [field.key]: !prev[field.key]
-                        }));
-                      }}
-                      className="rounded accent-emerald-500 cursor-pointer w-3.5 h-3.5"
-                    />
-                  </label>
-                ))}
+            {/* Active Fields Switches with Drag & Drop Reordering */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] font-mono font-bold text-slate-400 uppercase">
+                  🧩 AGENCEMENT & AFFICHAGE DES SECTIONS (DRAG & DROP / FLÈCHES)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFieldsOrder([
+                      'headerBranding',
+                      'addresses',
+                      'orderMetadata',
+                      'colorAndSizes',
+                      'logisticsMetrics',
+                      'transitStrip',
+                      'barcode1D'
+                    ]);
+                    triggerToast("🔄 Ordre réinitialisé par défaut", "info");
+                  }}
+                  className="text-[9px] text-orange-400 hover:underline font-mono"
+                >
+                  Réinitialiser l'ordre
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {fieldsOrder.map((fieldKey, index) => {
+                  const fieldMetaMap: { [key: string]: { label: string; icon: string; fields: string[] } } = {
+                    headerBranding: { label: "En-tête & Logo (Branding)", icon: "🏢", fields: ["headerBranding"] },
+                    addresses: { label: "Adresses (Sender & Ship To)", icon: "👥", fields: ["senderInfo", "recipientInfo"] },
+                    orderMetadata: { label: "Commande / PO / Style", icon: "📝", fields: ["orderMetadata"] },
+                    colorAndSizes: { label: "Couleur & Tailles de Colis", icon: "🎨", fields: ["colorAndSizes"] },
+                    logisticsMetrics: { label: "Métriques (Poids/SKU/Vol)", icon: "⚖️", fields: ["logisticsMetrics"] },
+                    transitStrip: { label: "Zone de Tri (Route / Index)", icon: "🛣️", fields: ["transitStrip"] },
+                    barcode1D: { label: "Code-barres / Code SSCC", icon: "🏷️", fields: ["barcode1D"] }
+                  };
+                  const meta = fieldMetaMap[fieldKey];
+                  if (!meta) return null;
+                  const isDragged = draggedIndex === index;
+
+                  return (
+                    <div
+                      key={fieldKey}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragEnd={handleDragEnd}
+                      className={`flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 rounded-lg border transition-all duration-150 ${
+                        isDragged ? 'opacity-40 scale-[0.98]' : ''
+                      } ${
+                        darkMode 
+                          ? 'border-slate-800 bg-[#1f2430]/60 hover:bg-[#1f2430]' 
+                          : 'border-slate-200 bg-slate-50 hover:bg-slate-100/60'
+                      }`}
+                    >
+                      {/* Left: Drag Handle and Info */}
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-orange-500">
+                          <GripVertical className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-[11px] font-mono font-semibold flex items-center gap-1.5 text-slate-300 dark:text-slate-100">
+                          <span>{meta.icon}</span>
+                          <span>{meta.label}</span>
+                        </span>
+                      </div>
+
+                      {/* Right: Controls (Move buttons + Checkboxes) */}
+                      <div className="flex items-center gap-3 mt-2 sm:mt-0 w-full sm:w-auto justify-end">
+                        {/* Reordering buttons */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveFieldUp(index)}
+                            disabled={index === 0}
+                            className={`p-1 rounded transition-colors ${
+                              index === 0 
+                                ? 'text-slate-600 cursor-not-allowed' 
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                            }`}
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveFieldDown(index)}
+                            disabled={index === fieldsOrder.length - 1}
+                            className={`p-1 rounded transition-colors ${
+                              index === fieldsOrder.length - 1 
+                                ? 'text-slate-600 cursor-not-allowed' 
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                            }`}
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        {/* Toggles */}
+                        <div className="flex items-center gap-2 border-l border-slate-750/50 pl-3">
+                          {meta.fields.map((fKey) => {
+                            const isChecked = (visibleFields as any)[fKey];
+                            return (
+                              <label key={fKey} className="flex items-center gap-1 cursor-pointer select-none">
+                                <span className="text-[9px] font-mono text-slate-400">
+                                  {meta.fields.length > 1 ? (fKey === 'senderInfo' ? 'Exp.' : 'Dest.') : 'Visible'}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setVisibleFields((prev: any) => ({
+                                      ...prev,
+                                      [fKey]: !prev[fKey]
+                                    }));
+                                  }}
+                                  className="rounded accent-orange-500 cursor-pointer w-3.5 h-3.5"
+                                />
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1581,150 +1753,158 @@ export default function ParcelLabelModule({
                     style={{ fontFamily: 'monospace' }}
                   >
                     
-                    {/* TOP SECTION: LOGO + CARRIER */}
-                    {visibleFields.headerBranding && (
-                      <div className="flex items-center justify-between border-b-[2.5px] border-black pb-1.5">
-                        <div>
-                          <span className="font-sans font-black text-xs inline-block tracking-tighter text-black uppercase">{customBranding}</span>
-                          <div className="text-[7px] font-mono leading-none tracking-tight opacity-75">SPECS LABELS THERMAL A6</div>
-                        </div>
-                        <div className="bg-black text-white px-2 py-0.5 font-sans font-extrabold text-[10px] tracking-wide rounded-xs">
-                          {carrier} EXP
-                        </div>
-                      </div>
-                    )}
-
-                    {/* SENDER & SHIP TO ADDRESS FIELDS */}
-                    {(visibleFields.senderInfo || visibleFields.recipientInfo) && (
-                      <div className="flex border-b-[2px] border-black text-[7.5px] min-height-[52px]">
-                        {visibleFields.senderInfo && (
-                          <div className={`${visibleFields.recipientInfo ? 'w-1/2 border-r-[2px] border-black pr-1.5' : 'w-full'} pt-1 pb-1`}>
-                            <div className="text-[6px] font-black underline mb-0.5">SENDER:</div>
-                            <div className="font-extrabold">{senderName}</div>
-                            <div className="truncate">{senderAddress}</div>
-                            <div>{senderZipCity}</div>
-                            <div className="font-extrabold">{senderCountry}</div>
-                          </div>
-                        )}
-                        
-                        {visibleFields.recipientInfo && (
-                          <div className={`${visibleFields.senderInfo ? 'w-1/2 pl-1.5' : 'w-full'} pt-1 pb-1 relative`}>
-                            <div className="text-[6px] font-black underline mb-0.5">SHIP TO:</div>
-                            <div className="font-black text-[9px] leading-tight text-black line-clamp-1">{destName}</div>
-                            <div className="line-clamp-2 leading-none mt-0.5 text-[7px]">{destAddress}</div>
-                            <div className="font-extrabold mt-0.5">{destZipCity}</div>
-                            <div className="font-black text-[8px] tracking-wider mt-0.5 uppercase">{destCountry}</div>
-
-                            {/* Zone Stamp */}
-                            <div className="absolute right-0 top-1 text-xs font-black border-2 border-black rounded px-1.5 py-0.5 bg-white flex items-center justify-center">
-                              D
+                    {fieldsOrder.map((fieldKey) => {
+                      if (fieldKey === 'headerBranding' && visibleFields.headerBranding) {
+                        return (
+                          <div key="headerBranding" className="flex items-center justify-between border-b-[2.5px] border-black pb-1.5">
+                            <div>
+                              <span className="font-sans font-black text-xs inline-block tracking-tighter text-black uppercase">{customBranding}</span>
+                              <div className="text-[7px] font-mono leading-none tracking-tight opacity-75">SPECS LABELS THERMAL A6</div>
+                            </div>
+                            <div className="bg-black text-white px-2 py-0.5 font-sans font-extrabold text-[10px] tracking-wide rounded-xs">
+                              {carrier} EXP
                             </div>
                           </div>
-                        )}
-                      </div>
-                    )}
+                        );
+                      }
 
-                    {/* INTERN METRICS */}
-                    {visibleFields.orderMetadata && (
-                      <div className="border-b-[2px] border-black text-[8px] p-1.5 bg-slate-100 font-mono">
-                        <div className="grid grid-cols-4 gap-1 text-center mb-1 border-b border-black/10 pb-1">
-                          <div className="border-r border-black/20 pr-0.5">
-                            <div className="text-[5.5px] font-bold text-slate-500">PO:</div>
-                            <strong className="text-[8.5px] font-black block leading-none truncate">{poNumber || '—'}</strong>
+                      if (fieldKey === 'addresses' && (visibleFields.senderInfo || visibleFields.recipientInfo)) {
+                        return (
+                          <div key="addresses" className="flex border-b-[2px] border-black text-[7.5px] min-height-[52px]">
+                            {visibleFields.senderInfo && (
+                              <div className={`${visibleFields.recipientInfo ? 'w-1/2 border-r-[2px] border-black pr-1.5' : 'w-full'} pt-1 pb-1`}>
+                                <div className="text-[6px] font-black underline mb-0.5">SENDER:</div>
+                                <div className="font-extrabold">{senderName}</div>
+                                <div className="truncate">{senderAddress}</div>
+                                <div>{senderZipCity}</div>
+                                <div className="font-extrabold">{senderCountry}</div>
+                              </div>
+                            )}
+                            
+                            {visibleFields.recipientInfo && (
+                              <div className={`${visibleFields.senderInfo ? 'w-1/2 pl-1.5' : 'w-full'} pt-1 pb-1 relative`}>
+                                <div className="text-[6px] font-black underline mb-0.5">SHIP TO:</div>
+                                <div className="font-black text-[9px] leading-tight text-black line-clamp-1">{destName}</div>
+                                <div className="line-clamp-2 leading-none mt-0.5 text-[7px]">{destAddress}</div>
+                                <div className="font-extrabold mt-0.5">{destZipCity}</div>
+                                <div className="font-black text-[8px] tracking-wider mt-0.5 uppercase">{destCountry}</div>
+
+                                {/* Zone Stamp */}
+                                <div className="absolute right-0 top-1 text-xs font-black border-2 border-black rounded px-1.5 py-0.5 bg-white flex items-center justify-center">
+                                  D
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div className="border-r border-black/20 px-0.5">
-                            <div className="text-[5.5px] font-bold text-slate-500">PO-ITEM:</div>
-                            <strong className="text-[8.5px] font-black block leading-none truncate">{poItem || '—'}</strong>
-                          </div>
-                          <div className="border-r border-black/20 px-0.5">
-                            <div className="text-[5.5px] font-bold text-slate-500">SENDER:</div>
-                            <strong className="text-[8.5px] font-black block leading-none truncate">{senderId || '—'}</strong>
-                          </div>
-                          <div className="pl-0.5">
-                            <div className="text-[5.5px] font-bold text-slate-500">QTY:</div>
-                            <strong className="text-[8.5px] font-black block leading-none truncate">{quantityQ || '—'}</strong>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center px-0.5 text-[7px] leading-none">
-                          <span className="text-slate-500 font-bold">STYLENAME:</span>
-                          <strong className="font-black text-black truncate max-w-[200px]">{styleNameOverride || 'N/A'}</strong>
-                        </div>
-                      </div>
-                    )}
+                        );
+                      }
 
-                    {/* COLOR AND SIZES GRID INFO */}
-                    {visibleFields.colorAndSizes && (
-                      <div className="border-b-[2px] border-black p-1.5 bg-white">
-                        <div className="flex items-center justify-between text-[8.5px] font-bold mb-1">
-                          <div>COULEUR / COLOR: <strong className="text-[10px] font-black bg-slate-200 px-1 py-px rounded">{currentPreviewCarton.colorName}</strong></div>
-                          <div>#{currentPreviewCarton.type === 'mixed' ? 'MIXTE' : 'SOLIDE'}</div>
-                        </div>
-                        <div className="text-[7.5px] font-mono font-bold leading-relaxed border border-slate-300 p-1 rounded-sm bg-slate-50/50 flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
-                          {Object.entries(currentPreviewCarton.sizes).map(([sz, qty]) => (
-                            <span key={sz} className="whitespace-nowrap"><span className="underline">{sz}</span>:&nbsp;<b>{qty}</b></span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* WEIGHTS, CBM, SKUS AND QUANTITIES */}
-                    {visibleFields.logisticsMetrics && (
-                      <div className="grid grid-cols-2 border-b-[2px] border-black text-[8px] py-1">
-                        <div className="border-r-[1.5px] border-black pr-1.5 flex flex-col justify-center">
-                          <div className="leading-tight">POIDS NET: <b>{currentPreviewCarton.netWeight.toFixed(2)} KG</b></div>
-                          <div className="leading-tight font-black text-[8.5px]">POIDS BRUT: <b>{currentPreviewCarton.grossWeight.toFixed(2)} KG</b></div>
-                          <div className="leading-tight text-[7px]">VOL: &nbsp;<b>{currentPreviewCarton.cbm.toFixed(4)} m³</b></div>
-                        </div>
-                        <div className="pl-1.5 flex flex-col justify-center gap-px">
-                          <div className="leading-tight text-[7px] truncate font-extrabold text-black">SKU: {materialOverride || currentPreviewCarton.sku || '50527573'}</div>
-                          <div className="leading-tight text-[7px]">DIM: <b>{currentPreviewCarton.dimensions} CM</b></div>
-                          <div className="text-[8.5px] font-black tracking-tight leading-none text-black mt-0.5 uppercase">QTE: {currentPreviewCarton.pcsPerCarton} PCS</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* TRANSIT STRIP BARCODE/STAGE */}
-                    {visibleFields.transitStrip && (
-                      <div className="border-b-[2px] border-black py-1.5 px-1 bg-black text-white flex items-center justify-between text-[7px]">
-                        <div>ROUTE INDEX:<br/><strong className="text-[9.5px] font-bold tracking-wider">{routingZone}</strong></div>
-                        <div className="text-right">
-                          <span>COLOR CTN:</span>
-                          <div className="text-[11.5px] font-black leading-none mt-0.5 font-bold">#{currentPreviewCarton.cartonNum} / {flattenedCartons.filter(c => c.colorName === currentPreviewCarton.colorName).length}</div>
-                        </div>
-                        <div className="text-right border-l border-white/40 pl-1.5">
-                          <span>GLOBAL BOX:</span>
-                          <div className="text-[10px] font-black leading-none mt-0.5 font-bold">{currentPreviewCarton.globalCartonNum} / {flattenedCartons.length}</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* BARCODE DRAWING CANVAS (CSS) */}
-                    {visibleFields.barcode1D && (
-                      <div className="pt-2 flex flex-col items-center justify-center">
-                        {barcodeType === 'CODE128' ? (
-                          <>
-                            {/* Pseudo barcode graphic stripes */}
-                            <div className="flex gap-[0.5px] w-full h-8 justify-center items-stretch overflow-hidden">
-                              {Array.from({ length: 35 }).map((_, bIdx) => {
-                                const stripeWidth = (bIdx % 4 === 0) ? '3px' : (bIdx % 2 === 0) ? '1px' : '1.5px';
-                                const transparent = (bIdx % 5 === 1 && bIdx > 3 && bIdx < 31) ? 'opacity-0' : 'opacity-100';
-                                return <div key={bIdx} className={`bg-black h-full ${transparent}`} style={{ width: stripeWidth }} />;
-                              })}
+                      if (fieldKey === 'orderMetadata' && visibleFields.orderMetadata) {
+                        return (
+                          <div key="orderMetadata" className="border-b-[2px] border-black text-[8px] p-1.5 bg-slate-100 font-mono">
+                            <div className="grid grid-cols-4 gap-1 text-center mb-1 border-b border-black/10 pb-1">
+                              <div className="border-r border-black/20 pr-0.5">
+                                <div className="text-[5.5px] font-bold text-slate-500">PO:</div>
+                                <strong className="text-[8.5px] font-black block leading-none truncate">{poNumber || '—'}</strong>
+                              </div>
+                              <div className="border-r border-black/20 px-0.5">
+                                <div className="text-[5.5px] font-bold text-slate-500">PO-ITEM:</div>
+                                <strong className="text-[8.5px] font-black block leading-none truncate">{poItem || '—'}</strong>
+                              </div>
+                              <div className="border-r border-black/20 px-0.5">
+                                <div className="text-[5.5px] font-bold text-slate-500">SENDER:</div>
+                                <strong className="text-[8.5px] font-black block leading-none truncate">{senderId || '—'}</strong>
+                              </div>
+                              <div className="pl-0.5">
+                                <div className="text-[5.5px] font-bold text-slate-500">QTY:</div>
+                                <strong className="text-[8.5px] font-black block leading-none truncate">{quantityQ || '—'}</strong>
+                              </div>
                             </div>
-                          </>
-                        ) : (
-                          currentPreviewCarton.qrCodeDataUrl ? (
-                            <img src={currentPreviewCarton.qrCodeDataUrl} className="w-14 h-14 object-contain" alt="QR Code" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-14 h-14 bg-slate-200 animate-pulse rounded" />
-                          )
-                        )}
-                        
-                        <div className="text-[7.5px] font-bold tracking-widest uppercase text-black font-mono mt-1 select-text">
-                          {`BAR-${meta.order || 'ORD'}-${currentPreviewCarton.colorName}-${currentPreviewCarton.cartonNum}`.toUpperCase().replace(/\s+/g, '-')}
-                        </div>
-                      </div>
-                    )}
+                            <div className="flex justify-between items-center px-0.5 text-[7px] leading-none">
+                              <span className="text-slate-500 font-bold">STYLENAME:</span>
+                              <strong className="font-black text-black truncate max-w-[200px]">{styleNameOverride || 'N/A'}</strong>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (fieldKey === 'colorAndSizes' && visibleFields.colorAndSizes) {
+                        return (
+                          <div key="colorAndSizes" className="border-b-[2px] border-black p-1.5 bg-white">
+                            <div className="flex items-center justify-between text-[8.5px] font-bold mb-1">
+                              <div>COULEUR / COLOR: <strong className="text-[10px] font-black bg-slate-200 px-1 py-px rounded">{currentPreviewCarton.colorName}</strong></div>
+                              <div>#{currentPreviewCarton.type === 'mixed' ? 'MIXTE' : 'SOLIDE'}</div>
+                            </div>
+                            <div className="text-[7.5px] font-mono font-bold leading-relaxed border border-slate-300 p-1 rounded-sm bg-slate-50/50 flex flex-wrap justify-center gap-x-1.5 gap-y-0.5">
+                              {Object.entries(currentPreviewCarton.sizes).map(([sz, qty]) => (
+                                <span key={sz} className="whitespace-nowrap"><span className="underline">{sz}</span>:&nbsp;<b>{qty}</b></span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (fieldKey === 'logisticsMetrics' && visibleFields.logisticsMetrics) {
+                        return (
+                          <div key="logisticsMetrics" className="grid grid-cols-2 border-b-[2px] border-black text-[8px] py-1">
+                            <div className="border-r-[1.5px] border-black pr-1.5 flex flex-col justify-center">
+                              <div className="leading-tight">POIDS NET: <b>{currentPreviewCarton.netWeight.toFixed(2)} KG</b></div>
+                              <div className="leading-tight font-black text-[8.5px]">POIDS BRUT: <b>{currentPreviewCarton.grossWeight.toFixed(2)} KG</b></div>
+                              <div className="leading-tight text-[7px]">VOL: &nbsp;<b>{currentPreviewCarton.cbm.toFixed(4)} m³</b></div>
+                            </div>
+                            <div className="pl-1.5 flex flex-col justify-center gap-px">
+                              <div className="leading-tight text-[7px] truncate font-extrabold text-black">SKU: {materialOverride || currentPreviewCarton.sku || '50527573'}</div>
+                              <div className="leading-tight text-[7px]">DIM: <b>{currentPreviewCarton.dimensions} CM</b></div>
+                              <div className="text-[8.5px] font-black tracking-tight leading-none text-black mt-0.5 uppercase">QTE: {currentPreviewCarton.pcsPerCarton} PCS</div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (fieldKey === 'transitStrip' && visibleFields.transitStrip) {
+                        return (
+                          <div key="transitStrip" className="border-b-[2px] border-black py-1.5 px-1 bg-black text-white flex items-center justify-between text-[7px]">
+                            <div>ROUTE INDEX:<br/><strong className="text-[9.5px] font-bold tracking-wider">{routingZone}</strong></div>
+                            <div className="text-right">
+                              <span>COLOR CTN:</span>
+                              <div className="text-[11.5px] font-black leading-none mt-0.5 font-bold">#{currentPreviewCarton.cartonNum} / {flattenedCartons.filter(c => c.colorName === currentPreviewCarton.colorName).length}</div>
+                            </div>
+                            <div className="text-right border-l border-white/40 pl-1.5">
+                              <span>GLOBAL BOX:</span>
+                              <div className="text-[10px] font-black leading-none mt-0.5 font-bold">{currentPreviewCarton.globalCartonNum} / {flattenedCartons.length}</div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      if (fieldKey === 'barcode1D' && visibleFields.barcode1D) {
+                        return (
+                          <div key="barcode1D" className="pt-2 flex flex-col items-center justify-center">
+                            {barcodeType === 'CODE128' ? (
+                              <div className="flex gap-[0.5px] w-full h-8 justify-center items-stretch overflow-hidden">
+                                {Array.from({ length: 35 }).map((_, bIdx) => {
+                                  const stripeWidth = (bIdx % 4 === 0) ? '3px' : (bIdx % 2 === 0) ? '1px' : '1.5px';
+                                  const transparent = (bIdx % 5 === 1 && bIdx > 3 && bIdx < 31) ? 'opacity-0' : 'opacity-100';
+                                  return <div key={bIdx} className={`bg-black h-full ${transparent}`} style={{ width: stripeWidth }} />;
+                                })}
+                              </div>
+                            ) : (
+                              currentPreviewCarton.qrCodeDataUrl ? (
+                                <img src={currentPreviewCarton.qrCodeDataUrl} className="w-14 h-14 object-contain" alt="QR Code" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-14 h-14 bg-slate-200 animate-pulse rounded" />
+                              )
+                            )}
+                            
+                            <div className="text-[7.5px] font-bold tracking-widest uppercase text-black font-mono mt-1 select-text">
+                              {`BAR-${poNumber || 'ORD'}-${currentPreviewCarton.colorName}-${currentPreviewCarton.cartonNum}`.toUpperCase().replace(/\s+/g, '-')}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return null;
+                    })}
 
                   </div>
                 </div>
