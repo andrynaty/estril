@@ -553,6 +553,19 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-
   background-color: #4c70c2 !important;
 }
 
+/* Global table borders color override */
+table,
+table th,
+table td,
+table tr,
+table thead,
+table tbody,
+table tfoot,
+table [class*="divide-"] > *,
+table [class*="border"] {
+  border-color: #312e2a !important;
+}
+
 /* Prevent whole page from scrolling on desktop to keep sidebar and page separated */
 @media (min-width: 1024px) {
   html, body, #root {

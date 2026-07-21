@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Lock, Cpu, Server, ShieldCheck, Terminal, Mail, UserPlus, KeyRound } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 
 interface WelcomeScreenProps {
@@ -23,22 +23,11 @@ export default function WelcomeScreen({ onSuccess }: WelcomeScreenProps) {
   const [isShaking, setIsShaking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleQuickSubmit = async (e: React.FormEvent) => {
+  const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === 'Naty') {
-      setIsLoading(true);
       setError('');
-      try {
-        // Sign in anonymously to satisfy security rules
-        await signInAnonymously(auth);
-        onSuccess();
-      } catch (err: any) {
-        console.error("Firebase Anonymous Login Error: ", err);
-        // Fallback to success even if Firebase offline
-        onSuccess();
-      } finally {
-        setIsLoading(false);
-      }
+      onSuccess();
     } else {
       setError('❌ CODE D\'ACCÈS RAPIDE INCORRECT');
       setIsShaking(true);

@@ -6113,19 +6113,12 @@ export default function App() {
                               <table className="w-full text-xs text-center border-collapse">
                                 <thead>
                                   {(() => {
-                                    let firstThRendered = false;
-                                    const getThProps = (baseClass: string) => {
-                                      if (!firstThRendered) {
-                                        firstThRendered = true;
-                                        return {
-                                          className: baseClass,
-                                          style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
-                                        };
-                                      }
-                                      return { className: baseClass };
-                                    };
+                                    const getThProps = (baseClass: string) => ({
+                                      className: baseClass,
+                                      style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                                    });
                                     return (
-                                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                                      <tr className="font-mono font-bold text-[11px] border-b text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
                                         {printColumns.ctn && (
                                           <>
                                             <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -6189,9 +6182,9 @@ export default function App() {
                                         {printColumns.sizes && activeColorSizes.map(t => (
                                           <td key={t} className={`px-2 font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
                                         ))}
-                                        <td className={`px-2 font-bold ${darkMode ? 'bg-white/5 text-white' : 'bg-slate-100/40 text-slate-800'}`}>{row.pcsPerCarton}</td>
+                                        <td className="px-2 font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                                         {printColumns.nbctn && <td className={`px-2 font-black col-nbctn-metric ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.nbr}</td>}
-                                        {printColumns.totalqty && <td className={`px-2 font-black col-totalqty-metric ${darkMode ? 'bg-white/10 text-white' : 'bg-slate-100/60 text-slate-800'}`}>{row.totalPcs}</td>}
+                                        {printColumns.totalqty && <td className="px-2 font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
                                         {printColumns.net && <td className={`px-2 font-bold col-net-metric ${darkMode ? 'text-white' : 'text-teal-600'}`}>{row.netWeightRow.toFixed(2)}</td>}
                                         {printColumns.gross && <td className={`px-2 font-bold col-gross-metric ${darkMode ? 'text-white' : 'text-red-500'}`}>{row.grossWeightRow.toFixed(2)}</td>}
                                         {printColumns.cbm && <td className={`px-2 col-cbm-metric ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{row.cbmRow.toFixed(4)}</td>}
@@ -6200,9 +6193,10 @@ export default function App() {
                                   })}
 
                                   {/* Totals row index */}
-                                  <tr className={`font-black border-t-2 border-b divide-x ${
-                                    darkMode ? 'border-t-white border-b-white/10 bg-white/5 text-white divide-white/10' : 'border-t-slate-800 border-b-slate-200 bg-slate-100/40 text-slate-900 divide-slate-200'
-                                  }`}>
+                                  <tr
+                                    className="font-bold border-t-2 border-b divide-x text-black"
+                                    style={{ backgroundColor: '#ff9d36', fontWeight: 'bold', color: '#000000' }}
+                                  >
                                     {printColumns.ctn && <td colSpan={2} className="py-2.5 px-3 text-center col-ctn-index">TOTALE</td>}
                                     {printColumns.color && <td className="px-2 font-extrabold col-color-lbl">{res.nom}</td>}
                                     {(() => {
@@ -6242,19 +6236,12 @@ export default function App() {
                             <table className="w-full text-xs text-center border-collapse">
                               <thead>
                                   {(() => {
-                                    let firstThRendered = false;
-                                    const getThProps = (baseClass: string) => {
-                                      if (!firstThRendered) {
-                                        firstThRendered = true;
-                                        return {
-                                          className: baseClass,
-                                          style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
-                                        };
-                                      }
-                                      return { className: baseClass };
-                                    };
+                                    const getThProps = (baseClass: string) => ({
+                                      className: baseClass,
+                                      style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                                    });
                                     return (
-                                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                                      <tr className="font-mono font-bold text-[11px] border-b text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
                                         {printColumns.ctn && (
                                           <>
                                             <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -6323,9 +6310,9 @@ export default function App() {
                                           {printColumns.sizes && summaryUniqueSizes.map(t => (
                                             <td key={t} className={`px-2 text-center font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
                                           ))}
-                                          <td className={`px-2 text-center font-bold ${darkMode ? 'text-white' : 'text-slate-850'}`}>{row.pcsPerCarton}</td>
+                                          <td className="px-2 text-center font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                                           {printColumns.nbctn && <td className={`px-2 text-center font-black col-nbctn-metric ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.nbr}</td>}
-                                          {printColumns.totalqty && <td className={`px-2 text-center font-black col-totalqty-metric ${darkMode ? 'bg-white/10 text-white' : 'bg-slate-100/70 text-slate-900'}`}>{row.totalPcs}</td>}
+                                          {printColumns.totalqty && <td className="px-2 text-center font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
                                           {printColumns.net && <td className={`px-2 text-center font-bold col-net-metric ${darkMode ? 'text-white' : 'text-teal-600'}`}>{row.netWeightRow.toFixed(2)}</td>}
                                           {printColumns.gross && <td className={`px-2 text-center font-bold col-gross-metric ${darkMode ? 'text-white' : 'text-red-500'}`}>{row.grossWeightRow.toFixed(2)}</td>}
                                           {printColumns.cbm && <td className={`px-2 text-center col-cbm-metric ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{row.cbmRow.toFixed(4)}</td>}
@@ -6336,9 +6323,10 @@ export default function App() {
                                 })()}
 
                                 {/* Global combined total row */}
-                                <tr className={`font-extrabold border-t-2 divide-x ${
-                                  darkMode ? 'border-t-white bg-white/5 text-white divide-white/10' : 'border-t-slate-800 bg-slate-100/40 text-slate-900 divide-slate-200'
-                                }`}>
+                                <tr
+                                  className="font-bold border-t-2 divide-x text-black"
+                                  style={{ backgroundColor: '#ff9d36', fontWeight: 'bold', color: '#000000' }}
+                                >
                                   {printColumns.ctn && <td colSpan={2} className="py-2.5 px-3 text-center col-ctn-index">GRAND TOTAL</td>}
                                   {printColumns.color && <td className="px-2 font-extrabold col-color-lbl">ALL</td>}
                                   {(() => {
@@ -9095,19 +9083,12 @@ export default function App() {
                     <table className="w-full text-xs text-center border-collapse">
                       <thead>
                         {(() => {
-                          let firstThRendered = false;
-                          const getThProps = (baseClass: string) => {
-                            if (!firstThRendered) {
-                              firstThRendered = true;
-                              return {
-                                className: baseClass,
-                                style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
-                              };
-                            }
-                            return { className: baseClass };
-                          };
+                          const getThProps = (baseClass: string) => ({
+                            className: baseClass,
+                            style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                          });
                           return (
-                            <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#ba66f7' }}>
+                            <tr className="border-b font-mono font-bold text-[11px] text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
                               {printColumns.ctn && (
                                 <>
                                   <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -9168,9 +9149,9 @@ export default function App() {
                               {printColumns.sizes && activeColorSizes.map(t => (
                                 <td key={t} className={`px-2 font-bold col-sizes-cells ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
                               ))}
-                              <td className={`px-2 font-bold bg-slate-900/10 ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.pcsPerCarton}</td>
+                              <td className="px-2 font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                               {printColumns.nbctn && <td className={`px-2 font-black col-nbctn-metric ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>{row.nbr}</td>}
-                              {printColumns.totalqty && <td className={`px-2 font-black bg-slate-900/15 col-totalqty-metric ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>{row.totalPcs}</td>}
+                              {printColumns.totalqty && <td className="px-2 font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
                               {printColumns.net && <td className="px-2 font-bold text-teal-400 col-net-metric">{row.netWeightRow.toFixed(2)}</td>}
                               {printColumns.gross && <td className={`px-2 font-bold col-gross-metric ${darkMode ? 'text-red-300' : 'text-red-650'}`}>{row.grossWeightRow.toFixed(2)}</td>}
                               {printColumns.cbm && <td className={`px-2 col-cbm-metric ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{row.cbmRow.toFixed(4)}</td>}
@@ -9179,7 +9160,10 @@ export default function App() {
                         })}
 
                         {/* Totals row index */}
-                        <tr className="bg-amber-500/10 dark:bg-amber-955/30 text-amber-800 dark:text-amber-400 font-black border-t-2 border-t-amber-500/70 border-b border-dark-900 divide-x divide-slate-800">
+                        <tr
+                          className="font-bold border-t-2 border-b divide-x text-black"
+                          style={{ backgroundColor: '#ff9d36', fontWeight: 'bold', color: '#000000' }}
+                        >
                           {printColumns.ctn && <td colSpan={2} className="py-2.5 px-3 text-center col-ctn-index">TOTALE</td>}
                           {printColumns.color && <td className="px-2 font-extrabold col-color-lbl">{res.nom}</td>}
                           {(() => {
@@ -9278,19 +9262,12 @@ export default function App() {
                   <table className="w-full text-xs text-center border-collapse">
                     <thead>
                         {(() => {
-                          let firstThRendered = false;
-                          const getThProps = (baseClass: string) => {
-                            if (!firstThRendered) {
-                              firstThRendered = true;
-                              return {
-                                className: baseClass,
-                                style: { backgroundColor: '#f85cae', color: '#ffffff', fontWeight: 'bold' }
-                              };
-                            }
-                            return { className: baseClass };
-                          };
+                          const getThProps = (baseClass: string) => ({
+                            className: baseClass,
+                            style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                          });
                           return (
-                            <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#ba66f7' }}>
+                            <tr className="border-b font-mono font-bold text-[11px] text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
                               {printColumns.ctn && (
                                 <>
                                   <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -9358,9 +9335,9 @@ export default function App() {
                                 {printColumns.sizes && summaryUniqueSizes.map(t => (
                                   <td key={t} className={`px-2 text-center font-bold col-sizes-cells ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
                                 ))}
-                                <td className={`px-2 text-center font-bold ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.pcsPerCarton}</td>
+                                <td className="px-2 text-center font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                                 {printColumns.nbctn && <td className={`px-2 text-center font-black col-nbctn-metric ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>{row.nbr}</td>}
-                                {printColumns.totalqty && <td className={`px-2 text-center font-black bg-slate-900/10 col-totalqty-metric ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>{row.totalPcs}</td>}
+                                {printColumns.totalqty && <td className="px-2 text-center font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
                                 {printColumns.net && <td className="px-2 text-center font-bold text-teal-400 col-net-metric">{row.netWeightRow.toFixed(2)}</td>}
                                 {printColumns.gross && <td className={`px-2 text-center font-bold col-gross-metric ${darkMode ? 'text-red-300' : 'text-red-650'}`}>{row.grossWeightRow.toFixed(2)}</td>}
                                 {printColumns.cbm && <td className={`px-2 text-center col-cbm-metric ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{row.cbmRow.toFixed(4)}</td>}
@@ -9371,7 +9348,10 @@ export default function App() {
                       })()}
 
                       {/* Global combined total row */}
-                      <tr className="bg-[#222636]/40 font-bold border-t border-slate-700 divide-x divide-slate-800">
+                      <tr
+                        className="font-bold border-t divide-x text-black"
+                        style={{ backgroundColor: '#ff9d36', fontWeight: 'bold', color: '#000000' }}
+                      >
                         {printColumns.ctn && <td colSpan={2} className="py-2.5 px-3 text-center col-ctn-index">GRAND TOTAL</td>}
                         {printColumns.color && <td className="px-2 col-color-lbl">ALL</td>}
                         {(() => {
