@@ -4719,24 +4719,22 @@ export default function App() {
                 }`}>
                   <table className="w-full text-xs text-center border-collapse">
                     <thead>
-                      <tr className={`${
-                        darkMode ? 'bg-white/5 text-slate-400 border-white/10' : 'bg-white text-slate-800 border-slate-200'
-                      } font-mono font-bold border-b`}>
-                        <th className={`py-3 px-4 text-left border-r font-sans tracking-wide ${
-                          darkMode ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-800'
+                      <tr className="font-mono font-bold border-b text-white" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
+                        <th className={`py-3 px-4 text-left border-r font-sans tracking-wide text-white ${
+                          darkMode ? 'border-white/10' : 'border-slate-200'
                         }`}>
                           PARAMÈTRE DE COLISAGE
                         </th>
                         {colors[activeColorIdx].tailles.map((sz, idx) => (
-                          <th key={idx} className={`border-r col-sizes-cells p-1.5 ${darkMode ? 'border-white/10' : 'border-slate-200 bg-white text-slate-800'}`}>
+                          <th key={idx} className={`border-r col-sizes-cells p-1.5 text-white ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>
                             <input
                               type="text"
                               value={sz}
                               onChange={(e) => handleSizeHeaderChange(idx, e.target.value)}
                               className={`w-full text-center border font-mono font-bold px-2 py-1.5 rounded-md focus:outline-none uppercase transition-all ${
                                 darkMode
-                                  ? 'bg-white/5 border-white/10 text-white focus:border-white focus:ring-1 focus:ring-white/10 hover:border-white/20'
-                                  : 'bg-white border-slate-200 text-slate-800 focus:border-[#ff5000] focus:ring-1 focus:ring-[#ff5000]/10 hover:border-slate-300 hover:shadow-xs'
+                                  ? 'bg-white/10 border-white/20 text-white focus:border-white focus:ring-1 focus:ring-white/10'
+                                  : 'bg-white/20 border-white/30 text-white focus:border-white focus:ring-1 focus:ring-white/30 placeholder-white'
                               }`}
                             />
                           </th>
@@ -4767,7 +4765,7 @@ export default function App() {
                           }
 
                           return (
-                            <td key={sz} className={`p-1 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`} style={remColor ? { backgroundColor: remColor.bg + '1a' } : undefined}>
+                            <td key={sz} className={`p-1 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`} style={remColor ? { backgroundColor: remColor.bg } : undefined}>
                               <input
                                 type="number"
                                 min="0"
@@ -4781,7 +4779,7 @@ export default function App() {
                                       ? 'bg-[#15151A] border-white/10 focus:border-white focus:ring-1 focus:ring-white/10 text-white'
                                       : 'bg-white border-slate-200 focus:border-[#ff5000] focus:ring-1 focus:ring-[#ff5000]/10 text-slate-855 hover:border-slate-300')
                                 }`}
-                                style={remColor ? { backgroundColor: remColor.bg, color: remColor.text, borderColor: remColor.bg } : undefined}
+                                style={remColor ? { backgroundColor: remColor.bg, color: remColor.text, borderColor: remColor.bg, fontWeight: '900' } : undefined}
                                 placeholder="0"
                               />
                             </td>
@@ -4976,23 +4974,21 @@ export default function App() {
                       }`}>
                         <table className="w-full text-xs text-center border-collapse">
                           <thead>
-                            <tr className={`${
-                              darkMode ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-                            } font-mono font-bold border-b`}>
-                              <th className={`py-3 px-4 text-left border-r font-sans tracking-wide uppercase text-[10px] font-black ${
-                                darkMode ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-800'
+                            <tr className="font-mono font-bold border-b text-white" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
+                              <th className={`py-3 px-4 text-left border-r font-sans tracking-wide uppercase text-[10px] font-black text-white ${
+                                darkMode ? 'border-white/10' : 'border-slate-200'
                               }`} style={{ width: '220px' }}>
                                 INDICATION PAR COLISAGE
                               </th>
                               {activeColorConfig.tailles.map((sz) => (
-                                <th key={sz} className={`p-2 border-r col-sizes-cells font-mono font-black text-xs ${
-                                  darkMode ? 'border-white/10 bg-white/5 text-white' : 'border-slate-200 bg-white text-slate-800 font-bold'
+                                <th key={sz} className={`p-2 border-r col-sizes-cells font-mono font-black text-xs text-white ${
+                                  darkMode ? 'border-white/10' : 'border-slate-200'
                                 }`}>
                                   {sz}
                                 </th>
                               ))}
-                              <th className={`p-2 font-mono font-black text-xs ${
-                                  darkMode ? 'border-white/10 bg-white/10 text-white' : 'border-slate-200 bg-white text-slate-800 font-bold'
+                              <th className={`p-2 font-mono font-black text-xs text-white ${
+                                  darkMode ? 'border-white/10' : 'border-slate-200'
                               }`}>
                                 TOTALE
                               </th>
@@ -6115,10 +6111,10 @@ export default function App() {
                                   {(() => {
                                     const getThProps = (baseClass: string) => ({
                                       className: baseClass,
-                                      style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                                      style: { backgroundColor: '#224d1a', color: '#ffffff', fontWeight: 'bold' }
                                     });
                                     return (
-                                      <tr className="font-mono font-bold text-[11px] border-b text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
+                                      <tr className="font-mono font-bold text-[11px] border-b text-black" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                                         {printColumns.ctn && (
                                           <>
                                             <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -6179,9 +6175,21 @@ export default function App() {
                                         )}
                                         {printColumns.color && <td className="px-2 font-bold col-color-lbl" style={{ color: res.color }}>{res.nom}</td>}
                                         {showSkuCol && <td className={`px-3 truncate max-w-28 text-[11px] font-semibold col-sku-lbl ${darkMode ? 'text-white' : 'text-emerald-700'}`}>{row.skus.join('/') || '—'}</td>}
-                                        {printColumns.sizes && activeColorSizes.map(t => (
-                                          <td key={t} className={`px-2 font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
-                                        ))}
+                                        {printColumns.sizes && activeColorSizes.map(t => {
+                                          const origColor = colors.find(c => c.nom === res.nom);
+                                          const remColor = getRemainderRowColor(row, res, origColor, darkMode);
+                                          const qty = row.sizes[t];
+                                          const isMixedCell = qty && remColor;
+                                          return (
+                                            <td
+                                              key={t}
+                                              className={`px-2 font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}
+                                              style={isMixedCell ? { backgroundColor: remColor.bg, color: remColor.text, fontWeight: '900' } : undefined}
+                                            >
+                                              {qty || ''}
+                                            </td>
+                                          );
+                                        })}
                                         <td className="px-2 font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                                         {printColumns.nbctn && <td className={`px-2 font-black col-nbctn-metric ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.nbr}</td>}
                                         {printColumns.totalqty && <td className="px-2 font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
@@ -6238,10 +6246,10 @@ export default function App() {
                                   {(() => {
                                     const getThProps = (baseClass: string) => ({
                                       className: baseClass,
-                                      style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                                      style: { backgroundColor: '#224d1a', color: '#ffffff', fontWeight: 'bold' }
                                     });
                                     return (
-                                      <tr className="font-mono font-bold text-[11px] border-b text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
+                                      <tr className="font-mono font-bold text-[11px] border-b text-black" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                                         {printColumns.ctn && (
                                           <>
                                             <th {...getThProps(`py-2.5 px-2 uppercase text-center border-r col-ctn-index ${darkMode ? 'border-white/10' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -6307,9 +6315,21 @@ export default function App() {
                                           )}
                                           {printColumns.color && <td className="px-2 font-bold col-color-lbl" style={{ color: res.color }}>{res.nom}</td>}
                                           {showSkuColCombined && <td className={`px-3 truncate max-w-28 text-[11px] col-sku-lbl ${darkMode ? 'text-white' : 'text-emerald-700'}`}>{row.skus.join('/') || '—'}</td>}
-                                          {printColumns.sizes && summaryUniqueSizes.map(t => (
-                                            <td key={t} className={`px-2 text-center font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
-                                          ))}
+                                          {printColumns.sizes && summaryUniqueSizes.map(t => {
+                                            const origColor = colors.find(c => c.nom === res.nom);
+                                            const remColor = getRemainderRowColor(row, res, origColor, darkMode);
+                                            const qty = row.sizes[t];
+                                            const isMixedCell = qty && remColor;
+                                            return (
+                                              <td
+                                                key={t}
+                                                className={`px-2 text-center font-bold col-sizes-cells ${darkMode ? 'text-white' : 'text-slate-800'}`}
+                                                style={isMixedCell ? { backgroundColor: remColor.bg, color: remColor.text, fontWeight: '900' } : undefined}
+                                              >
+                                                {qty || ''}
+                                              </td>
+                                            );
+                                          })}
                                           <td className="px-2 text-center font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                                           {printColumns.nbctn && <td className={`px-2 text-center font-black col-nbctn-metric ${darkMode ? 'text-white' : 'text-slate-800'}`}>{row.nbr}</td>}
                                           {printColumns.totalqty && <td className="px-2 text-center font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
@@ -6416,7 +6436,7 @@ export default function App() {
                         <div className={`overflow-x-auto rounded-lg border ${darkMode ? 'border-white/10' : 'border-slate-200 bg-slate-50/50'}`}>
                           <table className="w-full text-xs text-center border-collapse">
                             <thead>
-                              <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                              <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7', color: '#ffffff' }}>
                                 <th className={`py-2.5 px-3 text-left border-r ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>COLOR / COULEUR</th>
                                 {summaryUniqueSizes.map(t => <th key={t} className={`border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>{t}</th>)}
                                 <th className="py-2.5">TOTAL PCS</th>
@@ -7307,7 +7327,7 @@ export default function App() {
                            <div className={`overflow-x-auto rounded-xl border ${darkMode ? 'border-slate-800 bg-slate-900/10' : 'border-slate-200 bg-slate-50/50'}`}>
                              <table className="w-full text-xs text-center border-collapse">
                                <thead>
-                                 <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                                 <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                                    <th className="py-2.5 px-3 text-left">Couleur</th>
                                    <th className="py-2.5">Total Cartons</th>
                                    <th className="py-2.5">Style d'emballage</th>
@@ -7370,7 +7390,7 @@ export default function App() {
                                   }`}>
                                     <table className="w-full text-xs text-center border-collapse">
                                       <thead>
-                                        <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#ba66f7' }}>
+                                        <tr className="border-b font-mono font-bold text-[11px] text-white" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                                           <th className={`py-2 px-1 uppercase text-center border-r ${darkMode ? 'border-slate-800' : 'border-slate-250'}`}>Début</th>
                                           <th className={`py-2 px-1 uppercase text-center border-r ${darkMode ? 'border-slate-800' : 'border-slate-250'}`}>Fin</th>
                                           {activeColorSizes.map(t => (
@@ -7388,9 +7408,20 @@ export default function App() {
                                           <tr key={rIdx} className={`hover:bg-slate-800/10 divide-x ${darkMode ? 'divide-slate-800/30' : 'divide-slate-200'}`}>
                                             <td className={`py-1.5 px-1 font-bold ${darkMode ? 'text-slate-400' : 'text-slate-800'}`}>{parseCartonRange(row.cartonRange).start}</td>
                                             <td className={`py-1.5 px-1 font-bold ${darkMode ? 'text-slate-400' : 'text-slate-800'}`}>{parseCartonRange(row.cartonRange).end}</td>
-                                            {activeColorSizes.map(t => (
-                                              <td key={t} className={`px-1.5 font-semibold ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
-                                            ))}
+                                            {activeColorSizes.map(t => {
+                                              const remColor = getRemainderRowColor(row, res, colors[origIdx], darkMode);
+                                              const qty = row.sizes[t];
+                                              const isMixedCell = qty && remColor;
+                                              return (
+                                                <td
+                                                  key={t}
+                                                  className={`px-1.5 font-semibold ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}
+                                                  style={isMixedCell ? { backgroundColor: remColor.bg, color: remColor.text, fontWeight: '900' } : undefined}
+                                                >
+                                                  {qty || ''}
+                                                </td>
+                                              );
+                                            })}
                                             <td className={`px-1.5 font-bold ${darkMode ? 'bg-slate-900/10 text-slate-200' : 'bg-slate-100/40 text-slate-800'}`}>{row.pcsPerCarton}</td>
                                             <td className={`px-1.5 font-bold ${darkMode ? 'text-slate-200' : 'text-slate-900'}`}>{row.nbr}</td>
                                             <td className={`px-1.5 font-bold ${darkMode ? 'text-slate-300' : 'text-slate-950'}`}>{row.totalPcs}</td>
@@ -9085,10 +9116,10 @@ export default function App() {
                         {(() => {
                           const getThProps = (baseClass: string) => ({
                             className: baseClass,
-                            style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                            style: { backgroundColor: '#224d1a', color: '#ffffff', fontWeight: 'bold' }
                           });
                           return (
-                            <tr className="border-b font-mono font-bold text-[11px] text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
+                            <tr className="border-b font-mono font-bold text-[11px] text-black" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                               {printColumns.ctn && (
                                 <>
                                   <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -9146,9 +9177,21 @@ export default function App() {
                               )}
                               {printColumns.color && <td className="px-2 font-bold col-color-lbl" style={{ color: res.color }}>{res.nom}</td>}
                               {showSkuCol && <td className="px-3 truncate max-w-28 text-[11px] text-emerald-500 font-semibold col-sku-lbl">{row.skus.join('/') || '—'}</td>}
-                              {printColumns.sizes && activeColorSizes.map(t => (
-                                <td key={t} className={`px-2 font-bold col-sizes-cells ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
-                              ))}
+                              {printColumns.sizes && activeColorSizes.map(t => {
+                                const origColor = colors.find(c => c.nom === res.nom);
+                                const remColor = getRemainderRowColor(row, res, origColor, darkMode);
+                                const qty = row.sizes[t];
+                                const isMixedCell = qty && remColor;
+                                return (
+                                  <td
+                                    key={t}
+                                    className={`px-2 font-bold col-sizes-cells ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}
+                                    style={isMixedCell ? { backgroundColor: remColor.bg, color: remColor.text, fontWeight: '900' } : undefined}
+                                  >
+                                    {qty || ''}
+                                  </td>
+                                );
+                              })}
                               <td className="px-2 font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                               {printColumns.nbctn && <td className={`px-2 font-black col-nbctn-metric ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>{row.nbr}</td>}
                               {printColumns.totalqty && <td className="px-2 font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
@@ -9264,10 +9307,10 @@ export default function App() {
                         {(() => {
                           const getThProps = (baseClass: string) => ({
                             className: baseClass,
-                            style: { backgroundColor: '#14f900', color: '#000000', fontWeight: 'bold' }
+                            style: { backgroundColor: '#224d1a', color: '#ffffff', fontWeight: 'bold' }
                           });
                           return (
-                            <tr className="border-b font-mono font-bold text-[11px] text-black" style={{ backgroundColor: '#14f900', color: '#000000' }}>
+                            <tr className="border-b font-mono font-bold text-[11px] text-black" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                               {printColumns.ctn && (
                                 <>
                                   <th {...getThProps(`py-2.5 px-2 uppercase text-center col-ctn-index border-r ${darkMode ? 'border-indigo-900/40' : 'border-slate-200'}`)}>N° DÉBUT</th>
@@ -9332,9 +9375,21 @@ export default function App() {
                                 )}
                                 {printColumns.color && <td className="px-2 font-bold col-color-lbl" style={{ color: res.color }}>{res.nom}</td>}
                                 {showSkuColCombined && <td className="px-3 truncate max-w-28 text-[11px] text-emerald-500 col-sku-lbl">{row.skus.join('/') || '—'}</td>}
-                                {printColumns.sizes && summaryUniqueSizes.map(t => (
-                                  <td key={t} className={`px-2 text-center font-bold col-sizes-cells ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>{row.sizes[t] || ''}</td>
-                                ))}
+                                {printColumns.sizes && summaryUniqueSizes.map(t => {
+                                  const origColor = colors.find(c => c.nom === res.nom);
+                                  const remColor = getRemainderRowColor(row, res, origColor, darkMode);
+                                  const qty = row.sizes[t];
+                                  const isMixedCell = qty && remColor;
+                                  return (
+                                    <td
+                                      key={t}
+                                      className={`px-2 text-center font-bold col-sizes-cells ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}
+                                      style={isMixedCell ? { backgroundColor: remColor.bg, color: remColor.text, fontWeight: '900' } : undefined}
+                                    >
+                                      {qty || ''}
+                                    </td>
+                                  );
+                                })}
                                 <td className="px-2 text-center font-bold text-black" style={{ backgroundColor: '#da86ff' }}>{row.pcsPerCarton}</td>
                                 {printColumns.nbctn && <td className={`px-2 text-center font-black col-nbctn-metric ${darkMode ? 'text-slate-100' : 'text-slate-950'}`}>{row.nbr}</td>}
                                 {printColumns.totalqty && <td className="px-2 text-center font-black col-totalqty-metric text-black" style={{ backgroundColor: '#dcff67' }}>{row.totalPcs}</td>}
@@ -9385,7 +9440,7 @@ export default function App() {
                     }`}>
                       <table className="w-full text-xs text-center border-collapse">
                         <thead>
-                          <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                          <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7', color: '#ffffff' }}>
                             <th className={`py-2 px-3 text-left border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>COLOR / COULEUR</th>
                             {summaryUniqueSizes.map(t2 => <th key={t2} className={`border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>{t2}</th>)}
                             <th className="py-2.5">TOTAL PCS</th>
@@ -9473,7 +9528,7 @@ export default function App() {
                 }`}>
                   <table className="w-full text-xs text-center border-collapse">
                     <thead>
-                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7' }}>
+                      <tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#ba66f7', color: '#ffffff' }}>
                         <th className={`py-2 px-3 text-left border-r ${darkMode ? 'border-slate-800' : 'border-slate-200'}`}>COLORS / COULEURS</th>
                         {activeResults[0].tailles.filter(t => isStandardSizeAlwaysShown(t) || (colors[activeResults[0].colorIndex ?? 0]?.sizes[t]?.qtyTot || 0) > 0).map(t => (
                           <th key={t} className={`border-r ${darkMode ? 'border-slate-800' : 'border-slate-700'}`}>{t}</th>

@@ -55,23 +55,23 @@ export function getRemainderRowColor(
   if (index === -1) return null;
   
   const palette = [
-    { bg: '#fef5ad', text: '#000000', darkBg: '#b45309', darkText: '#ffffff' }, // Amber/Yellow
-    { bg: '#dcfce7', text: '#000000', darkBg: '#15803d', darkText: '#ffffff' }, // Green
-    { bg: '#dbeafe', text: '#000000', darkBg: '#1d4ed8', darkText: '#ffffff' }, // Blue
-    { bg: '#fce7f3', text: '#000000', darkBg: '#be185d', darkText: '#ffffff' }, // Pink
-    { bg: '#f3e8ff', text: '#000000', darkBg: '#7e22ce', darkText: '#ffffff' }, // Purple
-    { bg: '#ffedd5', text: '#000000', darkBg: '#c2410c', darkText: '#ffffff' }, // Orange
-    { bg: '#ccfbf1', text: '#000000', darkBg: '#0f766e', darkText: '#ffffff' }, // Teal
-    { bg: '#e0f2fe', text: '#000000', darkBg: '#0369a1', darkText: '#ffffff' }  // Sky Blue
+    { bg: '#ffea00', text: '#000000', darkBg: '#d97706', darkText: '#ffffff' }, // Vivid Electric Yellow
+    { bg: '#22c55e', text: '#ffffff', darkBg: '#15803d', darkText: '#ffffff' }, // Vivid Green
+    { bg: '#00e5ff', text: '#000000', darkBg: '#0284c7', darkText: '#ffffff' }, // Vivid Electric Cyan
+    { bg: '#ff2a85', text: '#ffffff', darkBg: '#be185d', darkText: '#ffffff' }, // Vivid Hot Pink
+    { bg: '#a855f7', text: '#ffffff', darkBg: '#7e22ce', darkText: '#ffffff' }, // Vivid Purple
+    { bg: '#ff7800', text: '#000000', darkBg: '#ea580c', darkText: '#ffffff' }, // Vivid Orange
+    { bg: '#00f5d4', text: '#000000', darkBg: '#0f766e', darkText: '#ffffff' }, // Vivid Turquoise
+    { bg: '#cddc39', text: '#000000', darkBg: '#65a30d', darkText: '#ffffff' }  // Vivid Lime
   ];
   
   const c = palette[index % palette.length];
   return {
     bg: darkMode ? c.darkBg : c.bg,
-    text: darkMode ? '#ffffff' : '#000000',
-    border: darkMode ? 'border-amber-500/30' : 'border-slate-300',
+    text: darkMode ? c.darkText : c.text,
+    border: darkMode ? 'border-amber-500/30' : 'border-slate-900',
     rawBg: c.bg,
-    rawText: '#000000'
+    rawText: c.text
   };
 }
 
