@@ -234,6 +234,8 @@ export default function App() {
     return (localStorage.getItem('packing_list_pro_remainders_display_mode') as 'inline' | 'popup') || 'inline';
   });
   const [isRemaindersModalOpen, setIsRemaindersModalOpen] = useState<boolean>(false);
+  const [cartonBuilderMode, setCartonBuilderMode] = useState<'manual' | 'balanced' | 'assistant' | 'drag' | 'control'>('manual');
+  const [cartonBuilderDragSource, setCartonBuilderDragSource] = useState<{ size: string; quantity: number } | null>(null);
 
   const updateRemaindersDisplayMode = (mode: 'inline' | 'popup') => {
     setRemaindersDisplayMode(mode);
@@ -5175,7 +5177,50 @@ export default function App() {
                         ) : (() => {
                           const renderRemaindersCustomizerContent = () => {
                             return (
-                              <div className="space-y-6" data-carton-builder="true">
+                              <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
+                            <div className="carton-builder-mode-switcher" role="tablist" aria-label="Mode de préparation des cartons">
+                              <div className="carton-builder-mode-heading">
+                                <span className="carton-builder-kicker">02 — MODE DE TRAVAIL</span>
+                                <strong>Choisissez votre façon de composer les cartons</strong>
+                                <span>Les mêmes règles de capacité et de validation restent actives dans chaque mode.</span>
+                              </div>
+                              <div className="carton-builder-mode-options">
+                                {([
+                                  { id: 'manual', label: 'Manuel', hint: 'Contrôle direct' },
+                                  { id: 'balanced', label: 'Équilibré', hint: 'Comparer les cartons' },
+                                  { id: 'assistant', label: 'Assistant', hint: 'Étape par étape' },
+                                  { id: 'drag', label: 'Glisser', hint: 'Déplacer les tailles' },
+                                  { id: 'control', label: 'Contrôle', hint: 'Vérifier avant validation' }
+                                ] as const).map((mode) => (
+                                  <button
+                                    key={mode.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={cartonBuilderMode === mode.id}
+                                    onClick={() => setCartonBuilderMode(mode.id)}
+                                    className={`carton-builder-mode-button ${cartonBuilderMode === mode.id ? 'is-active' : ''}`}
+                                  >
+                                    <b>{mode.label}</b><small>{mode.hint}</small>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {cartonBuilderMode === 'drag' && (
+                              <div className="carton-builder-drag-guide">
+                                <div>
+                                  <span className="carton-builder-kicker">MODE GLISSER</span>
+                                  <strong>Glissez une taille disponible vers le carton à remplir.</strong>
+                                  <span>Une taille est ajoutée uniquement si la quantité disponible et la capacité du carton le permettent.</span>
+                                </div>
+                                <div className="carton-builder-drag-badge">Déplacement contrôlé</div>
+                              </div>
+                            )}
+                            {cartonBuilderMode === 'assistant' && (
+                              <div className="carton-builder-assistant-note"><b>Étape active :</b> composez un carton dans la zone ci-dessous, puis utilisez <b>Valider les restes</b> pour passer au contrôle final.</div>
+                            )}
+                            {cartonBuilderMode === 'control' && (
+                              <div className="carton-builder-control-note"><b>Mode contrôle :</b> les quantités restent visibles pour vérification ; utilisez les actions existantes pour corriger ou valider.</div>
+                            )}
                             {(() => {
                               let totalRequired = 0;
                               let totalAllocated = 0;
@@ -5251,6 +5296,37 @@ export default function App() {
                                 })}
                               </div>
                             </div>
+
+                            {cartonBuilderMode === 'drag' && (
+                              <div className="carton-builder-drag-pool">
+                                <div className="carton-builder-drag-pool-heading">
+                                  <span className="carton-builder-kicker">03 — PIÈCES DISPONIBLES</span>
+                                  <strong>Glissez une taille vers un carton</strong>
+                                </div>
+                                <div className="carton-builder-drag-pool-items">
+                                  {activeColorConfig.tailles.map(sz => {
+                                    const qTot = activeColorConfig.sizes[sz]?.qtyTot || 0;
+                                    const cap = activeColorConfig.sizes[sz]?.cap || 25;
+                                    const remainder = qTot - (Math.floor(qTot / cap) * cap);
+                                    const allocated = (activeColorConfig.customRemainders || []).reduce((sum, item) => sum + (Number(item.sizes[sz]) || 0), 0);
+                                    const available = Math.max(0, remainder - allocated);
+                                    return (
+                                      <div
+                                        key={sz}
+                                        draggable={available > 0}
+                                        onDragStart={() => available > 0 && setCartonBuilderDragSource({ size: sz, quantity: available })}
+                                        onDragEnd={() => setCartonBuilderDragSource(null)}
+                                        className={`carton-builder-drag-token ${available <= 0 ? 'is-empty' : ''}`}
+                                        title={available > 0 ? `Glisser ${available} pièce(s) de taille ${sz}` : `Aucune pièce ${sz} disponible`}
+                                      >
+                                        <b>{sz}</b><span>{available} disponible{available > 1 ? 's' : ''}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                <span className="carton-builder-drag-hint">Le dépôt respecte automatiquement la quantité disponible et la capacité existante du carton.</span>
+                              </div>
+                            )}
 
                             {/* 2. Custom remainder cartons list */}
                             <div className="space-y-4">
@@ -5369,7 +5445,36 @@ export default function App() {
                                     const isFull = fillPercent >= 100;
                                     
                                     return (
-                                      <div key={cc.id} data-carton-builder-card="true" className={`p-4 rounded-xl border relative shadow-xs ${
+                                      <div
+                                        key={cc.id}
+                                        data-carton-builder-card="true"
+                                        onDragOver={cartonBuilderMode === 'drag' ? (e) => e.preventDefault() : undefined}
+                                        onDrop={cartonBuilderMode === 'drag' ? (e) => {
+                                          e.preventDefault();
+                                          if (!cartonBuilderDragSource) return;
+                                          const source = cartonBuilderDragSource;
+                                          const currentTotal = Object.values(cc.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
+                                          const nextSizes = { ...cc.sizes, [source.size]: (Number(cc.sizes[source.size]) || 0) + source.quantity };
+                                          const activeSizes = Object.keys(nextSizes).filter(sz => (Number(nextSizes[sz]) || 0) > 0);
+                                          const capacity = activeSizes.length > 0
+                                            ? Math.min(...activeSizes.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)))
+                                            : 25;
+                                          if (currentTotal + source.quantity > capacity) {
+                                            triggerToast(`❌ Capacité dépassée pour le carton ${cIdx + 1}.`, 'error');
+                                            setCartonBuilderDragSource(null);
+                                            return;
+                                          }
+                                          const nextColors = [...colors];
+                                          nextColors[activeColorIdx] = {
+                                            ...activeColorConfig,
+                                            customRemainders: (activeColorConfig.customRemainders || []).map(item => item.id === cc.id ? { ...item, sizes: nextSizes } : item)
+                                          };
+                                          setColors(nextColors);
+                                          setHasGenerated(false);
+                                          setCartonBuilderDragSource(null);
+                                          triggerToast(`✅ ${source.quantity} pièce(s) ${source.size} ajoutée(s) au carton ${cIdx + 1}.`, 'success');
+                                        } : undefined}
+                                        className={`p-4 rounded-xl border relative shadow-xs ${
                                         darkMode ? 'bg-[#121215] border-white/10' : 'bg-white border-slate-200'
                                       }`}>
                                         <div className="flex items-center justify-between border-b pb-2 mb-3" style={{ borderColor: darkMode ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
