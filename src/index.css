@@ -284,7 +284,6 @@ h1 {
 .text-amber-400,
 .text-indigo-400,
 .text-blue-400,
-.text-[#E51B22],
 .text-red-750 {
   color: var(--accent-color) !important;
 }
@@ -472,7 +471,160 @@ body {
 }
 
 
-/* 1. Action buttons container inside the topbar */
+/* ==========================================
+   FINAL RUBA RIBBON + CONTRAST LAYER
+   ========================================== */
+
+/* Ribbon shell: clear hierarchy, neutral surface, visible separators. */
+#root main > div.flex-1 > div[class*="lg:flex"] {
+  background: #ffffff !important;
+  color: #172033 !important;
+  border: 1px solid #dbe3ee !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .06) !important;
+  padding: 12px !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] > div {
+  border-color: #e2e8f0 !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] button {
+  position: relative !important;
+  isolation: isolate !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  transform: none !important;
+  text-shadow: none !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] button:hover {
+  background: #f8fafc !important;
+  color: #172033 !important;
+  border-color: #dbeafe !important;
+}
+
+/* Active ribbons stay readable even when their inner icon/indicator has a fill. */
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-slate-800"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-blue"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="text-\[#3b82f6\]"] {
+  background: #eff6ff !important;
+  color: #1e3a8a !important;
+  border-color: #bfdbfe !important;
+  box-shadow: inset 3px 0 0 #2563eb, 0 3px 10px rgba(37, 99, 235, .08) !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] button > div:not([class*="absolute"]) {
+  color: inherit !important;
+}
+#root main > div.flex-1 > div[class*="lg:flex"] button > div[class*="absolute"] {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+#root main > div.flex-1 > div[class*="lg:flex"] button > div:not([class*="absolute"]),
+#root main > div.flex-1 > div[class*="lg:flex"] button svg,
+#root main > div.flex-1 > div[class*="lg:flex"] button span {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Section labels and ribbon metadata: one brand system, no competing fills. */
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-blue-200"],
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-white/40"] {
+  color: #64748b !important;
+}
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-blue-100"] {
+  color: #475569 !important;
+}
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-blue-700"],
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-blue-400"] {
+  color: #1d4ed8 !important;
+}
+
+/* Site-wide surfaces and typography. These rules do not alter dynamic fills. */
+#root [id^="tab-content-"] .rounded-xl,
+#root [id^="tab-content-"] .rounded-2xl {
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .045) !important;
+}
+#root [id^="tab-content-"] table,
+#root [id^="tab-content-"] table th,
+#root [id^="tab-content-"] table td {
+  border-color: #dbe3ee !important;
+}
+#root [id^="tab-content-"] table thead th {
+  background: #f8fafc !important;
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
+/* Keep text above decorative shapes/fills without changing their fill conditions. */
+#root [id^="tab-content-"] label,
+#root [id^="tab-content-"] th,
+#root [id^="tab-content-"] td,
+#root [id^="tab-content-"] button,
+#root [id^="tab-content-"] input,
+#root [id^="tab-content-"] select,
+#root [id^="tab-content-"] textarea {
+  text-shadow: none !important;
+}
+#root [id^="tab-content-"] input,
+#root [id^="tab-content-"] select,
+#root [id^="tab-content-"] textarea {
+  background-clip: padding-box !important;
+  color: #172033 !important;
+  border-color: #cbd5e1 !important;
+}
+#root [id^="tab-content-"] input::placeholder,
+#root [id^="tab-content-"] textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+#root [id^="tab-content-"] input:focus,
+#root [id^="tab-content-"] select:focus,
+#root [id^="tab-content-"] textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12) !important;
+}
+
+/* Dynamic remainder cells: preserve bg/text values supplied by React. */
+#root [id^="tab-content-"] td[style*="background-color"] input,
+#root [id^="tab-content-"] td[style*="background-color"] span,
+#root [id^="tab-content-"] td[style*="background-color"] strong {
+  position: relative !important;
+  z-index: 2 !important;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, .35) !important;
+}
+
+/* Mobile ribbons */
+@media (max-width: 1023px) {
+  #root main > div[class*="lg:hidden"] {
+    background: #f7f9fc !important;
+    border-color: #dbe3ee !important;
+  }
+  #root main > div[class*="lg:hidden"] button {
+    background: #ffffff !important;
+    color: #475569 !important;
+    border-color: #dbe3ee !important;
+  }
+  #root main > div[class*="lg:hidden"] button[class*="bg-\[#2563eb\]"],
+  #root main > div[class*="lg:hidden"] button[class*="bg-blue"] {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+  }
+}
+
+@media print {
+  #root [id^="tab-content-"] table thead th {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
 div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
   background-color: #441b53 !important;
   border-radius: 0.75rem !important;
