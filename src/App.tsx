@@ -240,6 +240,15 @@ export default function App() {
   const [dragActiveCartonId, setDragActiveCartonId] = useState<string | null>(null);
   const [dragClosedCartonIds, setDragClosedCartonIds] = useState<string[]>([]);
 
+  useEffect(() => {
+    if (cartonBuilderMode !== 'drag') return;
+    const cartons = colors[activeColorIdx]?.customRemainders || [];
+    const currentIsOpen = dragActiveCartonId && cartons.some((carton) => carton.id === dragActiveCartonId && !dragClosedCartonIds.includes(carton.id));
+    if (currentIsOpen) return;
+    const firstOpen = cartons.find((carton) => !dragClosedCartonIds.includes(carton.id));
+    if (firstOpen?.id !== dragActiveCartonId) setDragActiveCartonId(firstOpen?.id || null);
+  }, [cartonBuilderMode, activeColorIdx, colors, dragActiveCartonId, dragClosedCartonIds]);
+
   const updateRemaindersDisplayMode = (mode: 'inline' | 'popup') => {
     setRemaindersDisplayMode(mode);
     localStorage.setItem('packing_list_pro_remainders_display_mode', mode);
@@ -5625,6 +5634,63 @@ export default function App() {
                                           <div className="carton-builder-card-progress"><i style={{ width: `${fillPercent}%` }} /></div>
                                           <b>{fillPercent}%</b>
                                         </div>
+
+                                        {cartonBuilderMode === 'drag' && (
+                                          <div className="carton-builder-current-details">
+                                            <div className="carton-builder-current-details-heading">
+                                              <span className="carton-builder-kicker">DÉTAIL DU CARTON ACTUEL</span>
+                                              <span>{totalPcsInCtn} pièce(s) déposée(s)</span>
+                                            </div>
+                                            {activeColorConfig.tailles.some(sz => (Number(cc.sizes[sz]) || 0) > 0) ? (
+                                              <div className="carton-builder-piece-list">
+                                                {activeColorConfig.tailles.filter(sz => (Number(cc.sizes[sz]) || 0) > 0).map(sz => {
+                                                  const pieceQty = Number(cc.sizes[sz]) || 0;
+                                                  return (
+                                                    <div key={sz} className="carton-builder-piece-row">
+                                                      <div className="carton-builder-piece-name"><b>{sz}</b><span>{pieceQty} pièce{pieceQty > 1 ? 's' : ''}</span></div>
+                                                      <div className="carton-builder-piece-actions">
+                                                        <button
+                                                          type="button"
+                                                          onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            const nextColors = [...colors];
+                                                            nextColors[activeColorIdx] = {
+                                                              ...activeColorConfig,
+                                                              customRemainders: (activeColorConfig.customRemainders || []).map(item => item.id === cc.id ? { ...item, sizes: { ...item.sizes, [sz]: Math.max(0, (Number(item.sizes[sz]) || 0) - 1) } } : item)
+                                                            };
+                                                            setColors(nextColors);
+                                                            setHasGenerated(false);
+                                                            setDragActiveCartonId(cc.id);
+                                                            triggerToast(`↩️ 1 pièce ${sz} restaurée dans les pièces disponibles.`, 'info');
+                                                          }}
+                                                          className="carton-builder-piece-restore"
+                                                        >↩ Restaurer 1</button>
+                                                        <button
+                                                          type="button"
+                                                          onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            const nextColors = [...colors];
+                                                            nextColors[activeColorIdx] = {
+                                                              ...activeColorConfig,
+                                                              customRemainders: (activeColorConfig.customRemainders || []).map(item => item.id === cc.id ? { ...item, sizes: { ...item.sizes, [sz]: 0 } } : item)
+                                                            };
+                                                            setColors(nextColors);
+                                                            setHasGenerated(false);
+                                                            setDragActiveCartonId(cc.id);
+                                                            triggerToast(`🗑️ Pièces ${sz} supprimées du carton.`, 'info');
+                                                          }}
+                                                          className="carton-builder-piece-remove"
+                                                        >Supprimer</button>
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            ) : (
+                                              <div className="carton-builder-empty-piece-state">Glissez une taille disponible ici pour commencer ce carton.</div>
+                                            )}
+                                          </div>
+                                        )}
 
                                         <div className="space-y-2 mb-3">
                                           <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">Quantités par taille :</span>
