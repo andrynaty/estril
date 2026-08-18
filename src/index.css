@@ -556,8 +556,10 @@ body {
   border-color: #dbe3ee !important;
 }
 #root [id^="tab-content-"] table thead th {
-  background: #f8fafc !important;
-  color: #334155 !important;
+  background: #2f855a !important;
+  background-color: #2f855a !important;
+  background-image: none !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
 }
 
@@ -730,8 +732,10 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   border-color: var(--wm-line) !important;
 }
 #root [id^="tab-content-"] table thead th {
-  background: var(--wm-surface-soft) !important;
-  color: var(--wm-primary-deep) !important;
+  background: #2f855a !important;
+  background-color: #2f855a !important;
+  background-image: none !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
 }
 #root [id^="tab-content-"] label,
@@ -1166,7 +1170,9 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
 #tab-content-meta table thead tr th,
 #tab-content-strategy table thead tr th,
 #tab-content-colors table thead tr th {
-  background: linear-gradient(135deg, #236b48 0%, #2f855a 100%) !important;
+  background: #2f855a !important;
+  background-color: #2f855a !important;
+  background-image: none !important;
   color: #ffffff !important;
   border-color: #1f6041 !important;
   font-weight: 800 !important;
@@ -1273,7 +1279,9 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
 #root main #tab-content-meta table thead tr th,
 #root main #tab-content-strategy table thead tr th,
 #root main #tab-content-colors table thead tr th {
-  background: linear-gradient(135deg, #236b48 0%, #2f855a 100%) !important;
+  background: #2f855a !important;
+  background-color: #2f855a !important;
+  background-image: none !important;
   color: #ffffff !important;
   border-color: #1f6041 !important;
 }
@@ -1311,4 +1319,46 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   background: #e8f5ec !important;
   color: #14532d !important;
   border-color: #78b88c !important;
+}
+
+
+/* FINAL GLOBAL SOLID HEADER OVERRIDE
+   Same scope and higher source order than the legacy gray rules. */
+#root main [id^="tab-content-"] table thead,
+#root main [id^="tab-content-"] table thead tr,
+#root main [id^="tab-content-"] table thead th,
+#root main [id^="tab-content-"] table thead tr th {
+  background: #2f855a !important;
+  background-color: #2f855a !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: #236b48 !important;
+  opacity: 1 !important;
+}
+#root main [id^="tab-content-"] table thead th input,
+#root main [id^="tab-content-"] table thead th select {
+  background: #68a987 !important;
+  background-color: #68a987 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: #d8efe0 !important;
+}
+
+
+/* Absolute final override for real table cells: solid green, no gradient. */
+#root main div[id^="tab-content-"] table thead tr th,
+#root main div[id^="tab-content-"] table thead th {
+  background: #2f855a !important;
+  background-color: #2f855a !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: #236b48 !important;
+}
+#root main div[id^="tab-content-"] table thead tr th input,
+#root main div[id^="tab-content-"] table thead th input {
+  background: #68a987 !important;
+  background-color: #68a987 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: #d8efe0 !important;
 }
