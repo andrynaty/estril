@@ -1530,6 +1530,31 @@ export default function App() {
     );
   };
 
+  const reconcileCustomRemainders = (colorConfig: ColorConfig): ColorConfig => {
+    const remainingBySize: Record<string, number> = {};
+    colorConfig.tailles.forEach((size) => {
+      const quantity = Number(colorConfig.sizes[size]?.qtyTot || 0);
+      const capacity = Number(colorConfig.sizes[size]?.cap || 25);
+      const fullPieces = capacity > 0 ? Math.floor(quantity / capacity) * capacity : 0;
+      remainingBySize[size] = Math.max(0, quantity - fullPieces);
+    });
+
+    const normalizedRemainders = (colorConfig.customRemainders || []).map((carton) => {
+      const nextSizes = { ...carton.sizes };
+      const nextWrittenWords = { ...(carton.writtenWords || {}) };
+      colorConfig.tailles.forEach((size) => {
+        const requested = Math.max(0, Number(nextSizes[size] || 0));
+        const allowed = Math.min(requested, remainingBySize[size] || 0);
+        nextSizes[size] = allowed;
+        remainingBySize[size] = Math.max(0, (remainingBySize[size] || 0) - allowed);
+        if (allowed === 0) delete nextWrittenWords[size];
+      });
+      return { ...carton, sizes: nextSizes, writtenWords: nextWrittenWords };
+    });
+
+    return { ...colorConfig, customRemainders: normalizedRemainders };
+  };
+
   const handleSizeHeaderChange = (idx: number, newVal: string) => {
     const cleanVal = newVal.trim().toUpperCase();
     if (!cleanVal) return;
@@ -1576,7 +1601,8 @@ export default function App() {
         [field]: valNum
       };
 
-      return { ...c, sizes: nextSizes };
+      const nextConfig = { ...c, sizes: nextSizes };
+      return (field === 'qtyTot' || field === 'cap') ? reconcileCustomRemainders(nextConfig) : nextConfig;
     });
 
     setColors(nextColors);
@@ -1606,7 +1632,8 @@ export default function App() {
           [field]: valueToSet
         };
       });
-      return { ...c, sizes: nextSizes };
+      const nextConfig = { ...c, sizes: nextSizes };
+      return (field === 'qtyTot' || field === 'cap') ? reconcileCustomRemainders(nextConfig) : nextConfig;
     });
 
     setColors(nextColors);
@@ -1677,7 +1704,8 @@ export default function App() {
         });
       });
 
-      return { ...c, sizes: nextSizes };
+      const nextConfig = { ...c, sizes: nextSizes };
+      return (startingFieldIdx === 0 || startingFieldIdx === 1) ? reconcileCustomRemainders(nextConfig) : nextConfig;
     });
 
     setColors(nextColors);
@@ -5680,14 +5708,22 @@ export default function App() {
 
                                             <button
                                               type="button"
-                                              onClick={() => {
+                                              onClick={(event) => {
+                                                event.stopPropagation();
+                                                const remainingAfterDelete = (activeColorConfig.customRemainders || []).filter(item => item.id !== cc.id);
                                                 const nextColors = [...colors];
                                                 nextColors[activeColorIdx] = {
                                                   ...activeColorConfig,
-                                                  customRemainders: (activeColorConfig.customRemainders || []).filter(item => item.id !== cc.id)
+                                                  customRemainders: remainingAfterDelete
                                                 };
                                                 setColors(nextColors);
+                                                setDragClosedCartonIds((previous) => previous.filter(id => id !== cc.id));
+                                                if (dragActiveCartonId === cc.id) {
+                                                  const nextOpen = remainingAfterDelete.find(item => !dragClosedCartonIds.includes(item.id) && item.id !== cc.id);
+                                                  setDragActiveCartonId(nextOpen?.id || null);
+                                                }
                                                 setHasGenerated(false);
+                                                triggerToast(`🗑️ Carton ${cIdx + 1} supprimé.`, 'info');
                                               }}
                                               className="text-red-500 hover:text-red-600 font-bold text-[10px] uppercase font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer border border-red-500/10 hover:border-red-500/20 bg-red-500/5"
                                               title="Supprimer ce carton"
