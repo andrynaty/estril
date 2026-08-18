@@ -1857,3 +1857,23 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   .carton-builder-piece-actions { justify-content: stretch; }
   .carton-builder-piece-restore, .carton-builder-piece-remove { flex: 1 1 120px; }
 }
+
+
+/* Global loading overview for closed cartons */
+.carton-builder-closed-overview { display: grid; gap: 12px; padding: 14px; border: 1px solid #9fcaaa; border-radius: 15px; background: linear-gradient(135deg, #f4fbf5 0%, #ffffff 72%); box-shadow: 0 9px 20px rgba(22, 101, 52, .07); }
+.carton-builder-closed-overview-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.carton-builder-closed-overview-header > div { display: grid; gap: 3px; }
+.carton-builder-closed-overview-header strong { color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.carton-builder-closed-overview-badge { padding: 6px 9px; border-radius: 999px; background: #2f855a; color: #ffffff; font: 900 10px ui-monospace, monospace; white-space: nowrap; }
+.carton-builder-closed-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.carton-builder-closed-kpis > div { display: grid; gap: 3px; min-height: 52px; padding: 8px 9px; border: 1px solid #d5e8d9; border-radius: 9px; background: #ffffff; }
+.carton-builder-closed-kpis b { color: #166534; font: 900 14px ui-monospace, monospace; }
+.carton-builder-closed-kpis span { color: #617568; font: 700 9px ui-monospace, monospace; text-transform: uppercase; }
+.carton-builder-closed-progress { height: 8px; overflow: hidden; border-radius: 999px; background: #dbeadf; }
+.carton-builder-closed-progress i { display: block; height: 100%; border-radius: inherit; background: #2f855a; transition: width .25s ease; }
+@media (max-width: 900px) { .carton-builder-closed-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .carton-builder-closed-overview-header { align-items: flex-start; flex-direction: column; }
+  .carton-builder-closed-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .carton-builder-closed-overview-badge { align-self: flex-start; }
+}

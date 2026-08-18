@@ -237,6 +237,7 @@ export default function App() {
   const [cartonBuilderMode, setCartonBuilderMode] = useState<'manual' | 'balanced' | 'assistant' | 'drag' | 'control'>('manual');
   const [cartonBuilderDragSource, setCartonBuilderDragSource] = useState<{ size: string; quantity: number } | null>(null);
   const [dragAutoClose, setDragAutoClose] = useState(false);
+  const [dragAutoAdvance, setDragAutoAdvance] = useState(false);
   const [dragActiveCartonId, setDragActiveCartonId] = useState<string | null>(null);
   const [dragClosedCartonIds, setDragClosedCartonIds] = useState<string[]>([]);
 
@@ -5222,6 +5223,37 @@ export default function App() {
                           </div>
                         ) : (() => {
                           const renderRemaindersCustomizerContent = () => {
+                            const remainderCartons = activeColorConfig.customRemainders || [];
+                            const closedCartons = remainderCartons.filter((carton) => dragClosedCartonIds.includes(carton.id));
+                            const getCartonCapacity = (carton: CustomRemainderCarton) => {
+                              const usedSizes = Object.keys(carton.sizes).filter((size) => (Number(carton.sizes[size]) || 0) > 0);
+                              return usedSizes.length > 0 ? Math.min(...usedSizes.map((size) => Number(activeColorConfig.sizes[size]?.cap || 25))) : 25;
+                            };
+                            const getCartonMetrics = (carton: CustomRemainderCarton) => {
+                              const pieces = Object.values(carton.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
+                              const capacity = getCartonCapacity(carton);
+                              let net = 0;
+                              let cbm = 0;
+                              Object.entries(carton.sizes).forEach(([size, value]) => {
+                                const quantity = Number(value) || 0;
+                                const spec = activeColorConfig.sizes[size];
+                                if (spec && quantity > 0) {
+                                  net += quantity * spec.wPiece;
+                                  cbm = Math.max(cbm, spec.cbmUnit);
+                                }
+                              });
+                              const cartonWeight = Object.values(carton.sizes).some((value) => (Number(value) || 0) > 0)
+                                ? Math.max(0.8, ...Object.keys(carton.sizes).filter((size) => (Number(carton.sizes[size]) || 0) > 0).map((size) => Number(activeColorConfig.sizes[size]?.wCarton || 0.8)))
+                                : 0;
+                              return { pieces, capacity, fill: capacity > 0 ? Math.min(100, Math.round((pieces / capacity) * 100)) : 0, net, gross: net > 0 ? net + cartonWeight : 0, cbm: pieces > 0 ? cbm : 0 };
+                            };
+                            const closedMetrics = closedCartons.map(getCartonMetrics);
+                            const closedPieces = closedMetrics.reduce((sum, metric) => sum + metric.pieces, 0);
+                            const closedCapacity = closedMetrics.reduce((sum, metric) => sum + metric.capacity, 0);
+                            const closedNet = closedMetrics.reduce((sum, metric) => sum + metric.net, 0);
+                            const closedGross = closedMetrics.reduce((sum, metric) => sum + metric.gross, 0);
+                            const closedCbm = closedMetrics.reduce((sum, metric) => sum + metric.cbm, 0);
+                            const closedFill = closedCapacity > 0 ? Math.min(100, Math.round((closedPieces / closedCapacity) * 100)) : 0;
                             return (
                               <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
                             {cartonBuilderMode === 'drag' && (
@@ -5242,8 +5274,29 @@ export default function App() {
                                   </div>
                                   <label className="carton-builder-auto-close-toggle">
                                     <input type="checkbox" checked={dragAutoClose} onChange={(e) => setDragAutoClose(e.target.checked)} />
-                                    <span>Fermeture automatique</span>
+                                    <span>Fermer à capacité</span>
                                   </label>
+                                  <label className="carton-builder-auto-close-toggle">
+                                    <input type="checkbox" checked={dragAutoAdvance} onChange={(e) => setDragAutoAdvance(e.target.checked)} />
+                                    <span>Passer au suivant</span>
+                                  </label>
+                                </div>
+                                <div className="carton-builder-closed-overview">
+                                  <div className="carton-builder-closed-overview-header">
+                                    <div>
+                                      <span className="carton-builder-kicker">VUE GLOBALE DU CHARGEMENT</span>
+                                      <strong>{closedCartons.length ? `${closedCartons.length} carton(s) fermé(s) et prêt(s)` : 'Aucun carton fermé pour le moment'}</strong>
+                                    </div>
+                                    <span className="carton-builder-closed-overview-badge">{closedFill}% chargé</span>
+                                  </div>
+                                  <div className="carton-builder-closed-kpis">
+                                    <div><b>{closedCartons.length}</b><span>Cartons fermés</span></div>
+                                    <div><b>{closedPieces} / {closedCapacity}</b><span>Pièces / capacité</span></div>
+                                    <div><b>{closedNet.toFixed(1)} kg</b><span>Poids net</span></div>
+                                    <div><b>{closedGross.toFixed(1)} kg</b><span>Poids brut</span></div>
+                                    <div><b>{closedCbm.toFixed(3)} m³</b><span>Volume total</span></div>
+                                  </div>
+                                  <div className="carton-builder-closed-progress"><i style={{ width: `${closedFill}%` }} /></div>
                                 </div>
                               </>
                             )}
@@ -5513,11 +5566,11 @@ export default function App() {
                                           setHasGenerated(false);
                                           setCartonBuilderDragSource(null);
                                           const cartonTotalAfterDrop = currentTotal + source.quantity;
-                                          if (dragAutoClose && cartonTotalAfterDrop >= capacity) {
+                                          if ((dragAutoClose || dragAutoAdvance) && cartonTotalAfterDrop >= capacity) {
                                             setDragClosedCartonIds((previous) => previous.includes(cc.id) ? previous : [...previous, cc.id]);
                                             const nextOpen = (activeColorConfig.customRemainders || []).find(item => item.id !== cc.id && !dragClosedCartonIds.includes(item.id));
-                                            setDragActiveCartonId(nextOpen?.id || null);
-                                            triggerToast(`🔒 Carton ${cIdx + 1} fermé automatiquement.`, 'success');
+                                            setDragActiveCartonId(dragAutoAdvance ? (nextOpen?.id || null) : null);
+                                            triggerToast(dragAutoAdvance ? `➡️ Carton ${cIdx + 1} atteint sa capacité. Passage au suivant.` : `🔒 Carton ${cIdx + 1} fermé automatiquement.`, 'success');
                                           } else {
                                             setDragActiveCartonId(cc.id);
                                             triggerToast(`✅ ${source.quantity} pièce(s) ${source.size} ajoutée(s) au carton ${cIdx + 1}.`, 'success');
