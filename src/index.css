@@ -1803,3 +1803,34 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   .carton-builder-mode-quick-options { justify-content: stretch; }
   .carton-builder-mode-quick-button { flex: 1 1 100px; }
 }
+
+
+/* Sequential drag-and-drop carton workshop */
+.carton-builder-sequence-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 15px;
+  border: 1px solid #9fcaaa;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 7px 16px rgba(22, 101, 52, .05);
+}
+.carton-builder-sequence-copy { display: grid; gap: 2px; }
+.carton-builder-sequence-copy strong { color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.carton-builder-sequence-copy > span:last-child { color: #617568; font-size: 10px; }
+.carton-builder-auto-close-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #b8d9c1; border-radius: 9px; background: #f4fbf5; color: #166534; font: 800 10px ui-monospace, monospace; cursor: pointer; white-space: nowrap; }
+.carton-builder-auto-close-toggle input { width: 16px; height: 16px; accent-color: #2f855a; }
+[data-carton-builder-mode="drag"] [data-carton-builder-card="true"] { cursor: pointer; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease, opacity .2s ease; }
+[data-carton-builder-mode="drag"] [data-carton-builder-card="true"].carton-builder-drag-active { border-color: #2f855a !important; box-shadow: 0 0 0 4px rgba(47, 133, 90, .15), 0 14px 28px rgba(22, 101, 52, .12) !important; transform: translateY(-2px); }
+[data-carton-builder-mode="drag"] [data-carton-builder-card="true"].carton-builder-drag-active::after { content: 'CARTON ACTIF — DÉPOSEZ ICI'; position: absolute; top: -10px; right: 12px; padding: 4px 7px; border-radius: 6px; background: #2f855a; color: #ffffff; font: 800 8px ui-monospace, monospace; letter-spacing: .08em; }
+[data-carton-builder-mode="drag"] [data-carton-builder-card="true"].carton-builder-drag-closed { opacity: .66; cursor: default; border-color: #cbd8ce !important; background: #f5f8f5 !important; box-shadow: none !important; transform: none !important; }
+.carton-builder-close-button { min-height: 25px !important; padding: 4px 8px !important; border: 1px solid #b8d9c1 !important; border-radius: 7px !important; background: #f4fbf5 !important; color: #166534 !important; font: 800 9px ui-monospace, monospace !important; text-transform: uppercase; }
+.carton-builder-close-button:hover { background: #2f855a !important; border-color: #2f855a !important; color: #ffffff !important; }
+.carton-builder-close-button.is-closed { border-color: #cbd8ce !important; background: #e9f0ea !important; color: #617568 !important; }
+@media (max-width: 700px) {
+  .carton-builder-sequence-bar { align-items: stretch; flex-direction: column; }
+  .carton-builder-auto-close-toggle { justify-content: center; }
+  [data-carton-builder-mode="drag"] [data-carton-builder-card="true"].carton-builder-drag-active::after { position: static; display: inline-block; margin: 7px 0 0; }
+}

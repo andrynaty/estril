@@ -236,6 +236,9 @@ export default function App() {
   const [isRemaindersModalOpen, setIsRemaindersModalOpen] = useState<boolean>(false);
   const [cartonBuilderMode, setCartonBuilderMode] = useState<'manual' | 'balanced' | 'assistant' | 'drag' | 'control'>('manual');
   const [cartonBuilderDragSource, setCartonBuilderDragSource] = useState<{ size: string; quantity: number } | null>(null);
+  const [dragAutoClose, setDragAutoClose] = useState(false);
+  const [dragActiveCartonId, setDragActiveCartonId] = useState<string | null>(null);
+  const [dragClosedCartonIds, setDragClosedCartonIds] = useState<string[]>([]);
 
   const updateRemaindersDisplayMode = (mode: 'inline' | 'popup') => {
     setRemaindersDisplayMode(mode);
@@ -5172,7 +5175,13 @@ export default function App() {
                                 <button
                                   key={mode.id}
                                   type="button"
-                                  onClick={() => setCartonBuilderMode(mode.id)}
+                                  onClick={() => {
+                                    setCartonBuilderMode(mode.id);
+                                    if (mode.id === 'drag') {
+                                      const firstOpen = (activeColorConfig.customRemainders || []).find(item => !dragClosedCartonIds.includes(item.id));
+                                      setDragActiveCartonId(firstOpen?.id || null);
+                                    }
+                                  }}
                                   className={`carton-builder-mode-quick-button ${cartonBuilderMode === mode.id ? 'is-active' : ''}`}
                                 >
                                   {mode.label}
@@ -5207,14 +5216,27 @@ export default function App() {
                             return (
                               <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
                             {cartonBuilderMode === 'drag' && (
-                              <div className="carton-builder-drag-guide">
-                                <div>
-                                  <span className="carton-builder-kicker">MODE GLISSER</span>
-                                  <strong>Glissez une taille disponible vers le carton à remplir.</strong>
-                                  <span>Une taille est ajoutée uniquement si la quantité disponible et la capacité du carton le permettent.</span>
+                              <>
+                                <div className="carton-builder-drag-guide">
+                                  <div>
+                                    <span className="carton-builder-kicker">MODE GLISSER</span>
+                                    <strong>Composez un carton à la fois, puis fermez-le pour passer au suivant.</strong>
+                                    <span>Glissez une taille disponible vers la zone active ; les limites existantes restent appliquées.</span>
+                                  </div>
+                                  <div className="carton-builder-drag-badge">Atelier séquentiel</div>
                                 </div>
-                                <div className="carton-builder-drag-badge">Déplacement contrôlé</div>
-                              </div>
+                                <div className="carton-builder-sequence-bar">
+                                  <div className="carton-builder-sequence-copy">
+                                    <span className="carton-builder-kicker">ÉTAPE ACTIVE</span>
+                                    <strong>{dragActiveCartonId ? `Carton ${Math.max(1, (activeColorConfig.customRemainders || []).findIndex(item => item.id === dragActiveCartonId) + 1)}` : 'Créez votre premier carton'}</strong>
+                                    <span>{dragClosedCartonIds.length} carton(s) fermé(s) · {Math.max(0, (activeColorConfig.customRemainders?.length || 0) - dragClosedCartonIds.length)} à préparer</span>
+                                  </div>
+                                  <label className="carton-builder-auto-close-toggle">
+                                    <input type="checkbox" checked={dragAutoClose} onChange={(e) => setDragAutoClose(e.target.checked)} />
+                                    <span>Fermeture automatique</span>
+                                  </label>
+                                </div>
+                              </>
                             )}
                             {cartonBuilderMode === 'assistant' && (
                               <div className="carton-builder-assistant-note"><b>Étape active :</b> composez un carton dans la zone ci-dessous, puis utilisez <b>Valider les restes</b> pour passer au contrôle final.</div>
@@ -5354,6 +5376,8 @@ export default function App() {
                                       };
                                       setColors(nextColors);
                                       setHasGenerated(false);
+                                      setDragActiveCartonId(newCarton.id);
+                                      setDragClosedCartonIds((previous) => previous.filter((id) => id !== newCarton.id));
                                     }}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all inline-flex items-center gap-1 cursor-pointer ${
                                       darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'
@@ -5454,6 +5478,12 @@ export default function App() {
                                           e.preventDefault();
                                           if (!cartonBuilderDragSource) return;
                                           const source = cartonBuilderDragSource;
+                                          if (dragClosedCartonIds.includes(cc.id)) {
+                                            triggerToast(`🔒 Carton ${cIdx + 1} fermé. Choisissez le carton actif suivant.`, 'info');
+                                            setCartonBuilderDragSource(null);
+                                            return;
+                                          }
+                                          setDragActiveCartonId(cc.id);
                                           const currentTotal = Object.values(cc.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
                                           const nextSizes = { ...cc.sizes, [source.size]: (Number(cc.sizes[source.size]) || 0) + source.quantity };
                                           const activeSizes = Object.keys(nextSizes).filter(sz => (Number(nextSizes[sz]) || 0) > 0);
@@ -5473,13 +5503,42 @@ export default function App() {
                                           setColors(nextColors);
                                           setHasGenerated(false);
                                           setCartonBuilderDragSource(null);
-                                          triggerToast(`✅ ${source.quantity} pièce(s) ${source.size} ajoutée(s) au carton ${cIdx + 1}.`, 'success');
+                                          const cartonTotalAfterDrop = currentTotal + source.quantity;
+                                          if (dragAutoClose && cartonTotalAfterDrop >= capacity) {
+                                            setDragClosedCartonIds((previous) => previous.includes(cc.id) ? previous : [...previous, cc.id]);
+                                            const nextOpen = (activeColorConfig.customRemainders || []).find(item => item.id !== cc.id && !dragClosedCartonIds.includes(item.id));
+                                            setDragActiveCartonId(nextOpen?.id || null);
+                                            triggerToast(`🔒 Carton ${cIdx + 1} fermé automatiquement.`, 'success');
+                                          } else {
+                                            setDragActiveCartonId(cc.id);
+                                            triggerToast(`✅ ${source.quantity} pièce(s) ${source.size} ajoutée(s) au carton ${cIdx + 1}.`, 'success');
+                                          }
                                         } : undefined}
+                                        onClick={() => cartonBuilderMode === 'drag' && !dragClosedCartonIds.includes(cc.id) && setDragActiveCartonId(cc.id)}
                                         className={`p-4 rounded-xl border relative shadow-xs ${
                                         darkMode ? 'bg-[#121215] border-white/10' : 'bg-white border-slate-200'
                                       }`}>
                                         <div className="flex items-center justify-between border-b pb-2 mb-3" style={{ borderColor: darkMode ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
                                           <div className="flex items-center gap-1.5">
+                                            {cartonBuilderMode === 'drag' && (
+                                              <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                  event.stopPropagation();
+                                                  if (dragClosedCartonIds.includes(cc.id)) {
+                                                    setDragClosedCartonIds((previous) => previous.filter((id) => id !== cc.id));
+                                                    setDragActiveCartonId(cc.id);
+                                                  } else {
+                                                    setDragClosedCartonIds((previous) => [...previous, cc.id]);
+                                                    const nextOpen = (activeColorConfig.customRemainders || []).find(item => item.id !== cc.id && !dragClosedCartonIds.includes(item.id));
+                                                    setDragActiveCartonId(nextOpen?.id || null);
+                                                  }
+                                                }}
+                                                className={`carton-builder-close-button ${dragClosedCartonIds.includes(cc.id) ? 'is-closed' : ''}`}
+                                              >
+                                                {dragClosedCartonIds.includes(cc.id) ? 'Rouvrir' : 'Fermer'}
+                                              </button>
+                                            )}
                                             <span className="text-sm">📦</span>
                                             <span className={`text-xs font-mono font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>
                                               CARTON DE RESTE #{cIdx + 1}
