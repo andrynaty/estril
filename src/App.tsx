@@ -130,7 +130,8 @@ const CUSTS = [
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  // Ruba uses one consistent light theme across the whole workspace.
+  const [darkMode] = useState<boolean>(false);
 
   // Database templates state (persisted via local storage)
   const [db, setDb] = useState<ModelsDatabase>(() => {
@@ -3309,15 +3310,10 @@ export default function App() {
 
             <div className="h-4 w-px bg-white/15 mx-1" />
 
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className={`p-1.5 rounded-lg border cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98] ${
-                darkMode ? 'border-slate-800 bg-slate-900 text-amber-400 hover:text-white' : 'border-slate-300 bg-white text-slate-600 hover:text-black'
-              }`}
-              title={darkMode ? "Mode Clair" : "Mode Sombre"}
-            >
-              {darkMode ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
-            </button>
+            <div className="hidden" aria-hidden="true">
+              <Sun className="w-3 h-3" />
+              <Moon className="w-3 h-3" />
+            </div>
           </div>
         </div>
       </div>
