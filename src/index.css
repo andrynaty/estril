@@ -1412,3 +1412,214 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   .carton-builder-card-status { grid-template-columns: auto 1fr auto; }
   .carton-builder-card-progress { grid-column: 1 / -1; grid-row: 2; }
 }
+
+
+/* GLOBAL UI FOUNDATION — unified light watermelon-green system */
+:root {
+  --ui-primary: #2f855a;
+  --ui-primary-dark: #166534;
+  --ui-primary-soft: #e8f5ec;
+  --ui-primary-pale: #f4fbf5;
+  --ui-line: #cfe4d4;
+  --ui-line-soft: #e5efe7;
+  --ui-ink: #173322;
+  --ui-muted: #617568;
+  --ui-warning: #9a6700;
+  --ui-danger: #b42318;
+  --ui-info: #2563a8;
+}
+
+/* All tab pages share one visual shell. */
+#root main [id^="tab-content-"] {
+  color: var(--ui-ink) !important;
+}
+#root main [id^="tab-content-"] > section,
+#root main [id^="tab-content-"] > div > section {
+  border-color: var(--ui-line-soft) !important;
+}
+#root main [id^="tab-content-"] .bg-white,
+#root main [id^="tab-content-"] .bg-slate-50,
+#root main [id^="tab-content-"] .bg-slate-100,
+#root main [id^="tab-content-"] .bg-gray-50 {
+  background-color: #ffffff !important;
+}
+#root main [id^="tab-content-"] .text-slate-400,
+#root main [id^="tab-content-"] .text-slate-500,
+#root main [id^="tab-content-"] .text-gray-400,
+#root main [id^="tab-content-"] .text-gray-500 {
+  color: var(--ui-muted) !important;
+}
+#root main [id^="tab-content-"] h1,
+#root main [id^="tab-content-"] h2,
+#root main [id^="tab-content-"] h3,
+#root main [id^="tab-content-"] h4,
+#root main [id^="tab-content-"] h5 {
+  color: var(--ui-primary-dark) !important;
+}
+
+/* Consistent action hierarchy across every ribbon. */
+#root main [id^="tab-content-"] button {
+  min-height: 34px;
+  border-radius: 10px !important;
+  font-weight: 800 !important;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+#root main [id^="tab-content-"] button[class*="bg-"] {
+  background: var(--ui-primary) !important;
+  border-color: var(--ui-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(47, 133, 90, .14) !important;
+}
+#root main [id^="tab-content-"] button[class*="bg-"]:hover {
+  background: var(--ui-primary-dark) !important;
+  border-color: var(--ui-primary-dark) !important;
+  transform: translateY(-1px);
+}
+#root main [id^="tab-content-"] button:not([class*="bg-"]) {
+  color: var(--ui-primary-dark) !important;
+  border-color: var(--ui-line) !important;
+  background: #ffffff !important;
+}
+#root main [id^="tab-content-"] button:not([class*="bg-"]):hover {
+  background: var(--ui-primary-soft) !important;
+  border-color: #8fc59b !important;
+}
+
+/* Forms and controls. */
+#root main [id^="tab-content-"] input,
+#root main [id^="tab-content-"] select,
+#root main [id^="tab-content-"] textarea {
+  min-height: 34px;
+  border-color: var(--ui-line) !important;
+  color: var(--ui-ink) !important;
+  background: #ffffff !important;
+  border-radius: 9px !important;
+}
+#root main [id^="tab-content-"] input:focus,
+#root main [id^="tab-content-"] select:focus,
+#root main [id^="tab-content-"] textarea:focus {
+  border-color: var(--ui-primary) !important;
+  box-shadow: 0 0 0 3px rgba(47, 133, 90, .13) !important;
+  outline: none !important;
+}
+#root main [id^="tab-content-"] label {
+  color: var(--ui-ink) !important;
+}
+
+/* Common cards, table wrappers and visual groups. */
+#root main [id^="tab-content-"] .rounded-xl,
+#root main [id^="tab-content-"] .rounded-2xl {
+  border-color: var(--ui-line-soft) !important;
+}
+#root main [id^="tab-content-"] table {
+  border-color: var(--ui-line) !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+#root main [id^="tab-content-"] table thead,
+#root main [id^="tab-content-"] table thead tr,
+#root main [id^="tab-content-"] table thead th {
+  background: var(--ui-primary) !important;
+  background-color: var(--ui-primary) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border-color: var(--ui-primary-dark) !important;
+}
+#root main [id^="tab-content-"] table tbody tr:nth-child(even) {
+  background: var(--ui-primary-pale) !important;
+}
+#root main [id^="tab-content-"] table tbody tr:hover {
+  background: var(--ui-primary-soft) !important;
+}
+
+/* Status colors remain semantic but restrained. */
+#root main [id^="tab-content-"] .text-red-500,
+#root main [id^="tab-content-"] .text-red-600,
+#root main [id^="tab-content-"] .text-red-700,
+#root main [id^="tab-content-"] .text-red-800 { color: var(--ui-danger) !important; }
+#root main [id^="tab-content-"] .text-amber-500,
+#root main [id^="tab-content-"] .text-amber-600,
+#root main [id^="tab-content-"] .text-amber-800 { color: var(--ui-warning) !important; }
+
+@media (max-width: 1023px) {
+  #root main [id^="tab-content-"] { padding: 14px !important; }
+  #root main [id^="tab-content-"] .overflow-x-auto { max-width: 100%; -webkit-overflow-scrolling: touch; }
+  #root main [id^="tab-content-"] table { min-width: 620px; }
+}
+@media (max-width: 640px) {
+  #root main [id^="tab-content-"] { padding: 10px !important; }
+  #root main [id^="tab-content-"] button { min-height: 38px; }
+  #root main [id^="tab-content-"] table { font-size: 11px; }
+}
+
+
+/* Navigation foundation — light sidebar with clear ribbon groups. */
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] {
+  background: #ffffff !important;
+  border-color: var(--ui-line) !important;
+  color: var(--ui-ink) !important;
+  box-shadow: 0 10px 28px rgba(22, 101, 52, .08) !important;
+}
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] > div:first-child {
+  border-color: var(--ui-line-soft) !important;
+}
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] button {
+  color: var(--ui-ink) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] button:hover {
+  background: var(--ui-primary-soft) !important;
+  border-color: var(--ui-line) !important;
+}
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] button[class*="bg-"] {
+  background: var(--ui-primary-soft) !important;
+  border-color: var(--ui-line) !important;
+  color: var(--ui-primary-dark) !important;
+}
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] button [class*="bg-"] {
+  background: var(--ui-primary-soft) !important;
+  color: var(--ui-primary-dark) !important;
+}
+#root [class~="lg:flex"][class~="lg:h-full"][class~="overflow-y-auto"] svg {
+  color: var(--ui-primary) !important;
+}
+
+
+/* Mobile ribbon navigation */
+#root main > div[class*="sticky"][class*="overflow-x-auto"] {
+  background: #ffffff !important;
+  border-color: var(--ui-line-soft) !important;
+  box-shadow: 0 6px 16px rgba(22, 101, 52, .06) !important;
+}
+#root main > div[class*="sticky"][class*="overflow-x-auto"] button {
+  min-height: 36px;
+  background: #ffffff !important;
+  border-color: var(--ui-line) !important;
+  color: var(--ui-primary-dark) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+#root main > div[class*="sticky"][class*="overflow-x-auto"] button[class*="bg-[#2563eb]"],
+#root main > div[class*="sticky"][class*="overflow-x-auto"] button[class*="bg-blue-"] {
+  background: var(--ui-primary) !important;
+  border-color: var(--ui-primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 10px rgba(47, 133, 90, .18) !important;
+}
+
+/* Shared page toolbar and empty-state polish. */
+#root main [id^="tab-content-"] .border-b.pb-5,
+#root main [id^="tab-content-"] .border-b.pb-4 {
+  border-color: var(--ui-line-soft) !important;
+}
+#root main [id^="tab-content-"] .border-dashed {
+  border-color: var(--ui-line) !important;
+  background: var(--ui-primary-pale) !important;
+}
+#root main [id^="tab-content-"] .border-dashed svg,
+#root main [id^="tab-content-"] .border-dashed > span:first-child {
+  color: var(--ui-primary) !important;
+}
