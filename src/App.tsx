@@ -5254,6 +5254,10 @@ export default function App() {
                             const closedGross = closedMetrics.reduce((sum, metric) => sum + metric.gross, 0);
                             const closedCbm = closedMetrics.reduce((sum, metric) => sum + metric.cbm, 0);
                             const closedFill = closedCapacity > 0 ? Math.min(100, Math.round((closedPieces / closedCapacity) * 100)) : 0;
+                            const isLargeCartonSet = cartonBuilderMode === 'drag' && remainderCartons.length > 24;
+                            const renderedRemainderCartons = isLargeCartonSet
+                              ? remainderCartons.filter((carton) => carton.id === dragActiveCartonId || !dragClosedCartonIds.includes(carton.id)).slice(0, 16)
+                              : remainderCartons;
                             return (
                               <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
                             {cartonBuilderMode === 'drag' && (
@@ -5459,20 +5463,6 @@ export default function App() {
                                     <span>💡</span> Auto-configurer cartons
                                   </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      // Instantly run the packing generator to apply manual remainders
-                                      handleGenerateList();
-                                    }}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono transition-all inline-flex items-center gap-1 cursor-pointer ${
-                                      darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'
-                                    }`}
-                                    title="Valider et générer la liste de colisage"
-                                  >
-                                    <span>✔️</span> Valider les restes
-                                  </button>
-
                                   {(activeColorConfig.customRemainders && activeColorConfig.customRemainders.length > 0) && (
                                     <button
                                       type="button"
@@ -5504,8 +5494,14 @@ export default function App() {
                                   <span className="text-[10px] text-slate-400 block">Cliquez sur le bouton ci-dessus pour composer votre premier carton de reste.</span>
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {activeColorConfig.customRemainders.map((cc, cIdx) => {
+                                <>
+                                  {isLargeCartonSet && (
+                                    <div className="carton-builder-performance-note">
+                                      <b>Vue optimisée :</b> {remainderCartons.length} cartons sont gérés sans afficher toutes les cartes simultanément. Le carton actif, les cartons ouverts prioritaires et les statistiques globales restent disponibles.
+                                    </div>
+                                  )}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {renderedRemainderCartons.map((cc, cIdx) => {
                                     const totalPcsInCtn = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
                                     
                                     // Calculate weights and CBM for this carton
@@ -5973,7 +5969,8 @@ export default function App() {
                                       </div>
                                     );
                                   })}
-                                </div>
+                                  </div>
+                                </>
                               )}
                             </div>
 
