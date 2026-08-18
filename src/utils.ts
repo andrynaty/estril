@@ -2145,14 +2145,13 @@ export function validateColorCustomRemainders(
     }
 
     if (activeSizes.length > 0) {
-      // Get the capacity limit for each active size in the carton
-      const caps = activeSizes.map(s => colorConfig.sizes[s]?.cap || 25);
-      const limit = Math.min(...caps);
+      // Use the global reference capacity: the largest configured PCS quota applies to a mixed carton.
+      const limit = Math.max(25, ...colorConfig.tailles.map(s => Number(colorConfig.sizes[s]?.cap || 25)));
       
       const totalPcs = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
       if (totalPcs > limit) {
         errors.push(
-          `Carton de reste n°${idx + 1} : Le nombre total de pièces dans ce carton mixte (${totalPcs} pcs) dépasse le nombre maximum de pièces par carton autorisé pour les tailles incluses (${limit} pcs max).`
+          `Carton de reste n°${idx + 1} : Le nombre total de pièces dans ce carton mixte (${totalPcs} pcs) dépasse la capacité de référence du carton (${limit} pcs max selon le plus grand quota/PCS autorisé).`
         );
       }
     }
@@ -2178,14 +2177,8 @@ export function validateColorCustomRemainders(
           );
         }
 
-        // B. Check that spelling matches the French letters
-        const expectedSpelling = numberToFrenchWords(r).toLowerCase().trim();
-        const userSpelling = (cc.writtenWords?.[sz] || '').toLowerCase().trim();
-        if (userSpelling !== expectedSpelling) {
-          errors.push(
-            `Taille ${sz} dans Carton de reste n°${idx + 1} : Pour confirmer l'emballage de ces ${r} pièces de reste, vous devez écrire la quantité en toutes lettres : "${expectedSpelling}" dans le champ de vérification.`
-          );
-        }
+        // The written-word field is optional and must never block final packing generation.
+        // Exact quantities and capacity remain validated above and below.
       }
     });
 
