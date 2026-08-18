@@ -1146,3 +1146,169 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   #root > div.fixed.inset-0 footer { grid-template-columns: 1fr !important; gap: 7px !important; }
   #root > div.fixed.inset-0 footer > div { justify-content: flex-start !important; text-align: left !important; }
 }
+
+
+/* ==========================================
+   SAISIE RIBBON: EXPLICIT TABLE + CONTROL COLORS
+   ========================================== */
+
+#tab-content-meta table thead,
+#tab-content-strategy table thead,
+#tab-content-colors table thead,
+#tab-content-meta table thead tr,
+#tab-content-strategy table thead tr,
+#tab-content-colors table thead tr {
+  background: #2f855a !important;
+}
+#tab-content-meta table thead th,
+#tab-content-strategy table thead th,
+#tab-content-colors table thead th,
+#tab-content-meta table thead tr th,
+#tab-content-strategy table thead tr th,
+#tab-content-colors table thead tr th {
+  background: linear-gradient(135deg, #236b48 0%, #2f855a 100%) !important;
+  color: #ffffff !important;
+  border-color: #1f6041 !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+#tab-content-meta table thead th input,
+#tab-content-strategy table thead th input,
+#tab-content-colors table thead th input,
+#tab-content-meta table thead th select,
+#tab-content-strategy table thead th select,
+#tab-content-colors table thead th select {
+  background: rgba(255, 255, 255, .18) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, .55) !important;
+}
+
+/* Titles, section markers, cards and badges in SAISIE. */
+#tab-content-meta .text-amber-500,
+#tab-content-meta .text-amber-600,
+#tab-content-meta .text-amber-800,
+#tab-content-strategy .text-purple-600,
+#tab-content-strategy .text-indigo-600,
+#tab-content-strategy .text-amber-600,
+#tab-content-colors .text-emerald-600,
+#tab-content-colors .text-emerald-700,
+#tab-content-colors .text-amber-600 {
+  color: #166534 !important;
+}
+#tab-content-meta [class*="bg-amber-"],
+#tab-content-strategy [class*="bg-purple-"],
+#tab-content-strategy [class*="bg-indigo-"],
+#tab-content-colors [class*="bg-emerald-"],
+#tab-content-colors [class*="bg-blue-"],
+#tab-content-colors [class*="bg-amber-"] {
+  background: var(--wm-primary-soft) !important;
+  border-color: var(--wm-line-strong) !important;
+}
+
+/* All actionable controls inside SAISIE share one calm hierarchy. */
+#tab-content-meta button,
+#tab-content-strategy button,
+#tab-content-colors button {
+  border-radius: 10px !important;
+  border-color: var(--wm-line) !important;
+  color: var(--wm-primary-deep) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+#tab-content-meta button:hover,
+#tab-content-strategy button:hover,
+#tab-content-colors button:hover {
+  background: var(--wm-primary-soft) !important;
+  border-color: var(--wm-line-strong) !important;
+  color: var(--wm-primary-deep) !important;
+}
+#tab-content-meta button[class*="bg-"],
+#tab-content-strategy button[class*="bg-"],
+#tab-content-colors button[class*="bg-"] {
+  background: var(--wm-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--wm-primary) !important;
+}
+#tab-content-meta button[class*="bg-"]:hover,
+#tab-content-strategy button[class*="bg-"]:hover,
+#tab-content-colors button[class*="bg-"]:hover {
+  background: var(--wm-primary-dark) !important;
+  color: #ffffff !important;
+}
+
+/* SAISIE cards and colored shape markers. */
+#tab-content-meta > div,
+#tab-content-strategy > div,
+#tab-content-colors > div {
+  border-color: var(--wm-line) !important;
+}
+#tab-content-meta [class*="rounded-xl"],
+#tab-content-strategy [class*="rounded-xl"],
+#tab-content-colors [class*="rounded-xl"] {
+  border-color: var(--wm-line) !important;
+}
+#tab-content-meta [class*="bg-gradient"],
+#tab-content-strategy [class*="bg-gradient"],
+#tab-content-colors [class*="bg-gradient"] {
+  background: linear-gradient(180deg, #6aa889, #2f855a) !important;
+}
+#tab-content-meta input,
+#tab-content-strategy input,
+#tab-content-colors input,
+#tab-content-meta select,
+#tab-content-strategy select,
+#tab-content-colors select,
+#tab-content-meta textarea,
+#tab-content-strategy textarea,
+#tab-content-colors textarea {
+  border-color: var(--wm-line-strong) !important;
+  color: var(--wm-ink) !important;
+}
+
+
+/* Highest-specificity SAISIE override: replaces legacy gray header rules only. */
+#root main #tab-content-meta table thead th,
+#root main #tab-content-strategy table thead th,
+#root main #tab-content-colors table thead th,
+#root main #tab-content-meta table thead tr th,
+#root main #tab-content-strategy table thead tr th,
+#root main #tab-content-colors table thead tr th {
+  background: linear-gradient(135deg, #236b48 0%, #2f855a 100%) !important;
+  color: #ffffff !important;
+  border-color: #1f6041 !important;
+}
+#root main #tab-content-meta table thead th input,
+#root main #tab-content-strategy table thead th input,
+#root main #tab-content-colors table thead th input {
+  background: rgba(255, 255, 255, .18) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, .55) !important;
+}
+
+#root main #tab-content-meta button,
+#root main #tab-content-strategy button,
+#root main #tab-content-colors button {
+  border-radius: 10px !important;
+  border-color: #a9cfb4 !important;
+  color: #14532d !important;
+}
+#root main #tab-content-meta button[class*="bg-"],
+#root main #tab-content-strategy button[class*="bg-"],
+#root main #tab-content-colors button[class*="bg-"] {
+  background: #2f855a !important;
+  color: #ffffff !important;
+  border-color: #2f855a !important;
+}
+#root main #tab-content-meta button[class*="bg-"]:hover,
+#root main #tab-content-strategy button[class*="bg-"]:hover,
+#root main #tab-content-colors button[class*="bg-"]:hover {
+  background: #166534 !important;
+  color: #ffffff !important;
+}
+#root main #tab-content-meta button:hover,
+#root main #tab-content-strategy button:hover,
+#root main #tab-content-colors button:hover {
+  background: #e8f5ec !important;
+  color: #14532d !important;
+  border-color: #78b88c !important;
+}
