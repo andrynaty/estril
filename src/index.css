@@ -625,271 +625,213 @@ body {
   }
 }
 
-div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
-  background-color: #441b53 !important;
-  border-radius: 0.75rem !important;
-  padding: 0.5rem !important;
+/* ==========================================
+   WATERMELON GREEN GLOBAL THEME
+   ========================================== */
+:root {
+  --wm-bg: #f5faf7;
+  --wm-surface: #ffffff;
+  --wm-surface-soft: #edf7f0;
+  --wm-primary: #2f855a;
+  --wm-primary-dark: #166534;
+  --wm-primary-deep: #14532d;
+  --wm-primary-soft: #e7f5eb;
+  --wm-line: #cfe5d5;
+  --wm-line-strong: #a9cfb4;
+  --wm-ink: #173326;
+  --wm-muted: #527064;
+  --wm-focus: rgba(47, 133, 90, .18);
 }
 
-/* 2. Subheadings and content badges: Modern Scoped Styling Per Ribbon Page */
+html, body, #root {
+  background: var(--wm-bg) !important;
+  color: var(--wm-ink) !important;
+}
+body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
 
-/* Base subheading style helper for all tabs */
-#tab-content-meta div[class*="font-mono"][class*="uppercase"],
-#tab-content-strategy div[class*="font-mono"][class*="uppercase"],
-#tab-content-colors div[class*="font-mono"][class*="uppercase"],
-#tab-content-packing-list div[class*="font-mono"][class*="uppercase"],
-#tab-content-breakdown div[class*="font-mono"][class*="uppercase"],
-#tab-content-summary div[class*="font-mono"][class*="uppercase"],
-#tab-content-saves div[class*="font-mono"][class*="uppercase"],
-#tab-content-labels div[class*="font-mono"][class*="uppercase"] {
-  font-weight: bold !important;
-  border-width: 1px !important;
-  border-style: solid !important;
-  border-radius: 0.375rem !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 0.25rem !important;
-  padding: 0.35rem 0.75rem !important;
+/* Header and global action areas */
+#root > div > div.sticky,
+#root > div > div.sticky > div,
+#root .sticky .rounded-xl.border {
+  background: rgba(255, 255, 255, .98) !important;
+  border-color: var(--wm-line) !important;
+  color: var(--wm-ink) !important;
+  box-shadow: 0 5px 18px rgba(20, 83, 45, .06) !important;
 }
-
-/* --- TAB 1: meta (FICHE TRAÇABILITÉ / RÉFÉRENCES) --- */
-#tab-content-meta div[class*="font-mono"][class*="uppercase"] {
-  background-color: #0284c7 !important; /* Ocean blue */
-  border-color: #0284c7 !important;
-  color: #ffffff !important;
+#root .logo, #root .brand-logo { color: var(--wm-primary-deep) !important; }
+#root .sticky button {
+  border-radius: 9px !important;
+  border-color: var(--wm-line) !important;
+  color: var(--wm-primary-deep) !important;
 }
-#tab-content-meta table thead th {
-  background-color: #f1f5f9 !important; /* Slate light */
-  color: #0f172a !important;
-  font-weight: 600 !important;
+#root .sticky button:first-child {
+  background: var(--wm-primary) !important;
+  border-color: var(--wm-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 12px rgba(47, 133, 90, .2) !important;
 }
-
-/* --- TAB 2: strategy (STRATÉGIE) --- */
-#tab-content-strategy div[class*="font-mono"][class*="uppercase"] {
-  background-color: #f97316 !important; /* Vibrant Orange */
-  border-color: #f97316 !important;
-  color: #ffffff !important;
+#root .sticky button:not(:first-child) {
+  background: var(--wm-surface) !important;
+  color: var(--wm-primary-deep) !important;
 }
-#tab-content-strategy .grid-cols-2 > div > span:nth-of-type(2),
-#tab-content-strategy .grid-cols-5 > div > span:nth-of-type(2) {
-  background-color: #ffedd5 !important; /* Warm orange tint */
-  color: #ea580c !important;
-  padding: 0.125rem 0.375rem !important;
-  border-radius: 0.25rem !important;
-  font-weight: bold !important;
-  display: inline-block !important;
+#root .sticky button:not(:first-child):hover {
+  background: var(--wm-primary-soft) !important;
+  border-color: var(--wm-line-strong) !important;
 }
 
-/* --- TAB 3: colors (SAISIE COLISAGE) --- */
-#tab-content-colors div[class*="font-mono"][class*="uppercase"] {
-  background-color: #10b981 !important; /* Emerald green */
-  border-color: #10b981 !important;
-  color: #ffffff !important;
+/* Navigation ribbons */
+#root main > div.flex-1 > div[class*="lg:flex"] {
+  background: var(--wm-surface) !important;
+  border-color: var(--wm-line) !important;
+  color: var(--wm-ink) !important;
+  box-shadow: 0 8px 24px rgba(20, 83, 45, .07) !important;
 }
-#tab-content-colors table thead th {
-  background-color: #4c70c2 !important; /* Steel-blue highlight as requested */
-  color: #f2eeee !important;
-  font-weight: 600 !important;
+#root main > div.flex-1 > div[class*="lg:flex"] button {
+  background: var(--wm-surface) !important;
+  color: var(--wm-muted) !important;
+  border-color: transparent !important;
+  isolation: isolate !important;
 }
-#tab-content-colors table thead tr th.col-sizes-cells {
-  background-color: #4c70c2 !important;
+#root main > div.flex-1 > div[class*="lg:flex"] button:hover {
+  background: var(--wm-surface-soft) !important;
+  color: var(--wm-primary-deep) !important;
+  border-color: var(--wm-line) !important;
 }
-#tab-content-colors table thead tr th.col-sizes-cells input,
-#tab-content-colors table thead tr th input {
-  background-color: #4c70c2 !important;
-  color: #ffffff !important;
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-slate-800"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-blue"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="text-\[#3b82f6\]"] {
+  background: var(--wm-primary-soft) !important;
+  color: var(--wm-primary-deep) !important;
+  border-color: var(--wm-line-strong) !important;
+  box-shadow: inset 3px 0 0 var(--wm-primary), 0 3px 10px rgba(47, 133, 90, .09) !important;
 }
-#tab-content-colors td.col-ctn-index {
-  background-color: #fef08a !important; /* Soft yellow highlight */
-  color: #854d0e !important;
-  font-weight: bold !important;
+#root main > div.flex-1 > div[class*="lg:flex"] button svg,
+#root main > div.flex-1 > div[class*="lg:flex"] button span,
+#root main > div.flex-1 > div[class*="lg:flex"] button > div:not([class*="absolute"]) {
+  position: relative !important;
+  z-index: 2 !important;
+  color: inherit !important;
 }
-
-/* --- TAB 4: packing_list (PACKING LIST) --- */
-#tab-content-packing-list div[class*="font-mono"][class*="uppercase"] {
-  background-color: #6366f1 !important; /* Royal Indigo */
-  border-color: #6366f1 !important;
-  color: #ffffff !important;
-}
-#tab-content-packing-list table thead th {
-  background-color: #e0e7ff !important; /* Indigo white tint */
-  color: #312e81 !important;
-  font-weight: 600 !important;
-}
-#tab-content-packing-list td.col-ctn-index {
-  background-color: #dbeafe !important; /* Soft blue highlight */
-  color: #1e40af !important;
-  font-weight: bold !important;
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-blue-100"],
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-blue-200"],
+#root main > div.flex-1 > div[class*="lg:flex"] [class*="text-white/40"] {
+  color: var(--wm-muted) !important;
 }
 
-/* --- TAB 5: breakdown (BREAKDOWN SUMMARY) --- */
-#tab-content-breakdown div[class*="font-mono"][class*="uppercase"] {
-  background-color: #475569 !important; /* Slate steel */
-  border-color: #475569 !important;
-  color: #ffffff !important;
+/* All cards, detail pages and tables */
+#root [id^="tab-content-"] .rounded-xl,
+#root [id^="tab-content-"] .rounded-2xl {
+  border-color: var(--wm-line) !important;
+  box-shadow: 0 6px 20px rgba(20, 83, 45, .05) !important;
 }
-#tab-content-breakdown table thead th,
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-breakdown:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1) {
-  background-color: #5febe3 !important; /* Cyan highlight */
-  color: #1a2332 !important;
-  font-weight: 600 !important;
+#root [id^="tab-content-"] table,
+#root [id^="tab-content-"] table th,
+#root [id^="tab-content-"] table td {
+  border-color: var(--wm-line) !important;
 }
-
-/* --- TAB 6: summary (RECAPITULATIF) --- */
-#tab-content-summary div[class*="font-mono"][class*="uppercase"] {
-  background-color: #0d9488 !important; /* Dark Teal */
-  border-color: #0d9488 !important;
-  color: #ffffff !important;
+#root [id^="tab-content-"] table thead th {
+  background: var(--wm-surface-soft) !important;
+  color: var(--wm-primary-deep) !important;
+  font-weight: 700 !important;
 }
-#tab-content-summary table thead th {
-  background-color: #ccfbf1 !important; /* Soft teal tint */
-  color: #115e59 !important;
-  font-weight: 600 !important;
+#root [id^="tab-content-"] label,
+#root [id^="tab-content-"] th,
+#root [id^="tab-content-"] td,
+#root [id^="tab-content-"] button {
+  text-shadow: none !important;
 }
-#tab-content-summary .grid-cols-2 > div > span:nth-of-type(2),
-#tab-content-summary .grid-cols-5 > div > span:nth-of-type(2) {
-  background-color: #ccfbf1 !important;
-  color: #0f766e !important;
-  padding: 0.125rem 0.375rem !important;
-  border-radius: 0.25rem !important;
-  font-weight: bold !important;
-  display: inline-block !important;
+#root [id^="tab-content-"] input,
+#root [id^="tab-content-"] select,
+#root [id^="tab-content-"] textarea {
+  color: var(--wm-ink) !important;
+  border-color: var(--wm-line-strong) !important;
+  background-clip: padding-box !important;
 }
-
-/* --- TAB 7: saves (SAUVEGARDES) --- */
-#tab-content-saves div[class*="font-mono"][class*="uppercase"] {
-  background-color: #2563eb !important; /* Cobalt Blue */
-  border-color: #2563eb !important;
-  color: #ffffff !important;
+#root [id^="tab-content-"] input::placeholder,
+#root [id^="tab-content-"] textarea::placeholder {
+  color: var(--wm-muted) !important;
+  opacity: 1 !important;
 }
-
-/* --- TAB 8: labels (ÉTIQUETTES PARCELLES) --- */
-#tab-content-labels div[class*="font-mono"][class*="uppercase"] {
-  background-color: #d97706 !important; /* Amber-gold */
-  border-color: #d97706 !important;
-  color: #ffffff !important;
+#root [id^="tab-content-"] input:focus,
+#root [id^="tab-content-"] select:focus,
+#root [id^="tab-content-"] textarea:focus {
+  border-color: var(--wm-primary) !important;
+  box-shadow: 0 0 0 3px var(--wm-focus) !important;
 }
 
-/* 3. Outer container of the top bar content inside sticky topbar */
-div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) {
-  background-color: #717171 !important;
-  border-radius: 0.75rem !important;
+/* Modals: readable surface, headings and actions on every dialog. */
+#root > div > div.fixed.inset-0 {
+  background: rgba(20, 83, 45, .38) !important;
+}
+#root > div > div.fixed.inset-0 > div {
+  background: var(--wm-surface) !important;
+  color: var(--wm-ink) !important;
+  border-color: var(--wm-line-strong) !important;
+  box-shadow: 0 20px 55px rgba(20, 83, 45, .18) !important;
+}
+#root > div > div.fixed.inset-0 > div h3,
+#root > div > div.fixed.inset-0 > div h4 {
+  color: var(--wm-primary-deep) !important;
+}
+#root > div > div.fixed.inset-0 > div p,
+#root > div > div.fixed.inset-0 > div label,
+#root > div > div.fixed.inset-0 > div span {
+  color: var(--wm-muted) !important;
+}
+#root > div > div.fixed.inset-0 > div input,
+#root > div > div.fixed.inset-0 > div select,
+#root > div > div.fixed.inset-0 > div textarea {
+  background: #fbfefc !important;
+  color: var(--wm-ink) !important;
+  border-color: var(--wm-line-strong) !important;
+}
+#root > div > div.fixed.inset-0 > div button {
+  color: var(--wm-primary-deep) !important;
+  border-color: var(--wm-line) !important;
+}
+#root > div > div.fixed.inset-0 > div button:hover {
+  background: var(--wm-primary-soft) !important;
+}
+#root > div > div.fixed.inset-0 > div button[class*="bg-blue"],
+#root > div > div.fixed.inset-0 > div button[class*="bg-indigo"],
+#root > div > div.fixed.inset-0 > div button[class*="bg-emerald"],
+#root > div > div.fixed.inset-0 > div button[class*="bg-amber"] {
+  background: var(--wm-primary) !important;
+  color: #fff !important;
+  border-color: var(--wm-primary) !important;
 }
 
-/* 4. Sidebar navigation container and its sidebar items/buttons (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
-  background-color: #f386ff !important;
-  color: #ffffff !important;
-  border-color: #906296 !important;
-  border-width: 1px !important;
-}
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) button {
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) button:hover {
-  background-color: rgba(255, 255, 255, 0.15) !important;
+/* Preserve React-driven dynamic fills: only lift content above decorative layers. */
+#root [id^="tab-content-"] td[style*="background-color"] input,
+#root [id^="tab-content-"] td[style*="background-color"] span,
+#root [id^="tab-content-"] td[style*="background-color"] strong {
+  position: relative !important;
+  z-index: 2 !important;
 }
 
-/* 5. Metrics card value span inside active results (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(1) > div:nth-of-type(2) > span:nth-of-type(2),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) .grid-cols-2 > div > span:nth-of-type(2),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) .grid-cols-5 > div > span:nth-of-type(2) {
-  background-color: #a2dfff !important;
-  color: #000000 !important;
-  padding: 0.125rem 0.375rem !important;
-  border-radius: 0.25rem !important;
-  font-weight: bold !important;
-  display: inline-block !important;
-}
-
-/* 6. Size headers input in active colissage tables (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) > input:nth-of-type(1),
-table thead tr th.col-sizes-cells input {
-  background-color: #dbf7d2 !important;
-  color: #1a2332 !important;
-}
-
-/* 7. New targeted table headers and related elements (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(5) > div:nth-of-type(2) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2),
-table thead th,
-table thead tr th {
-  background-color: #dbf7d2 !important;
-  color: #1a2332 !important;
-  font-weight: 600 !important;
-}
-
-/* 8. Target the tbody cell selector */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr:nth-of-type(1) > td:nth-of-type(2) {
-  /* Retains default alignment and padding for high input readability */
-}
-
-/* 9. Yellow highlight for carton index cells (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(3) > table:nth-of-type(1) > tbody:nth-of-type(1) > tr:nth-of-type(10) > td:nth-of-type(1),
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) td.col-ctn-index {
-  background-color: #fffb37 !important;
-  color: #000000 !important;
-  font-weight: bold !important;
-}
-
-/* 10. Custom strategy button style (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-strategy:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1) {
-  background-color: #d733bd !important;
-  color: #fef8f8 !important;
-}
-
-/* 11. Custom colors / input tab styling (and all that concerns it) */
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) {
-  background-color: #3eff32 !important;
-  font-weight: bold !important;
-  color: #ffffff !important;
-}
-
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
-  background-color: #bdefff !important;
-}
-
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(1) {
-  background-color: #4c70c2 !important;
-  color: #f2eeee !important;
-}
-
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th.col-sizes-cells input,
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) > input:nth-of-type(1) {
-  background-color: #4c70c2 !important;
-  color: #ffffff !important;
-}
-
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th.col-sizes-cells,
-div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div#tab-content-colors:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(4) > table:nth-of-type(1) > thead:nth-of-type(1) > tr:nth-of-type(1) > th:nth-of-type(2) {
-  background-color: #4c70c2 !important;
-}
-
-/* Global table borders color override */
-table,
-table th,
-table td,
-table tr,
-table thead,
-table tbody,
-table tfoot,
-table [class*="divide-"] > *,
-table [class*="border"] {
-  border-color: #312e2a !important;
-}
-
-/* Prevent whole page from scrolling on desktop to keep sidebar and page separated */
-@media (min-width: 1024px) {
-  html, body, #root {
-    height: 100vh !important;
-    max-height: 100vh !important;
-    overflow: hidden !important;
+@media (max-width: 1023px) {
+  #root main > div[class*="lg:hidden"] {
+    background: var(--wm-bg) !important;
+    border-color: var(--wm-line) !important;
+  }
+  #root main > div[class*="lg:hidden"] button {
+    background: var(--wm-surface) !important;
+    color: var(--wm-muted) !important;
+    border-color: var(--wm-line) !important;
+  }
+  #root main > div[class*="lg:hidden"] button[class*="bg-\[#2563eb\]"],
+  #root main > div[class*="lg:hidden"] button[class*="bg-blue"] {
+    background: var(--wm-primary) !important;
+    color: #fff !important;
+    border-color: var(--wm-primary) !important;
   }
 }
 
-
-
+@media print {
+  #root > div > div.fixed.inset-0 { display: none !important; }
+  #root [id^="tab-content-"] table thead th {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
 
