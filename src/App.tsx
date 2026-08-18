@@ -5294,11 +5294,7 @@ export default function App() {
                               const nextCarton = openRemainderCartons[activeWorkshopIndex + offset];
                               if (nextCarton) setDragActiveCartonId(nextCarton.id);
                             };
-                            const renderedRemainderCartons = cartonBuilderMode === 'drag'
-                              ? (dragWorkshopCarton ? [dragWorkshopCarton] : [])
-                              : isLargeCartonSet
-                              ? remainderCartons.filter((carton) => carton.id === dragActiveCartonId || !dragClosedCartonIds.includes(carton.id)).slice(0, 16)
-                              : remainderCartons;
+                            const renderedRemainderCartons = remainderCartons;
                             return (
                               <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
                             {cartonBuilderMode === 'drag' && (
@@ -5706,6 +5702,8 @@ export default function App() {
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
+                                                const confirmed = window.confirm(`Supprimer le carton ${cIdx + 1} ?\n\nLes pièces qu’il contient redeviendront disponibles.`);
+                                                if (!confirmed) return;
                                                 const remainingAfterDelete = (activeColorConfig.customRemainders || []).filter(item => item.id !== cc.id);
                                                 const nextColors = [...colors];
                                                 nextColors[activeColorIdx] = {
@@ -5721,10 +5719,11 @@ export default function App() {
                                                 setHasGenerated(false);
                                                 triggerToast(`🗑️ Carton ${cIdx + 1} supprimé.`, 'info');
                                               }}
-                                              className="text-red-500 hover:text-red-600 font-bold text-[10px] uppercase font-mono px-1.5 py-0.5 rounded transition-all cursor-pointer border border-red-500/10 hover:border-red-500/20 bg-red-500/5"
+                                              className="carton-builder-delete-icon text-red-500 hover:text-red-600 font-black text-lg leading-none w-7 h-7 rounded-lg transition-all cursor-pointer border border-red-500/15 hover:border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
                                               title="Supprimer ce carton"
+                                              aria-label={`Supprimer le carton ${cIdx + 1}`}
                                             >
-                                              Supprimer
+                                              ×
                                             </button>
                                           </div>
                                         </div>
