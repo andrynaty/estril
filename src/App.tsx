@@ -5255,7 +5255,12 @@ export default function App() {
                             const closedCbm = closedMetrics.reduce((sum, metric) => sum + metric.cbm, 0);
                             const closedFill = closedCapacity > 0 ? Math.min(100, Math.round((closedPieces / closedCapacity) * 100)) : 0;
                             const isLargeCartonSet = cartonBuilderMode === 'drag' && remainderCartons.length > 24;
-                            const renderedRemainderCartons = isLargeCartonSet
+                            const dragWorkshopCarton = remainderCartons.find((carton) => carton.id === dragActiveCartonId && !dragClosedCartonIds.includes(carton.id))
+                              || remainderCartons.find((carton) => !dragClosedCartonIds.includes(carton.id))
+                              || remainderCartons[0];
+                            const renderedRemainderCartons = cartonBuilderMode === 'drag'
+                              ? (dragWorkshopCarton ? [dragWorkshopCarton] : [])
+                              : isLargeCartonSet
                               ? remainderCartons.filter((carton) => carton.id === dragActiveCartonId || !dragClosedCartonIds.includes(carton.id)).slice(0, 16)
                               : remainderCartons;
                             return (
@@ -5310,6 +5315,7 @@ export default function App() {
                             {cartonBuilderMode === 'control' && (
                               <div className="carton-builder-control-note"><b>Mode contrôle :</b> les quantités restent visibles pour vérification ; utilisez les actions existantes pour corriger ou valider.</div>
                             )}
+                            <div className={cartonBuilderMode === 'drag' ? 'carton-builder-drag-layout' : ''}>
                             {(() => {
                               let totalRequired = 0;
                               let totalAllocated = 0;
@@ -5325,7 +5331,7 @@ export default function App() {
                               const totalUnallocated = Math.max(0, totalRequired - totalAllocated);
                               const allocationPercent = totalRequired > 0 ? Math.min(100, Math.round((totalAllocated / totalRequired) * 100)) : 100;
                               return (
-                                <div className="carton-builder-summary" data-carton-builder-summary="true">
+                                <div className="carton-builder-summary carton-builder-workshop-summary" data-carton-builder-summary="true">
                                   <div className="carton-builder-summary-copy">
                                     <span className="carton-builder-kicker">📦 CARTON BUILDER</span>
                                     <strong>Mélange et personnalisation des restes</strong>
@@ -5340,7 +5346,7 @@ export default function App() {
                               );
                             })()}
                             {/* 1. Recoupment table of remainder pieces */}
-                            <div className={`p-4 rounded-xl border ${darkMode ? 'bg-[#0A0A0C] border-white/5' : 'bg-white border-slate-100'}`}>
+                            <div className={`carton-builder-availability-panel p-4 rounded-xl border ${darkMode ? 'bg-[#0A0A0C] border-white/5' : 'bg-white border-slate-100'}`}>
                               <h5 className={`text-xs font-mono font-bold uppercase mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                                 📌 État des pièces restantes (Reste disponible à mixer)
                               </h5>
@@ -5387,7 +5393,7 @@ export default function App() {
                             </div>
 
                             {cartonBuilderMode === 'drag' && (
-                              <div className="carton-builder-drag-pool">
+                              <div className="carton-builder-drag-pool carton-builder-available-pool">
                                 <div className="carton-builder-drag-pool-heading">
                                   <span className="carton-builder-kicker">03 — PIÈCES DISPONIBLES</span>
                                   <strong>Glissez une taille vers un carton</strong>
@@ -5418,7 +5424,7 @@ export default function App() {
                             )}
 
                             {/* 2. Custom remainder cartons list */}
-                            <div className="space-y-4">
+                            <div className="space-y-4 carton-builder-carton-panel">
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                 <h5 className={`text-xs font-mono font-bold uppercase ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                                   📦 Vos cartons de reste personnalisés ({activeColorConfig.customRemainders?.length || 0})
@@ -5501,7 +5507,8 @@ export default function App() {
                                     </div>
                                   )}
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {renderedRemainderCartons.map((cc, cIdx) => {
+                                  {renderedRemainderCartons.map((cc) => {
+                                    const cIdx = remainderCartons.findIndex(item => item.id === cc.id);
                                     const totalPcsInCtn = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
                                     
                                     // Calculate weights and CBM for this carton
@@ -5573,7 +5580,7 @@ export default function App() {
                                           }
                                         } : undefined}
                                         onClick={() => cartonBuilderMode === 'drag' && !dragClosedCartonIds.includes(cc.id) && setDragActiveCartonId(cc.id)}
-                                        className={`p-4 rounded-xl border relative shadow-xs ${
+                                        className={`p-4 rounded-xl border relative shadow-xs carton-builder-carton-schematic ${cartonBuilderMode === 'drag' && cc.id === dragWorkshopCarton?.id ? 'carton-builder-carton-schematic-active' : ''} ${
                                         darkMode ? 'bg-[#121215] border-white/10' : 'bg-white border-slate-200'
                                       }`}>
                                         <div className="flex items-center justify-between border-b pb-2 mb-3" style={{ borderColor: darkMode ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
@@ -5972,6 +5979,7 @@ export default function App() {
                                   </div>
                                 </>
                               )}
+                            </div>
                             </div>
 
                             {/* 3. Global leftovers info */}
