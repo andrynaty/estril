@@ -456,18 +456,6 @@ export default function App() {
     }
   }, []);
 
-  // Sync theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (darkMode) {
-      root.setAttribute('data-theme', 'dark');
-      root.classList.add('dark');
-    } else {
-      root.setAttribute('data-theme', 'light');
-      root.classList.remove('dark');
-    }
-  }, [darkMode]);
-
   // Persistence for user saved snapshots database
   useEffect(() => {
     localStorage.setItem('packing_list_pro_saved_lists', JSON.stringify(savedLists));
