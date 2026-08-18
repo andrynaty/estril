@@ -5255,7 +5255,7 @@ export default function App() {
                             const closedCartons = remainderCartons.filter((carton) => dragClosedCartonIds.includes(carton.id));
                             const getCartonCapacity = (carton: CustomRemainderCarton) => {
                               const usedSizes = Object.keys(carton.sizes).filter((size) => (Number(carton.sizes[size]) || 0) > 0);
-                              return usedSizes.length > 0 ? Math.min(...usedSizes.map((size) => Number(activeColorConfig.sizes[size]?.cap || 25))) : 25;
+                              return Math.max(25, ...activeColorConfig.tailles.map((size) => Number(activeColorConfig.sizes[size]?.cap || 25)));
                             };
                             const getCartonMetrics = (carton: CustomRemainderCarton) => {
                               const pieces = Object.values(carton.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
@@ -5569,9 +5569,7 @@ export default function App() {
                                     
                                     const grossW = netW > 0 ? netW + maxCartonW : 0;
                                     const activeSizesInCarton = Object.keys(cc.sizes).filter(sz => (Number(cc.sizes[sz]) || 0) > 0);
-                                    const capacityLimit = activeSizesInCarton.length > 0
-                                      ? Math.min(...activeSizesInCarton.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)))
-                                      : 25;
+                                    const capacityLimit = Math.max(25, ...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)));
                                     const fillPercent = Math.min(100, Math.round((Number(totalPcsInCtn) / Number(capacityLimit)) * 100));
                                     const isFull = fillPercent >= 100;
                                     
@@ -5593,9 +5591,7 @@ export default function App() {
                                           const currentTotal = Object.values(cc.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
                                           const nextSizes = { ...cc.sizes, [source.size]: (Number(cc.sizes[source.size]) || 0) + source.quantity };
                                           const activeSizes = Object.keys(nextSizes).filter(sz => (Number(nextSizes[sz]) || 0) > 0);
-                                          const capacity = activeSizes.length > 0
-                                            ? Math.min(...activeSizes.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)))
-                                            : 25;
+                                          const capacity = Math.max(25, ...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)));
                                           if (currentTotal + source.quantity > capacity) {
                                             triggerToast(`❌ Capacité dépassée pour le carton ${cIdx + 1}.`, 'error');
                                             setCartonBuilderDragSource(null);
@@ -5873,8 +5869,7 @@ export default function App() {
 
                                                         if (activeSizes.length > 0) {
                                                           // Get the capacity limit for each active size in the carton
-                                                          const caps = activeSizes.map(s => activeColorConfig.sizes[s]?.cap || 25);
-                                                          const limit = Math.min(...caps);
+                                                          const limit = Math.max(25, ...activeColorConfig.tailles.map(s => activeColorConfig.sizes[s]?.cap || 25));
                                                           
                                                           // Get the prospective total pieces in this carton
                                                           const prospectiveTotal = Object.values(prospectiveSizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0) as number;
