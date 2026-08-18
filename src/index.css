@@ -973,3 +973,176 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
 #root button:disabled {
   color: inherit !important;
 }
+
+
+/* ==========================================
+   TABLE HEADERS + MODERN ACCESS SCREEN
+   ========================================== */
+
+/* Every table gets the same readable, branded header treatment. */
+#root table thead th,
+#root table thead tr th {
+  background: linear-gradient(135deg, #27764f 0%, #2f855a 100%) !important;
+  color: #ffffff !important;
+  border-color: #236b48 !important;
+  font-weight: 800 !important;
+  letter-spacing: .025em !important;
+  vertical-align: middle !important;
+  text-shadow: none !important;
+}
+#root table thead th:first-child { border-top-left-radius: 6px; }
+#root table thead th:last-child { border-top-right-radius: 6px; }
+#root table thead th input,
+#root table thead th select {
+  background: rgba(255, 255, 255, .16) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, .45) !important;
+  font-weight: 800 !important;
+}
+#root table thead th input::placeholder { color: rgba(255, 255, 255, .82) !important; }
+#root table thead th input:focus,
+#root table thead th select:focus {
+  background: rgba(255, 255, 255, .24) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .18) !important;
+}
+
+/* Keep print output neutral and readable. */
+@media print {
+  #root table thead th,
+  #root table thead tr th {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #999999 !important;
+  }
+  #root table thead th input { color: #000000 !important; background: #ffffff !important; }
+}
+
+/* Modern, calm access screen. Logic and form behaviour remain unchanged. */
+#root > div.fixed.inset-0 {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(47, 133, 90, .12), transparent 34%),
+    linear-gradient(135deg, #f5faf7 0%, #eef8f1 52%, #ffffff 100%) !important;
+}
+#root > div.fixed.inset-0 header,
+#root > div.fixed.inset-0 footer {
+  background: rgba(255, 255, 255, .78) !important;
+  backdrop-filter: blur(12px) !important;
+  border-color: rgba(47, 133, 90, .18) !important;
+  color: #527064 !important;
+}
+#root > div.fixed.inset-0 main {
+  gap: clamp(24px, 5vw, 72px) !important;
+  padding: clamp(18px, 4vw, 56px) !important;
+}
+#root > div.fixed.inset-0 main section:first-child {
+  background: transparent !important;
+  border: 0 !important;
+  justify-content: center !important;
+}
+#root > div.fixed.inset-0 main section:first-child > div.relative.z-10 {
+  max-width: 540px !important;
+}
+#root > div.fixed.inset-0 h1 {
+  font-size: clamp(3.2rem, 8vw, 7.5rem) !important;
+  line-height: .88 !important;
+  letter-spacing: -.065em !important;
+  color: #14532d !important;
+}
+#root > div.fixed.inset-0 main section:last-child {
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: 0 !important;
+  overflow: visible !important;
+}
+#root > div.fixed.inset-0 main section:last-child > div {
+  max-width: 460px !important;
+  padding: clamp(24px, 4vw, 38px) !important;
+  background: rgba(255, 255, 255, .9) !important;
+  border: 1px solid rgba(47, 133, 90, .2) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 22px 60px rgba(20, 83, 45, .12) !important;
+}
+#root > div.fixed.inset-0 main section:last-child h2 {
+  color: #14532d !important;
+  font-weight: 800 !important;
+  letter-spacing: -.035em !important;
+}
+#root > div.fixed.inset-0 main section:last-child > div > div:first-child span {
+  color: #527064 !important;
+  font-weight: 700 !important;
+}
+#root > div.fixed.inset-0 main section:last-child [class*="grid-cols-2"] {
+  padding: 4px !important;
+  background: #edf7f0 !important;
+  border: 1px solid #cfe5d5 !important;
+  border-radius: 12px !important;
+}
+#root > div.fixed.inset-0 main section:last-child [class*="grid-cols-2"] button {
+  min-height: 40px !important;
+  border-radius: 9px !important;
+  color: #527064 !important;
+  font-weight: 800 !important;
+}
+#root > div.fixed.inset-0 main section:last-child [class*="grid-cols-2"] button[class*="bg-white"] {
+  background: #2f855a !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(47, 133, 90, .18) !important;
+}
+#root > div.fixed.inset-0 main section:last-child input {
+  min-height: 48px !important;
+  border-radius: 11px !important;
+  background: #fbfefc !important;
+  border-color: #a9cfb4 !important;
+  color: #173326 !important;
+}
+#root > div.fixed.inset-0 main section:last-child input:focus {
+  border-color: #2f855a !important;
+  box-shadow: 0 0 0 4px rgba(47, 133, 90, .15) !important;
+}
+#root > div.fixed.inset-0 main section:last-child form > button {
+  min-height: 50px !important;
+  border-radius: 11px !important;
+  background: linear-gradient(135deg, #27764f, #2f855a) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(47, 133, 90, .2) !important;
+  justify-content: space-between !important;
+}
+#root > div.fixed.inset-0 main section:last-child form > button:hover {
+  background: #166534 !important;
+  transform: translateY(-1px) !important;
+}
+#root > div.fixed.inset-0 footer {
+  padding: 14px clamp(18px, 4vw, 44px) !important;
+}
+
+@media (max-width: 1023px) {
+  #root > div.fixed.inset-0 main {
+    grid-template-columns: 1fr !important;
+    overflow-y: auto !important;
+  }
+  #root > div.fixed.inset-0 main section:first-child {
+    min-height: 230px !important;
+    padding: 32px 24px !important;
+  }
+  #root > div.fixed.inset-0 main section:last-child {
+    padding: 18px 24px 36px !important;
+  }
+}
+@media (max-width: 640px) {
+  #root > div.fixed.inset-0 header,
+  #root > div.fixed.inset-0 footer {
+    font-size: 9px !important;
+    letter-spacing: .08em !important;
+  }
+  #root > div.fixed.inset-0 header {
+    padding: 12px 16px !important;
+  }
+  #root > div.fixed.inset-0 header > div:last-child { display: none !important; }
+  #root > div.fixed.inset-0 main section:first-child { min-height: 185px !important; }
+  #root > div.fixed.inset-0 main section:last-child { padding: 8px 14px 28px !important; }
+  #root > div.fixed.inset-0 main section:last-child > div { border-radius: 18px !important; padding: 22px 18px !important; }
+  #root > div.fixed.inset-0 footer { grid-template-columns: 1fr !important; gap: 7px !important; }
+  #root > div.fixed.inset-0 footer > div { justify-content: flex-start !important; text-align: left !important; }
+}
