@@ -1776,3 +1776,30 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   .carton-builder-mode-options { grid-template-columns: 1fr; }
   .carton-builder-mode-button { min-height: 46px !important; }
 }
+
+
+/* Always-visible model picker for the remainder builder */
+.carton-builder-mode-quick-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid #9fcaaa;
+  border-radius: 14px;
+  background: #f4fbf5;
+  box-shadow: 0 7px 16px rgba(22, 101, 52, .06);
+}
+.carton-builder-mode-quick-copy { display: grid; gap: 3px; }
+.carton-builder-mode-quick-copy strong { color: #166534; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.carton-builder-mode-quick-copy > span:last-child { color: #617568; font-size: 10px; }
+.carton-builder-mode-quick-options { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.carton-builder-mode-quick-button { min-height: 32px !important; padding: 7px 10px !important; border: 1px solid #b8d9c1 !important; border-radius: 8px !important; background: #ffffff !important; color: #166534 !important; font-size: 10px !important; font-weight: 800 !important; box-shadow: none !important; }
+.carton-builder-mode-quick-button:hover,
+.carton-builder-mode-quick-button.is-active { background: #2f855a !important; border-color: #2f855a !important; color: #ffffff !important; }
+@media (max-width: 800px) {
+  .carton-builder-mode-quick-pick { align-items: stretch; flex-direction: column; }
+  .carton-builder-mode-quick-options { justify-content: stretch; }
+  .carton-builder-mode-quick-button { flex: 1 1 100px; }
+}

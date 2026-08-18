@@ -5154,6 +5154,34 @@ export default function App() {
                           </label>
                         </div>
 
+                        {activeColorResult?.mode === 'mixte_autorise' && activeColorConfig.customRemaindersEnabled && (
+                          <div className="carton-builder-mode-quick-pick" aria-label="Modèle de Carton Builder">
+                            <div className="carton-builder-mode-quick-copy">
+                              <span className="carton-builder-kicker">MODÈLE À UTILISER</span>
+                              <strong>Comment voulez-vous composer vos cartons ?</strong>
+                              <span>Choisissez une méthode ; les règles de capacité restent inchangées.</span>
+                            </div>
+                            <div className="carton-builder-mode-quick-options">
+                              {([
+                                { id: 'manual', label: 'Manuel' },
+                                { id: 'balanced', label: 'Équilibré' },
+                                { id: 'assistant', label: 'Assistant' },
+                                { id: 'drag', label: 'Glisser' },
+                                { id: 'control', label: 'Contrôle' }
+                              ] as const).map((mode) => (
+                                <button
+                                  key={mode.id}
+                                  type="button"
+                                  onClick={() => setCartonBuilderMode(mode.id)}
+                                  className={`carton-builder-mode-quick-button ${cartonBuilderMode === mode.id ? 'is-active' : ''}`}
+                                >
+                                  {mode.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {activeColorResult?.mode !== 'mixte_autorise' ? (
                           <div className={`p-5 rounded-xl border border-dashed text-center space-y-3 ${
                             darkMode ? 'border-red-500/30 bg-red-500/5 text-red-400' : 'border-amber-200 bg-amber-50 text-amber-900 shadow-xs'
@@ -5178,33 +5206,6 @@ export default function App() {
                           const renderRemaindersCustomizerContent = () => {
                             return (
                               <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
-                            <div className="carton-builder-mode-switcher" role="tablist" aria-label="Mode de préparation des cartons">
-                              <div className="carton-builder-mode-heading">
-                                <span className="carton-builder-kicker">02 — MODE DE TRAVAIL</span>
-                                <strong>Choisissez votre façon de composer les cartons</strong>
-                                <span>Les mêmes règles de capacité et de validation restent actives dans chaque mode.</span>
-                              </div>
-                              <div className="carton-builder-mode-options">
-                                {([
-                                  { id: 'manual', label: 'Manuel', hint: 'Contrôle direct' },
-                                  { id: 'balanced', label: 'Équilibré', hint: 'Comparer les cartons' },
-                                  { id: 'assistant', label: 'Assistant', hint: 'Étape par étape' },
-                                  { id: 'drag', label: 'Glisser', hint: 'Déplacer les tailles' },
-                                  { id: 'control', label: 'Contrôle', hint: 'Vérifier avant validation' }
-                                ] as const).map((mode) => (
-                                  <button
-                                    key={mode.id}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={cartonBuilderMode === mode.id}
-                                    onClick={() => setCartonBuilderMode(mode.id)}
-                                    className={`carton-builder-mode-button ${cartonBuilderMode === mode.id ? 'is-active' : ''}`}
-                                  >
-                                    <b>{mode.label}</b><small>{mode.hint}</small>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
                             {cartonBuilderMode === 'drag' && (
                               <div className="carton-builder-drag-guide">
                                 <div>
