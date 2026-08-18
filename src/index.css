@@ -1362,3 +1362,53 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   color: #ffffff !important;
   border-color: #d8efe0 !important;
 }
+
+
+/* CARTON BUILDER — dynamic remainder workspace */
+[data-carton-builder="true"] {
+  --cb-green: #2f855a;
+  --cb-green-dark: #166534;
+  --cb-green-soft: #e8f5ec;
+  --cb-line: #b8d9c1;
+}
+[data-carton-builder-summary="true"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--cb-line);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f6fcf7 0%, #ffffff 68%);
+  box-shadow: 0 10px 26px rgba(22, 101, 52, .08);
+}
+.carton-builder-summary-copy { display: grid; gap: 3px; min-width: 0; }
+.carton-builder-summary-copy strong { color: var(--cb-green-dark); font-size: 14px; letter-spacing: .02em; text-transform: uppercase; }
+.carton-builder-kicker { color: var(--cb-green); font: 800 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; }
+.carton-builder-subtitle { color: #647568; font: 500 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.carton-builder-kpis { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; color: #54705d; font: 700 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.carton-builder-kpis > span:not(.carton-builder-progress-wrap) { padding: 8px 10px; border: 1px solid #d6e9da; border-radius: 10px; background: #ffffff; white-space: nowrap; }
+.carton-builder-kpis b { color: var(--cb-green-dark); font-size: 14px; }
+.carton-builder-progress-wrap { position: relative; display: inline-flex; align-items: center; min-width: 116px; height: 28px; padding: 0 9px; overflow: hidden; border: 1px solid #c7e2cc; border-radius: 10px; background: #edf7ef; color: var(--cb-green-dark); }
+.carton-builder-progress-wrap i { position: absolute; inset: 0 auto 0 0; z-index: 0; background: #a8d3b2; transition: width .25s ease; }
+.carton-builder-progress-wrap b { position: relative; z-index: 1; margin-left: auto; }
+[data-carton-builder-card="true"] { border-color: #c8dfcd !important; border-radius: 18px !important; box-shadow: 0 8px 20px rgba(22, 101, 52, .06) !important; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+[data-carton-builder-card="true"]:hover { border-color: #78b88c !important; box-shadow: 0 12px 26px rgba(22, 101, 52, .12) !important; transform: translateY(-2px); }
+[data-carton-builder-card="true"] > div:first-child { border-color: #d7eadd !important; }
+[data-carton-builder-card="true"] > div:first-child span.font-black { color: var(--cb-green-dark) !important; letter-spacing: .06em; }
+.carton-builder-card-status { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; margin: -2px 0 14px; padding: 8px 10px; border: 1px solid #e0eee3; border-radius: 10px; background: #f7fbf8; color: #64806c; font: 700 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.carton-builder-status-active, .carton-builder-status-complete { padding: 4px 7px; border-radius: 6px; font-size: 9px; letter-spacing: .08em; }
+.carton-builder-status-active { background: #fff5d9; color: #8a5b00; }
+.carton-builder-status-complete { background: #dff4e4; color: #166534; }
+.carton-builder-card-progress { height: 7px; overflow: hidden; border-radius: 999px; background: #dceee0; }
+.carton-builder-card-progress i { display: block; height: 100%; border-radius: inherit; background: #2f855a; transition: width .25s ease; }
+[data-carton-builder-card="true"] input[type="checkbox"] { accent-color: #2f855a; }
+[data-carton-builder-card="true"] input[type="text"]:focus { border-color: #2f855a !important; box-shadow: 0 0 0 3px rgba(47, 133, 90, .14) !important; }
+@media (max-width: 700px) {
+  [data-carton-builder-summary="true"] { align-items: stretch; flex-direction: column; padding: 15px; }
+  .carton-builder-kpis { justify-content: stretch; }
+  .carton-builder-kpis > span { flex: 1; text-align: center; }
+  .carton-builder-progress-wrap { min-width: 92px; }
+  .carton-builder-card-status { grid-template-columns: auto 1fr auto; }
+  .carton-builder-card-progress { grid-column: 1 / -1; grid-row: 2; }
+}

@@ -5175,7 +5175,36 @@ export default function App() {
                         ) : (() => {
                           const renderRemaindersCustomizerContent = () => {
                             return (
-                              <div className="space-y-6">
+                              <div className="space-y-6" data-carton-builder="true">
+                            {(() => {
+                              let totalRequired = 0;
+                              let totalAllocated = 0;
+                              activeColorConfig.tailles.forEach(sz => {
+                                const qTot = activeColorConfig.sizes[sz]?.qtyTot || 0;
+                                const cap = activeColorConfig.sizes[sz]?.cap || 25;
+                                const remainder = qTot - (Math.floor(qTot / cap) * cap);
+                                totalRequired += remainder;
+                                (activeColorConfig.customRemainders || []).forEach(carton => {
+                                  totalAllocated += Number(carton.sizes[sz] || 0);
+                                });
+                              });
+                              const totalUnallocated = Math.max(0, totalRequired - totalAllocated);
+                              const allocationPercent = totalRequired > 0 ? Math.min(100, Math.round((totalAllocated / totalRequired) * 100)) : 100;
+                              return (
+                                <div className="carton-builder-summary" data-carton-builder-summary="true">
+                                  <div className="carton-builder-summary-copy">
+                                    <span className="carton-builder-kicker">📦 CARTON BUILDER</span>
+                                    <strong>Mélange et personnalisation des restes</strong>
+                                    <span className="carton-builder-subtitle">Répartissez les pièces LAST avec une lecture claire et un suivi en temps réel.</span>
+                                  </div>
+                                  <div className="carton-builder-kpis">
+                                    <span><b>{totalUnallocated}</b> restantes</span>
+                                    <span><b>{activeColorConfig.customRemainders?.length || 0}</b> cartons</span>
+                                    <span className="carton-builder-progress-wrap"><i style={{ width: `${allocationPercent}%` }} /><b>{allocationPercent}%</b></span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             {/* 1. Recoupment table of remainder pieces */}
                             <div className={`p-4 rounded-xl border ${darkMode ? 'bg-[#0A0A0C] border-white/5' : 'bg-white border-slate-100'}`}>
                               <h5 className={`text-xs font-mono font-bold uppercase mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
@@ -5332,9 +5361,15 @@ export default function App() {
                                     });
                                     
                                     const grossW = netW > 0 ? netW + maxCartonW : 0;
+                                    const activeSizesInCarton = Object.keys(cc.sizes).filter(sz => (Number(cc.sizes[sz]) || 0) > 0);
+                                    const capacityLimit = activeSizesInCarton.length > 0
+                                      ? Math.min(...activeSizesInCarton.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)))
+                                      : 25;
+                                    const fillPercent = Math.min(100, Math.round((Number(totalPcsInCtn) / Number(capacityLimit)) * 100));
+                                    const isFull = fillPercent >= 100;
                                     
                                     return (
-                                      <div key={cc.id} className={`p-4 rounded-xl border relative shadow-xs ${
+                                      <div key={cc.id} data-carton-builder-card="true" className={`p-4 rounded-xl border relative shadow-xs ${
                                         darkMode ? 'bg-[#121215] border-white/10' : 'bg-white border-slate-200'
                                       }`}>
                                         <div className="flex items-center justify-between border-b pb-2 mb-3" style={{ borderColor: darkMode ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
@@ -5417,6 +5452,13 @@ export default function App() {
                                               Supprimer
                                             </button>
                                           </div>
+                                        </div>
+
+                                        <div className="carton-builder-card-status">
+                                          <span className={isFull ? 'carton-builder-status-complete' : 'carton-builder-status-active'}>{isFull ? 'COMPLET' : 'EN COURS'}</span>
+                                          <span>{totalPcsInCtn} / {capacityLimit} pièces</span>
+                                          <div className="carton-builder-card-progress"><i style={{ width: `${fillPercent}%` }} /></div>
+                                          <b>{fillPercent}%</b>
                                         </div>
 
                                         <div className="space-y-2 mb-3">
