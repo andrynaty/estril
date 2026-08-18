@@ -1934,9 +1934,12 @@ export default function App() {
   };
 
   // Generate Results Trigger
-  const handleGenerateList = () => {
-    // Intervene if any custom remainders are configured incorrectly
-    for (let i = 0; i < colors.length; i++) {
+  const handleGenerateList = (options?: { skipRemainderValidation?: boolean }) => {
+    // The Packing List ribbon can generate an informative result even when remainder cartons are incomplete.
+    // The general generation action keeps the strict validation path.
+    if (!options?.skipRemainderValidation) {
+      // Intervene if any custom remainders are configured incorrectly
+      for (let i = 0; i < colors.length; i++) {
       const color = colors[i];
       const validation = validateColorCustomRemainders(color, globalPackingMode, maxSizesPerBox);
       if (!validation.valid) {
@@ -1947,6 +1950,7 @@ export default function App() {
           errors: validation.errors
         });
         return; // BLOCK generation and show validation warning
+        }
       }
     }
 
@@ -6316,7 +6320,7 @@ export default function App() {
                         </p>
                       </div>
                       <button
-                        onClick={handleGenerateList}
+                        onClick={() => handleGenerateList({ skipRemainderValidation: true })}
                         className={`px-4 py-2 font-bold rounded-lg text-xs transition-all cursor-pointer shadow-md inline-flex items-center gap-1.5 ${
                           darkMode ? 'bg-white text-black hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800'
                         }`}
