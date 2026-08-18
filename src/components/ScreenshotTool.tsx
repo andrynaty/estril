@@ -223,61 +223,26 @@ export default function ScreenshotTool({ isCapturing, setIsCapturing, darkMode }
     // Small delay to ensure browser repoints layouts without overlay before capturing DOM
     setTimeout(async () => {
       try {
-        // Capture standard viewport/scrolled elements
-        const fullCanvas = await html2canvas(document.body, {
+        // Capture standard viewport/scrolled elements. The primary pass keeps CORS support;
+        // a minimal retry below handles browser-specific canvas invocation failures.
+        const captureOptions = {
           useCORS: true,
           allowTaint: true,
           backgroundColor: darkMode ? '#0f1117' : '#f0f2f8',
           logging: false,
-          scale: window.devicePixelRatio || 2, // Retain crystal high-dpi resolution
-          onclone: (clonedDoc) => {
-            // Compile and pre-clean all available CSS rules currently loaded in real document style sheets
-            let consolidatedCleanCss = '';
-            
-            for (let i = 0; i < document.styleSheets.length; i++) {
-              const sheet = document.styleSheets[i];
-              try {
-                const rules = sheet.cssRules || (sheet as any).rules;
-                if (rules) {
-                  let sheetCss = '';
-                  for (let j = 0; j < rules.length; j++) {
-                    sheetCss += rules[j].cssText + '\n';
-                  }
-                  consolidatedCleanCss += replaceOklchInCss(sheetCss) + '\n';
-                  
-                  // If this stylesheet references an external same-origin linked CSS stylesheet,
-                  // remove its link node from cloned element tree to prevent html2canvas's internal fetcher 
-                  // from downloading and parsing uncleaned color formats
-                  const ownerNode = sheet.ownerNode;
-                  if (ownerNode && ownerNode.nodeName === 'LINK') {
-                    const href = (ownerNode as HTMLLinkElement).getAttribute('href');
-                    if (href) {
-                      const clonedLink = clonedDoc.querySelector(`link[href="${href}"]`);
-                      if (clonedLink) {
-                        clonedLink.remove();
-                      }
-                    }
-                  }
-                }
-              } catch (e) {
-                // Cross-origin stylesheet rules are kept standard; Google Fonts references do not contain oklch/oklab
+          scale: window.devicePixelRatio || 2,
+          onclone: (clonedDoc: Document) => {
+            // Keep the cloned document's stylesheet structure intact. Reading CSSStyleSheet.cssRules
+            // can throw "Illegal invocation" in Chromium for injected or cross-origin sheets.
+            // Only sanitize styles already present in the clone; this is safe and sufficient for
+            // unsupported oklch/oklab values.
+            clonedDoc.querySelectorAll('style').forEach((styleTag) => {
+              if (styleTag.textContent) {
+                styleTag.textContent = replaceOklchInCss(styleTag.textContent);
               }
-            }
-
-            // Remove all source style tags to eliminate duplication or conflict
-            const originalStyleTags = clonedDoc.querySelectorAll('style');
-            originalStyleTags.forEach((styleTag) => {
-              styleTag.remove();
             });
 
-            // Append our pristine consolidated inlined style tag
-            const cleanStyleTag = clonedDoc.createElement('style');
-            cleanStyleTag.textContent = consolidatedCleanCss;
-            clonedDoc.head.appendChild(cleanStyleTag);
-
-            // Strip any unsupported inline styles from individual elements
-            const elementsWithStyles = clonedDoc.querySelectorAll('[style]');
-            elementsWithStyles.forEach((el) => {
+            clonedDoc.querySelectorAll('[style]').forEach((el) => {
               const htmlEl = el as HTMLElement;
               const currentStyle = htmlEl.getAttribute('style');
               if (currentStyle && (currentStyle.includes('oklch') || currentStyle.includes('oklab'))) {
@@ -285,7 +250,19 @@ export default function ScreenshotTool({ isCapturing, setIsCapturing, darkMode }
               }
             });
           }
-        });
+        } as const;
+
+        let fullCanvas: HTMLCanvasElement;
+        try {
+          fullCanvas = await html2canvas(document.body, captureOptions);
+        } catch (firstError) {
+          console.warn('Capture primary pass failed; retrying with minimal browser-safe options.', firstError);
+          fullCanvas = await html2canvas(document.body, {
+            backgroundColor: darkMode ? '#0f1117' : '#f0f2f8',
+            logging: false,
+            scale: window.devicePixelRatio || 2
+          });
+        }
 
         // Exact compensation matching viewport positions (inclusive of scroll)
         const scale = window.devicePixelRatio || 2;
