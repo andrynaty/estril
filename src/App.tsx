@@ -5255,9 +5255,17 @@ export default function App() {
                             const closedCbm = closedMetrics.reduce((sum, metric) => sum + metric.cbm, 0);
                             const closedFill = closedCapacity > 0 ? Math.min(100, Math.round((closedPieces / closedCapacity) * 100)) : 0;
                             const isLargeCartonSet = cartonBuilderMode === 'drag' && remainderCartons.length > 24;
-                            const dragWorkshopCarton = remainderCartons.find((carton) => carton.id === dragActiveCartonId && !dragClosedCartonIds.includes(carton.id))
-                              || remainderCartons.find((carton) => !dragClosedCartonIds.includes(carton.id))
+                            const openRemainderCartons = remainderCartons.filter((carton) => !dragClosedCartonIds.includes(carton.id));
+                            const dragWorkshopCarton = openRemainderCartons.find((carton) => carton.id === dragActiveCartonId)
+                              || openRemainderCartons[0]
                               || remainderCartons[0];
+                            const activeWorkshopIndex = dragWorkshopCarton ? openRemainderCartons.findIndex((carton) => carton.id === dragWorkshopCarton.id) : -1;
+                            const canGoPreviousCarton = activeWorkshopIndex > 0;
+                            const canGoNextCarton = activeWorkshopIndex >= 0 && activeWorkshopIndex < openRemainderCartons.length - 1;
+                            const moveWorkshopCarton = (offset: number) => {
+                              const nextCarton = openRemainderCartons[activeWorkshopIndex + offset];
+                              if (nextCarton) setDragActiveCartonId(nextCarton.id);
+                            };
                             const renderedRemainderCartons = cartonBuilderMode === 'drag'
                               ? (dragWorkshopCarton ? [dragWorkshopCarton] : [])
                               : isLargeCartonSet
@@ -5278,8 +5286,13 @@ export default function App() {
                                 <div className="carton-builder-sequence-bar">
                                   <div className="carton-builder-sequence-copy">
                                     <span className="carton-builder-kicker">ÉTAPE ACTIVE</span>
-                                    <strong>{dragActiveCartonId ? `Carton ${Math.max(1, (activeColorConfig.customRemainders || []).findIndex(item => item.id === dragActiveCartonId) + 1)}` : 'Créez votre premier carton'}</strong>
+                                    <strong>{dragWorkshopCarton ? `Carton ${Math.max(1, (activeColorConfig.customRemainders || []).findIndex(item => item.id === dragWorkshopCarton.id) + 1)}` : 'Créez votre premier carton'}</strong>
                                     <span>{dragClosedCartonIds.length} carton(s) fermé(s) · {Math.max(0, (activeColorConfig.customRemainders?.length || 0) - dragClosedCartonIds.length)} à préparer</span>
+                                  </div>
+                                  <div className="carton-builder-carton-navigation" aria-label="Navigation entre cartons">
+                                    <button type="button" onClick={() => moveWorkshopCarton(-1)} disabled={!canGoPreviousCarton} className="carton-builder-nav-button">← Précédent</button>
+                                    <span>{activeWorkshopIndex >= 0 ? `${activeWorkshopIndex + 1} / ${openRemainderCartons.length}` : '—'}</span>
+                                    <button type="button" onClick={() => moveWorkshopCarton(1)} disabled={!canGoNextCarton} className="carton-builder-nav-button">Suivant →</button>
                                   </div>
                                   <label className="carton-builder-auto-close-toggle">
                                     <input type="checkbox" checked={dragAutoClose} onChange={(e) => setDragAutoClose(e.target.checked)} />
@@ -5347,11 +5360,15 @@ export default function App() {
                             })()}
                             {/* 1. Recoupment table of remainder pieces */}
                             <div className={`carton-builder-availability-panel p-4 rounded-xl border ${darkMode ? 'bg-[#0A0A0C] border-white/5' : 'bg-white border-slate-100'}`}>
-                              <h5 className={`text-xs font-mono font-bold uppercase mb-3 ${darkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                                📌 État des pièces restantes (Reste disponible à mixer)
-                              </h5>
+                              <div className="carton-builder-remaining-heading">
+                                <div>
+                                  <span className="carton-builder-kicker">01 — DISPONIBILITÉ</span>
+                                  <h5>📌 Pièces restantes à mixer</h5>
+                                </div>
+                                <span>Reste disponible par taille</span>
+                              </div>
                               
-                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                              <div className="carton-builder-remaining-grid">
                                 {activeColorConfig.tailles.map(sz => {
                                   const qTot = activeColorConfig.sizes[sz]?.qtyTot || 0;
                                   const cap = activeColorConfig.sizes[sz]?.cap || 25;
@@ -5366,26 +5383,22 @@ export default function App() {
                                   const unallocated = r - allocated;
                                   
                                   return (
-                                    <div key={sz} className={`p-3 rounded-lg border text-xs font-mono flex flex-col justify-between ${
+                                    <div key={sz} className={`carton-builder-remaining-item p-3 rounded-lg border text-xs font-mono flex flex-col justify-between ${
                                       unallocated < 0 
                                         ? (darkMode ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-700')
                                         : unallocated === 0
                                         ? (darkMode ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700')
                                         : (darkMode ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-700')
                                     }`}>
-                                      <div className="font-bold border-b pb-1 mb-1 flex items-center justify-between" style={{ borderColor: 'currentColor' }}>
-                                        <span>Taille {sz}</span>
-                                        <span className="font-mono text-[10px]">Requis: <b>{r} pcs</b></span>
-                                      </div>
-                                      <div className="space-y-1 text-[10px] opacity-90 mt-1">
-                                        <div className="text-[9px] uppercase tracking-wider opacity-75">
-                                          ({r > 0 ? numberToFrenchWords(r) : 'zéro'} {r > 1 ? 'pièces' : 'pièce'})
+                                        <div className="carton-builder-remaining-item-title">
+                                          <b>{sz}</b>
+                                          <span>{r} reste{r > 1 ? 's' : ''}</span>
                                         </div>
-                                        <div className="border-t pt-1 mt-1 border-dotted" style={{ borderColor: 'currentColor' }}>
-                                          <div>Alloué : <b>{allocated} pcs</b> ({numberToFrenchWords(allocated)})</div>
-                                          <div>Restant : <b className={unallocated !== 0 ? "font-black" : ""}>{unallocated} pcs</b></div>
+                                        <div className="carton-builder-remaining-item-stats">
+                                          <span>Alloué <b>{allocated}</b></span>
+                                          <span className={unallocated !== 0 ? 'is-pending' : ''}>Disponible <b>{Math.max(0, unallocated)}</b></span>
                                         </div>
-                                      </div>
+                                        <div className="carton-builder-remaining-progress"><i style={{ width: `${r > 0 ? Math.min(100, Math.round((allocated / r) * 100)) : 100}%` }} /></div>
                                     </div>
                                   );
                                 })}
@@ -5748,8 +5761,8 @@ export default function App() {
                                           </div>
                                         )}
 
-                                        <div className="space-y-2 mb-3">
-                                          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">Quantités par taille :</span>
+                                        <div className="space-y-2 mb-3 carton-builder-legacy-size-grid">
+                                          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block">Quantités détaillées :</span>
                                           <div className="grid grid-cols-2 gap-2">
                                             {activeColorConfig.tailles.map(sz => {
                                               const qTot = activeColorConfig.sizes[sz]?.qtyTot || 0;
@@ -5965,7 +5978,7 @@ export default function App() {
                                         </div>
 
                                         {/* Carton metrics */}
-                                        <div className={`p-2.5 rounded-lg text-[10px] font-mono grid grid-cols-2 gap-1.5 mt-2 ${
+                                        <div className={`carton-builder-metrics p-2.5 rounded-lg text-[10px] font-mono grid grid-cols-2 gap-1.5 mt-2 ${
                                           darkMode ? 'bg-white/5 text-slate-400' : 'bg-slate-50 text-slate-600'
                                         }`}>
                                           <div>Pièces : <b className={darkMode ? 'text-white' : 'text-slate-900'}>{totalPcsInCtn} pcs</b></div>
