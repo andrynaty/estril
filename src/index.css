@@ -2218,3 +2218,64 @@ button.bg-emerald-500:active, button.bg-emerald-600:active, button.bg-green-600:
 /* Suppression globale du récapitulatif détaillé CBM / poids dans le Carton Builder */
 [data-carton-builder="true"] .carton-builder-metrics { display: none !important; }
 [data-carton-builder="true"] .carton-builder-carton-schematic-active { grid-template-columns: 1fr !important; }
+
+
+/* ==========================================
+   RUBA GREEN PROFESSIONAL PALETTE — FINAL
+   ========================================== */
+:root {
+  --ruba-bg: #f3faf5;
+  --ruba-surface: #ffffff;
+  --ruba-surface-soft: #eaf6ee;
+  --ruba-ink: #143c2a;
+  --ruba-muted: #4f6f5c;
+  --ruba-line: #cfe5d4;
+  --ruba-line-strong: #a9cfb4;
+  --ruba-primary: #168a5a;
+  --ruba-primary-dark: #0f623f;
+  --ruba-primary-soft: #e2f4e7;
+  --ruba-teal: #087f72;
+  --ruba-shadow: 0 8px 24px rgba(22, 107, 70, .08);
+  --ruba-shadow-lg: 0 16px 40px rgba(22, 107, 70, .12);
+}
+
+html, body, #root, .dark, .dark body, .dark #root { background: #f3faf5 !important; color: #143c2a !important; }
+#root > div > div.sticky { background: linear-gradient(90deg, #ffffff 0%, #f0faf3 100%) !important; border-bottom-color: #b8d9c1 !important; box-shadow: 0 5px 18px rgba(22,107,70,.10) !important; }
+#root .sticky .rounded-xl.border { border-color: #b8d9c1 !important; background: #ffffff !important; }
+#root .sticky button:first-child { background: #168a5a !important; border-color: #168a5a !important; box-shadow: 0 5px 14px rgba(22,138,90,.22) !important; }
+#root .sticky button:not(:first-child):hover { background: #e2f4e7 !important; border-color: #8fc5a0 !important; color: #0f623f !important; }
+
+/* Coloured ribbon blocks */
+#root main > div.flex-1 > div[class*="lg:flex"] { background: linear-gradient(135deg, #ffffff 0%, #edf8f0 100%) !important; border-color: #b8d9c1 !important; box-shadow: 0 8px 24px rgba(22,107,70,.10) !important; }
+#root main > div.flex-1 > div[class*="lg:flex"] button { color: #3e654f !important; border-color: #d0e6d5 !important; }
+#root main > div.flex-1 > div[class*="lg:flex"] button:hover { background: #e5f5e9 !important; border-color: #8fc5a0 !important; color: #0f623f !important; }
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-slate-800"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-blue"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="text-\\[#3b82f6\\]"] { background: #dcefe2 !important; color: #0f623f !important; border-color: #78b98c !important; box-shadow: inset 3px 0 0 #168a5a, 0 4px 12px rgba(22,138,90,.12) !important; }
+
+/* Global data surfaces */
+#root [id^="tab-content-"] .rounded-xl, #root [id^="tab-content-"] .rounded-2xl { border-color: #cfe5d4 !important; box-shadow: 0 7px 22px rgba(22,107,70,.07) !important; }
+#root [id^="tab-content-"] table { border-color: #b8d9c1 !important; }
+#root [id^="tab-content-"] table thead th { background: #237b52 !important; color: #ffffff !important; border-color: #17613f !important; }
+#root [id^="tab-content-"] table tbody tr:nth-child(even) { background: #f2faf4 !important; }
+#root [id^="tab-content-"] table tbody tr:hover { background: #e2f4e7 !important; }
+#root input, #root select, #root textarea { border-color: #a9cfb4 !important; background: #ffffff !important; }
+#root input:focus, #root select:focus, #root textarea:focus { border-color: #168a5a !important; box-shadow: 0 0 0 3px rgba(22,138,90,.16) !important; }
+
+/* Buttons: clear primary / secondary / warning hierarchy */
+#root button[class*="bg-emerald"], #root button[class*="bg-green"], #root button[class*="bg-blue"], #root button[class*="bg-indigo"] { border-color: #168a5a !important; }
+#root button[class*="bg-emerald"], #root button[class*="bg-green"] { background: #168a5a !important; color: #ffffff !important; }
+#root button[class*="bg-emerald"]:hover, #root button[class*="bg-green"]:hover { background: #0f623f !important; }
+#root button[class*="bg-amber"] { background: #c78112 !important; color: #ffffff !important; border-color: #a86d0c !important; }
+#root button[class*="bg-rose"], #root button[class*="bg-red"] { background: #c54b5d !important; color: #ffffff !important; border-color: #a83d4d !important; }
+#root button[class*="bg-rose"]:hover, #root button[class*="bg-red"]:hover { background: #9e3042 !important; }
+
+/* Section headers and active cards */
+#root [class*="bg-purple-500\\/5"], #root [class*="bg-blue-500\\/5"], #root [class*="bg-indigo-500\\/5"] { background: #e2f4e7 !important; border-color: #a9cfb4 !important; }
+#root .carton-builder-carton-schematic-active { border-color: #168a5a !important; background: linear-gradient(145deg, #f4fcf6, #e1f3e6) !important; }
+#root .carton-builder-card-closed { border-color: #8fc5a0 !important; background: #eef9f1 !important; }
+
+@media (prefers-reduced-motion: no-preference) {
+  #root [id^="tab-content-"] .rounded-xl, #root [id^="tab-content-"] .rounded-2xl { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+  #root [id^="tab-content-"] .rounded-xl:hover, #root [id^="tab-content-"] .rounded-2xl:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(22,107,70,.12) !important; }
+}

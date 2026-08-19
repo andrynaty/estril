@@ -4160,9 +4160,12 @@ export default function App() {
                           <button
                             key={num}
                             onClick={() => {
+                              const wasGenerated = hasGenerated;
                               setMaxSizesPerBox(num);
-                              setHasGenerated(false);
-                              if (hasGenerated) {
+                              localStorage.setItem('packing_list_pro_current_maxSizesPerBox', String(num));
+                              setCartonLimitError(null);
+                              triggerToast(`📦 Stratégie appliquée : ${num === 99 ? 'toutes les tailles' : `${num} tailles maximum`} par carton mixte.`, 'success');
+                              if (wasGenerated) {
                                 autoRecalculateResults(globalPackingMode, forceSingleCarton, num, forceSubCapSolidInMixed, colors);
                               }
                             }}
