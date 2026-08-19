@@ -2146,7 +2146,7 @@ export function validateColorCustomRemainders(
 
     if (activeSizes.length > 0) {
       // Use the global reference capacity: the largest configured PCS quota applies to a mixed carton.
-      const limit = Math.max(25, ...colorConfig.tailles.map(s => Number(colorConfig.sizes[s]?.cap || 25)));
+      const limit = colorConfig.tailles.length > 0 ? Math.max(...colorConfig.tailles.map(s => Number(colorConfig.sizes[s]?.cap || 25))) : 25;
       
       const totalPcs = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
       if (totalPcs > limit) {

@@ -5259,7 +5259,7 @@ export default function App() {
                             const closedCartons = remainderCartons.filter((carton) => dragClosedCartonIds.includes(carton.id));
                             const getCartonCapacity = (carton: CustomRemainderCarton) => {
                               const usedSizes = Object.keys(carton.sizes).filter((size) => (Number(carton.sizes[size]) || 0) > 0);
-                              return Math.max(25, ...activeColorConfig.tailles.map((size) => Number(activeColorConfig.sizes[size]?.cap || 25)));
+                              return activeColorConfig.tailles.length > 0 ? Math.max(...activeColorConfig.tailles.map((size) => Number(activeColorConfig.sizes[size]?.cap || 25))) : 25;
                             };
                             const getCartonMetrics = (carton: CustomRemainderCarton) => {
                               const pieces = Object.values(carton.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
@@ -5298,7 +5298,14 @@ export default function App() {
                               const nextCarton = openRemainderCartons[activeWorkshopIndex + offset];
                               if (nextCarton) setDragActiveCartonId(nextCarton.id);
                             };
-                            const renderedRemainderCartons = remainderCartons;
+                            const renderedRemainderCartons = [...remainderCartons].sort((a, b) => {
+                              const aActive = a.id === dragActiveCartonId ? 0 : 1;
+                              const bActive = b.id === dragActiveCartonId ? 0 : 1;
+                              if (aActive !== bActive) return aActive - bActive;
+                              const aClosed = dragClosedCartonIds.includes(a.id) ? 1 : 0;
+                              const bClosed = dragClosedCartonIds.includes(b.id) ? 1 : 0;
+                              return aClosed - bClosed;
+                            });
                             return (
                               <div className="space-y-6" data-carton-builder="true" data-carton-builder-mode={cartonBuilderMode}>
                             {cartonBuilderMode === 'drag' && (
@@ -5436,7 +5443,7 @@ export default function App() {
                             {cartonBuilderMode === 'drag' && (
                               <div className="carton-builder-drag-pool carton-builder-available-pool">
                                 <div className="carton-builder-drag-pool-heading">
-                                  <span className="carton-builder-kicker">03 — PIÈCES DISPONIBLES</span>
+                                  <span className="carton-builder-kicker">STOCK PAR TAILLE</span>
                                   <strong>Glissez une taille vers un carton</strong>
                                 </div>
                                 <div className="carton-builder-drag-pool-items">
@@ -5547,7 +5554,7 @@ export default function App() {
                                       <b>Vue optimisée :</b> {remainderCartons.length} cartons sont gérés sans afficher toutes les cartes simultanément. Le carton actif, les cartons ouverts prioritaires et les statistiques globales restent disponibles.
                                     </div>
                                   )}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 carton-builder-cards-grid">
                                   {renderedRemainderCartons.map((cc) => {
                                     const cIdx = remainderCartons.findIndex(item => item.id === cc.id);
                                     const totalPcsInCtn = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
@@ -5569,7 +5576,7 @@ export default function App() {
                                     
                                     const grossW = netW > 0 ? netW + maxCartonW : 0;
                                     const activeSizesInCarton = Object.keys(cc.sizes).filter(sz => (Number(cc.sizes[sz]) || 0) > 0);
-                                    const capacityLimit = Math.max(25, ...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)));
+                                    const capacityLimit = activeColorConfig.tailles.length > 0 ? Math.max(...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25))) : 25;
                                     const fillPercent = Math.min(100, Math.round((Number(totalPcsInCtn) / Number(capacityLimit)) * 100));
                                     const isFull = fillPercent >= 100;
                                     
@@ -5577,6 +5584,7 @@ export default function App() {
                                       <div
                                         key={cc.id}
                                         data-carton-builder-card="true"
+                                        data-carton-status={dragClosedCartonIds.includes(cc.id) ? 'closed' : (cc.id === dragWorkshopCarton?.id ? 'active' : 'open')}
                                         onDragOver={cartonBuilderMode === 'drag' ? (e) => e.preventDefault() : undefined}
                                         onDrop={cartonBuilderMode === 'drag' ? (e) => {
                                           e.preventDefault();
@@ -5591,7 +5599,7 @@ export default function App() {
                                           const currentTotal = Object.values(cc.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
                                           const nextSizes = { ...cc.sizes, [source.size]: (Number(cc.sizes[source.size]) || 0) + source.quantity };
                                           const activeSizes = Object.keys(nextSizes).filter(sz => (Number(nextSizes[sz]) || 0) > 0);
-                                          const capacity = Math.max(25, ...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)));
+                                          const capacity = activeColorConfig.tailles.length > 0 ? Math.max(...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25))) : 25;
                                           if (currentTotal + source.quantity > capacity) {
                                             triggerToast(`❌ Capacité dépassée pour le carton ${cIdx + 1}.`, 'error');
                                             setCartonBuilderDragSource(null);
@@ -5617,7 +5625,7 @@ export default function App() {
                                           }
                                         } : undefined}
                                         onClick={() => cartonBuilderMode === 'drag' && !dragClosedCartonIds.includes(cc.id) && setDragActiveCartonId(cc.id)}
-                                        className={`p-4 rounded-xl border relative shadow-xs carton-builder-carton-schematic ${cartonBuilderMode === 'drag' && cc.id === dragWorkshopCarton?.id ? 'carton-builder-carton-schematic-active' : ''} ${
+                                        className={`p-4 rounded-xl border relative shadow-xs carton-builder-carton-schematic ${cartonBuilderMode === 'drag' && cc.id === dragWorkshopCarton?.id ? 'carton-builder-carton-schematic-active carton-builder-card-active' : ''} ${cartonBuilderMode === 'drag' && dragClosedCartonIds.includes(cc.id) ? 'carton-builder-card-closed' : ''} ${
                                         darkMode ? 'bg-[#121215] border-white/10' : 'bg-white border-slate-200'
                                       }`}>
                                         <div className="flex items-center justify-between border-b pb-2 mb-3" style={{ borderColor: darkMode ? 'rgba(255,255,255,0.05)' : '#f1f5f9' }}>
