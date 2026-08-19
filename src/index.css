@@ -2037,3 +2037,21 @@ body { font-family: Inter, ui-sans-serif, system-ui, sans-serif !important; }
   [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-card-status > .carton-builder-card-progress { grid-column: 1 / -1; grid-row: 2; }
   [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-card-status > b { grid-column: 2; grid-row: 2; }
 }
+
+
+/* Filtres de vue et mode Focus carton */
+.carton-builder-view-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 2px; padding: 8px; border: 1px solid #d5e8d9; border-radius: 12px; background: #f8fdf9; }
+.carton-builder-view-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.carton-builder-view-filter, .carton-builder-focus-toggle { min-height: 30px; padding: 6px 10px; border: 1px solid #c9e4cf; border-radius: 8px; background: #fff; color: #53705c; font: 800 10px ui-monospace, monospace; cursor: pointer; transition: all .18s ease; }
+.carton-builder-view-filter span { display: inline-grid; min-width: 18px; height: 18px; place-items: center; margin-left: 3px; border-radius: 999px; background: #e6f4e9; color: #166534; }
+.carton-builder-view-filter:hover, .carton-builder-focus-toggle:hover { border-color: #2f855a; color: #166534; background: #f1fbf3; }
+.carton-builder-view-filter.is-active, .carton-builder-focus-toggle.is-active { border-color: #2f855a; background: #2f855a; color: #fff; box-shadow: 0 4px 10px rgba(47,133,90,.18); }
+.carton-builder-view-filter.is-active span { background: rgba(255,255,255,.24); color: #fff; }
+.carton-builder-focus-toggle { white-space: nowrap; border-color: #9fcaaa; color: #166534; }
+[data-carton-builder-mode="drag"]:has(.carton-builder-focus-toggle.is-active) .carton-builder-available-pool { border-color: #2f855a; box-shadow: 0 0 0 3px rgba(47,133,90,.08), 0 12px 26px rgba(22,101,52,.08); }
+[data-carton-builder-mode="drag"]:has(.carton-builder-focus-toggle.is-active) .carton-builder-carton-panel { max-width: 980px; margin-inline: auto; width: 100%; }
+@media (max-width: 640px) {
+  .carton-builder-view-toolbar { align-items: stretch; flex-direction: column; }
+  .carton-builder-view-filters { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .carton-builder-view-filter, .carton-builder-focus-toggle { width: 100%; }
+}

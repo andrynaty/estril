@@ -240,6 +240,8 @@ export default function App() {
   const [dragAutoAdvance, setDragAutoAdvance] = useState(false);
   const [dragActiveCartonId, setDragActiveCartonId] = useState<string | null>(null);
   const [dragClosedCartonIds, setDragClosedCartonIds] = useState<string[]>([]);
+  const [cartonViewFilter, setCartonViewFilter] = useState<'all' | 'review' | 'ready'>('all');
+  const [isCartonFocusMode, setIsCartonFocusMode] = useState(false);
 
   useEffect(() => {
     if (cartonBuilderMode !== 'drag') return;
@@ -5298,7 +5300,14 @@ export default function App() {
                               const nextCarton = openRemainderCartons[activeWorkshopIndex + offset];
                               if (nextCarton) setDragActiveCartonId(nextCarton.id);
                             };
-                            const renderedRemainderCartons = [...remainderCartons].sort((a, b) => {
+                            const filteredRemainderCartons = remainderCartons.filter((carton) => {
+                              if (isCartonFocusMode) return carton.id === dragWorkshopCarton?.id;
+                              if (cartonViewFilter === 'all') return true;
+                              const metrics = getCartonMetrics(carton);
+                              const isClosed = dragClosedCartonIds.includes(carton.id);
+                              return cartonViewFilter === 'ready' ? (isClosed || metrics.fill >= 100) : (!isClosed && metrics.fill < 100);
+                            });
+                            const renderedRemainderCartons = [...filteredRemainderCartons].sort((a, b) => {
                               const aActive = a.id === dragActiveCartonId ? 0 : 1;
                               const bActive = b.id === dragActiveCartonId ? 0 : 1;
                               if (aActive !== bActive) return aActive - bActive;
@@ -5540,6 +5549,34 @@ export default function App() {
                                   )}
                                 </div>
                               </div>
+
+                              {cartonBuilderMode === 'drag' && remainderCartons.length > 0 && (
+                                <div className="carton-builder-view-toolbar" role="toolbar" aria-label="Vues des cartons">
+                                  <div className="carton-builder-view-filters">
+                                    {([
+                                      ['all', 'Tous', remainderCartons.length],
+                                      ['review', 'À vérifier', remainderCartons.filter((carton) => !dragClosedCartonIds.includes(carton.id) && getCartonMetrics(carton).fill < 100).length],
+                                      ['ready', 'Prêts', remainderCartons.filter((carton) => dragClosedCartonIds.includes(carton.id) || getCartonMetrics(carton).fill >= 100).length]
+                                    ] as const).map(([filter, label, count]) => (
+                                      <button
+                                        key={filter}
+                                        type="button"
+                                        onClick={() => { setCartonViewFilter(filter); setIsCartonFocusMode(false); }}
+                                        className={`carton-builder-view-filter ${cartonViewFilter === filter && !isCartonFocusMode ? 'is-active' : ''}`}
+                                      >
+                                        {label} <span>{count}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsCartonFocusMode((current) => !current)}
+                                    className={`carton-builder-focus-toggle ${isCartonFocusMode ? 'is-active' : ''}`}
+                                  >
+                                    {isCartonFocusMode ? '↩ Vue complète' : '⛶ Focus carton'}
+                                  </button>
+                                </div>
+                              )}
 
                               {(!activeColorConfig.customRemainders || activeColorConfig.customRemainders.length === 0) ? (
                                 <div className={`p-6 rounded-xl border border-dashed text-center space-y-2 ${darkMode ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
