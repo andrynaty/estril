@@ -5880,7 +5880,7 @@ export default function App() {
 
                                                         if (activeSizes.length > 0) {
                                                           // Get the capacity limit for each active size in the carton
-                                                          const limit = Math.max(25, ...activeColorConfig.tailles.map(s => activeColorConfig.sizes[s]?.cap || 25));
+                                                          const limit = activeColorConfig.tailles.length > 0 ? Math.max(...activeColorConfig.tailles.map(s => Number(activeColorConfig.sizes[s]?.cap || 25))) : 25;
                                                           
                                                           // Get the prospective total pieces in this carton
                                                           const prospectiveTotal = Object.values(prospectiveSizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0) as number;
