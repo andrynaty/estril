@@ -5636,6 +5636,11 @@ export default function App() {
                                           const currentTotal = Object.values(cc.sizes).reduce((sum: number, value: any) => sum + (Number(value) || 0), 0);
                                           const nextSizes = { ...cc.sizes, [source.size]: (Number(cc.sizes[source.size]) || 0) + source.quantity };
                                           const activeSizes = Object.keys(nextSizes).filter(sz => (Number(nextSizes[sz]) || 0) > 0);
+                                          if (activeSizes.length > maxSizesPerBox) {
+                                            triggerToast(`❌ Limite atteinte : ce carton accepte au maximum ${maxSizesPerBox === 99 ? 'toutes les tailles' : `${maxSizesPerBox} tailles différentes`}.`, 'error');
+                                            setCartonBuilderDragSource(null);
+                                            return;
+                                          }
                                           const capacity = activeColorConfig.tailles.length > 0 ? Math.max(...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25))) : 25;
                                           if (currentTotal + source.quantity > capacity) {
                                             triggerToast(`❌ Capacité dépassée pour le carton ${cIdx + 1}.`, 'error');
