@@ -234,7 +234,7 @@ export default function App() {
     return (localStorage.getItem('packing_list_pro_remainders_display_mode') as 'inline' | 'popup') || 'inline';
   });
   const [isRemaindersModalOpen, setIsRemaindersModalOpen] = useState<boolean>(false);
-  const [cartonBuilderMode, setCartonBuilderMode] = useState<'manual' | 'balanced' | 'assistant' | 'drag' | 'control'>('manual');
+  const [cartonBuilderMode, setCartonBuilderMode] = useState<'manual' | 'balanced' | 'assistant' | 'drag' | 'control'>('drag');
   const [cartonBuilderDragSource, setCartonBuilderDragSource] = useState<{ size: string; quantity: number } | null>(null);
   const [dragAutoClose, setDragAutoClose] = useState(false);
   const [dragAutoAdvance, setDragAutoAdvance] = useState(false);

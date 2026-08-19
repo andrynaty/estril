@@ -2199,3 +2199,22 @@ button.bg-emerald-500:active, button.bg-emerald-600:active, button.bg-green-600:
   .carton-builder-final-recap-row.is-header > :nth-child(5) { grid-column: 3; grid-row: 2; }
   .carton-builder-recap-open { justify-self: start; }
 }
+
+
+/* Carton Builder — mode Glisser compact, sans bloc métrique détaillé */
+[data-carton-builder-mode="drag"] .carton-builder-carton-schematic .carton-builder-metrics { display: none !important; }
+[data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active { grid-template-columns: 1fr !important; padding: 11px !important; border: 2px solid #55a875 !important; background: linear-gradient(145deg, #f3fbf5 0%, #e7f6eb 100%) !important; box-shadow: 0 12px 26px rgba(22,107,70,.13) !important; }
+[data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-current-details { grid-column: 1 !important; min-height: 120px; padding: 11px !important; border: 1px solid #b8d9c1; border-radius: 11px; background: #ffffff; }
+[data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-card-status { grid-column: 1 !important; background: #dff3e5 !important; border-color: #9fcaaa !important; }
+[data-carton-builder-mode="drag"] .carton-builder-carton-schematic:not(.carton-builder-carton-schematic-active) { border-color: #c9e4cf !important; background: #fbfefb !important; }
+[data-carton-builder-mode="drag"] .carton-builder-card-closed { border-color: #b8d9c1 !important; background: #eef9f1 !important; }
+[data-carton-builder-mode="drag"] .carton-builder-cards-grid { gap: 9px !important; }
+[data-carton-builder-mode="drag"] .carton-builder-carton-schematic > .flex { margin-bottom: 7px !important; padding-bottom: 7px !important; }
+[data-carton-builder-mode="drag"] .carton-builder-piece-row { border-color: #d5e8d9 !important; background: #f7fcf8 !important; }
+[data-carton-builder-mode="drag"] .carton-builder-current-details-heading { color: #166534 !important; }
+[data-carton-builder-mode="drag"] .carton-builder-carton-panel > .flex h5 { color: #116b46 !important; }
+
+
+/* Suppression globale du récapitulatif détaillé CBM / poids dans le Carton Builder */
+[data-carton-builder="true"] .carton-builder-metrics { display: none !important; }
+[data-carton-builder="true"] .carton-builder-carton-schematic-active { grid-template-columns: 1fr !important; }
