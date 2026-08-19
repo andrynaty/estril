@@ -6123,6 +6123,66 @@ export default function App() {
                                 );
                               }
                             })()}
+
+                            {/* 4. Final carton-by-size recap */}
+                            {(() => {
+                              const cartons = activeColorConfig.customRemainders || [];
+                              const cartonCapacity = activeColorConfig.tailles.length > 0
+                                ? Math.max(...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25)))
+                                : 25;
+                              const sizeLimitLabel = maxSizesPerBox === 99 ? 'Toutes les tailles' : `${maxSizesPerBox} tailles max`;
+                              const availableSizes = activeColorConfig.tailles.filter(sz => {
+                                const qTot = Number(activeColorConfig.sizes[sz]?.qtyTot || 0);
+                                const cap = Number(activeColorConfig.sizes[sz]?.cap || 25);
+                                const remainder = qTot - Math.floor(qTot / cap) * cap;
+                                const allocated = cartons.reduce((sum, carton) => sum + (Number(carton.sizes[sz]) || 0), 0);
+                                return remainder - allocated > 0;
+                              });
+                              return (
+                                <section className="carton-builder-final-recap" aria-label="Récapitulatif final des cartons de reste">
+                                  <div className="carton-builder-final-recap-heading">
+                                    <div>
+                                      <span className="carton-builder-kicker">04 — RÉCAPITULATIF FINAL</span>
+                                      <h5>📋 Répartition des pièces LAST</h5>
+                                      <p>Chaque ligne reprend les tailles et quantités réellement déposées dans le carton.</p>
+                                    </div>
+                                    <div className="carton-builder-final-recap-rules">
+                                      <span>Max carton : <b>{cartonCapacity} pcs</b></span>
+                                      <span>Mixte : <b>{sizeLimitLabel}</b></span>
+                                    </div>
+                                  </div>
+                                  <div className="carton-builder-final-recap-available">
+                                    <span>Tailles encore disponibles</span>
+                                    <div>
+                                      {availableSizes.length > 0 ? availableSizes.map(sz => {
+                                        const qTot = Number(activeColorConfig.sizes[sz]?.qtyTot || 0);
+                                        const cap = Number(activeColorConfig.sizes[sz]?.cap || 25);
+                                        const remainder = qTot - Math.floor(qTot / cap) * cap;
+                                        const allocated = cartons.reduce((sum, carton) => sum + (Number(carton.sizes[sz]) || 0), 0);
+                                        return <b key={sz}>{sz} · {Math.max(0, remainder - allocated)} pcs</b>;
+                                      }) : <em>Aucune pièce LAST restante</em>}
+                                    </div>
+                                  </div>
+                                  <div className="carton-builder-final-recap-table" role="table" aria-label="Quantités LAST par carton">
+                                    <div className="carton-builder-final-recap-row is-header" role="row">
+                                      <span role="columnheader">Carton</span><span role="columnheader">Tailles</span><span role="columnheader">QTY LAST par taille</span><span role="columnheader">Total</span>
+                                    </div>
+                                    {cartons.length > 0 ? cartons.map((carton, index) => {
+                                      const entries = activeColorConfig.tailles.filter(sz => (Number(carton.sizes[sz]) || 0) > 0);
+                                      const total = entries.reduce((sum, sz) => sum + (Number(carton.sizes[sz]) || 0), 0);
+                                      return (
+                                        <div className="carton-builder-final-recap-row" role="row" key={carton.id}>
+                                          <strong role="cell">#{String(index + 1).padStart(2, '0')}</strong>
+                                          <span role="cell" className="carton-builder-final-recap-size-count">{entries.length} taille{entries.length > 1 ? 's' : ''}</span>
+                                          <span role="cell" className="carton-builder-final-recap-qtys">{entries.length > 0 ? entries.map(sz => <b key={sz}>{sz} <i>{Number(carton.sizes[sz]) || 0}</i></b>) : <em>Vide</em>}</span>
+                                          <strong role="cell">{total} / {cartonCapacity} pcs</strong>
+                                        </div>
+                                      );
+                                    }) : <div className="carton-builder-final-recap-empty">Ajoutez un carton pour voir sa répartition.</div>}
+                                  </div>
+                                </section>
+                              );
+                            })()}
                           </div>
                         );
                       };
