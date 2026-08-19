@@ -2136,3 +2136,23 @@ button.bg-emerald-500:active, button.bg-emerald-600:active, button.bg-green-600:
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
   button:not(:disabled):hover, .carton-builder-drag-token:hover:not(.is-empty), .carton-builder-carton-schematic:hover, .carton-builder-kpi-card:hover, .print-ind-card:hover, .print-cpl-card:hover { transform: none !important; }
 }
+
+
+/* Mode Glisser — cartons compacts en deux colonnes */
+@media (min-width: 981px) {
+  [data-carton-builder-mode="drag"] .carton-builder-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active { grid-template-columns: 1fr; padding: 13px; }
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-current-details,
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-metrics { grid-column: 1; }
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-current-details { min-height: 150px; }
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-metrics { padding: 11px !important; }
+}
+@media (max-width: 980px) and (min-width: 761px) {
+  [data-carton-builder-mode="drag"] .carton-builder-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active { grid-template-columns: 1fr; padding: 12px; }
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-current-details,
+  [data-carton-builder-mode="drag"] .carton-builder-carton-schematic-active > .carton-builder-metrics { grid-column: 1; }
+}
+@media (max-width: 760px) {
+  [data-carton-builder-mode="drag"] .carton-builder-cards-grid { grid-template-columns: 1fr; }
+}
