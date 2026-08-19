@@ -2185,3 +2185,17 @@ button.bg-emerald-500:active, button.bg-emerald-600:active, button.bg-green-600:
   .carton-builder-final-recap-row > :last-child { grid-column: 3; }
   .carton-builder-final-recap-row.is-header > :last-child { grid-column: 3; }
 }
+
+
+/* Tableau LAST navigable */
+.carton-builder-final-recap-row { grid-template-columns: 72px 95px minmax(0, 1fr) 105px 76px; }
+.carton-builder-recap-open { justify-self: end; padding: 6px 9px; border: 1px solid #9fcaaa; border-radius: 8px; background: #e4f5e9; color: #116b46; font: 900 10px ui-monospace, monospace; cursor: pointer; transition: transform .18s ease, background-color .18s ease, box-shadow .18s ease; }
+.carton-builder-recap-open:hover { transform: translateY(-1px); background: #cfead5; box-shadow: 0 4px 10px rgba(22,107,70,.14); }
+@media (max-width: 760px) {
+  .carton-builder-final-recap-row { grid-template-columns: 52px 65px minmax(0, 1fr); }
+  .carton-builder-final-recap-row > :nth-child(4) { grid-column: 1 / 3; }
+  .carton-builder-final-recap-row > :nth-child(5) { grid-column: 3; grid-row: 2; }
+  .carton-builder-final-recap-row.is-header > :nth-child(4) { grid-column: 1 / 3; }
+  .carton-builder-final-recap-row.is-header > :nth-child(5) { grid-column: 3; grid-row: 2; }
+  .carton-builder-recap-open { justify-self: start; }
+}

@@ -2129,18 +2129,19 @@ export function validateColorCustomRemainders(
   maxSizesPerBox: number
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  const activeMode = colorConfig.mode === 'inherit' ? globalMode : colorConfig.mode;
-
-  if (activeMode !== 'mixte_autorise' || !colorConfig.customRemaindersEnabled) {
+  // The Carton Builder is the explicit mixed-remainder workflow. Its strategy limit
+  // must remain active even when the base color inherits a non-mixed global mode.
+  if (!colorConfig.customRemaindersEnabled) {
     return { valid: true, errors };
   }
 
   // 1. Check max different sizes limit per mixed carton, and check maximum pieces in carton
   colorConfig.customRemainders?.forEach((cc, idx) => {
+    const cartonNumber = Number(cc.cartonNumber) || idx + 1;
     const activeSizes = Object.keys(cc.sizes).filter(s => (Number(cc.sizes[s]) || 0) > 0);
     if (activeSizes.length > maxSizesPerBox) {
       errors.push(
-        `Carton de reste n°${idx + 1} : Il contient ${activeSizes.length} tailles différentes (${activeSizes.join(', ')}), ce qui dépasse la limite autorisée par carton mixte (${maxSizesPerBox} tailles max selon vos paramètres logistiques).`
+        `Carton de reste n°${cartonNumber} : Il contient ${activeSizes.length} tailles différentes (${activeSizes.join(', ')}), ce qui dépasse la limite autorisée par carton mixte (${maxSizesPerBox} tailles max selon vos paramètres logistiques).`
       );
     }
 
@@ -2151,7 +2152,7 @@ export function validateColorCustomRemainders(
       const totalPcs = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
       if (totalPcs > limit) {
         errors.push(
-          `Carton de reste n°${idx + 1} : Le nombre total de pièces dans ce carton mixte (${totalPcs} pcs) dépasse la capacité de référence du carton (${limit} pcs max selon le plus grand quota/PCS autorisé).`
+          `Carton de reste n°${cartonNumber} : Le nombre total de pièces dans ce carton mixte (${totalPcs} pcs) dépasse la capacité de référence du carton (${limit} pcs max selon le plus grand quota/PCS autorisé).`
         );
       }
     }
@@ -2173,7 +2174,7 @@ export function validateColorCustomRemainders(
         // A. Check that remainder is not divided/separated
         if (val !== r) {
           errors.push(
-            `Taille ${sz} dans Carton de reste n°${idx + 1} : Les restes ne peuvent pas être divisés. Vous devez allouer la totalité des ${r} pièces de reste ensemble (vous avez saisi ${val} pcs).`
+            `Taille ${sz} dans Carton de reste n°${Number(cc.cartonNumber) || idx + 1} : Les restes ne peuvent pas être divisés. Vous devez allouer la totalité des ${r} pièces de reste ensemble (vous avez saisi ${val} pcs).`
           );
         }
 

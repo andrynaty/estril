@@ -1920,6 +1920,7 @@ export default function App() {
 
       customCartons.push({
         id: 'rc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9) + '_' + customCartons.length,
+        cartonNumber: customCartons.length + 1,
         sizes: cartonSizes,
         writtenWords: cartonWritten
       });
@@ -5490,8 +5491,10 @@ export default function App() {
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      const nextCartonNumber = Math.max(0, ...(activeColorConfig.customRemainders || []).map((item, index) => Number(item.cartonNumber) || index + 1)) + 1;
                                       const newCarton: CustomRemainderCarton = {
                                         id: 'rc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                                        cartonNumber: nextCartonNumber,
                                         sizes: {}
                                       };
                                       activeColorConfig.tailles.forEach(sz => {
@@ -5594,6 +5597,7 @@ export default function App() {
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 carton-builder-cards-grid">
                                   {renderedRemainderCartons.map((cc) => {
                                     const cIdx = remainderCartons.findIndex(item => item.id === cc.id);
+                                    const displayNumber = Number(cc.cartonNumber) || cIdx + 1;
                                     const totalPcsInCtn = Object.values(cc.sizes).reduce((sum: number, v: any) => sum + (Number(v) || 0), 0);
                                     
                                     // Calculate weights and CBM for this carton
@@ -5628,7 +5632,7 @@ export default function App() {
                                           if (!cartonBuilderDragSource) return;
                                           const source = cartonBuilderDragSource;
                                           if (dragClosedCartonIds.includes(cc.id)) {
-                                            triggerToast(`🔒 Carton ${cIdx + 1} fermé. Choisissez le carton actif suivant.`, 'info');
+                                            triggerToast(`🔒 Carton ${displayNumber} fermé. Choisissez le carton actif suivant.`, 'info');
                                             setCartonBuilderDragSource(null);
                                             return;
                                           }
@@ -5643,7 +5647,7 @@ export default function App() {
                                           }
                                           const capacity = activeColorConfig.tailles.length > 0 ? Math.max(...activeColorConfig.tailles.map(sz => Number(activeColorConfig.sizes[sz]?.cap || 25))) : 25;
                                           if (currentTotal + source.quantity > capacity) {
-                                            triggerToast(`❌ Capacité dépassée pour le carton ${cIdx + 1}.`, 'error');
+                                            triggerToast(`❌ Capacité dépassée pour le carton ${displayNumber}.`, 'error');
                                             setCartonBuilderDragSource(null);
                                             return;
                                           }
@@ -5660,13 +5664,14 @@ export default function App() {
                                             setDragClosedCartonIds((previous) => previous.includes(cc.id) ? previous : [...previous, cc.id]);
                                             const nextOpen = (activeColorConfig.customRemainders || []).find(item => item.id !== cc.id && !dragClosedCartonIds.includes(item.id));
                                             setDragActiveCartonId(dragAutoAdvance ? (nextOpen?.id || null) : null);
-                                            triggerToast(dragAutoAdvance ? `➡️ Carton ${cIdx + 1} atteint sa capacité. Passage au suivant.` : `🔒 Carton ${cIdx + 1} fermé automatiquement.`, 'success');
+                                            triggerToast(dragAutoAdvance ? `➡️ Carton ${displayNumber} atteint sa capacité. Passage au suivant.` : `🔒 Carton ${displayNumber} fermé automatiquement.`, 'success');
                                           } else {
                                             setDragActiveCartonId(cc.id);
-                                            triggerToast(`✅ ${source.quantity} pièce(s) ${source.size} ajoutée(s) au carton ${cIdx + 1}.`, 'success');
+                                            triggerToast(`✅ ${source.quantity} pièce(s) ${source.size} ajoutée(s) au carton ${displayNumber}.`, 'success');
                                           }
                                         } : undefined}
                                         onClick={() => cartonBuilderMode === 'drag' && !dragClosedCartonIds.includes(cc.id) && setDragActiveCartonId(cc.id)}
+                                        id={`carton-builder-card-${cc.id}`}
                                         className={`p-4 rounded-xl border relative shadow-xs carton-builder-carton-schematic ${cartonBuilderMode === 'drag' && cc.id === dragWorkshopCarton?.id ? 'carton-builder-carton-schematic-active carton-builder-card-active' : ''} ${cartonBuilderMode === 'drag' && dragClosedCartonIds.includes(cc.id) ? 'carton-builder-card-closed' : ''} ${
                                         darkMode ? 'bg-[#121215] border-white/10' : 'bg-white border-slate-200'
                                       }`}>
@@ -5693,7 +5698,7 @@ export default function App() {
                                             )}
                                             <span className="text-sm">📦</span>
                                             <span className={`text-xs font-mono font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>
-                                              CARTON DE RESTE #{cIdx + 1}
+                                              CARTON DE RESTE #{displayNumber}
                                             </span>
                                           </div>
                                           <div className="flex items-center gap-1.5">
@@ -5732,8 +5737,10 @@ export default function App() {
                                             <button
                                               type="button"
                                               onClick={() => {
+                                                const nextCartonNumber = Math.max(0, ...(activeColorConfig.customRemainders || []).map((item, index) => Number(item.cartonNumber) || index + 1)) + 1;
                                                 const duplicatedCarton: CustomRemainderCarton = {
                                                   id: 'rc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+                                                  cartonNumber: nextCartonNumber,
                                                   sizes: { ...cc.sizes },
                                                   writtenWords: cc.writtenWords ? { ...cc.writtenWords } : {}
                                                 };
@@ -5756,7 +5763,7 @@ export default function App() {
                                               type="button"
                                               onClick={(event) => {
                                                 event.stopPropagation();
-                                                const confirmed = window.confirm(`Supprimer le carton ${cIdx + 1} ?\n\nLes pièces qu’il contient redeviendront disponibles.`);
+                                                const confirmed = window.confirm(`Supprimer le carton ${displayNumber} ?\n\nLes pièces qu’il contient redeviendront disponibles.`);
                                                 if (!confirmed) return;
                                                 const remainingAfterDelete = (activeColorConfig.customRemainders || []).filter(item => item.id !== cc.id);
                                                 const nextColors = [...colors];
@@ -5771,11 +5778,11 @@ export default function App() {
                                                   setDragActiveCartonId(nextOpen?.id || null);
                                                 }
                                                 setHasGenerated(false);
-                                                triggerToast(`🗑️ Carton ${cIdx + 1} supprimé.`, 'info');
+                                                triggerToast(`🗑️ Carton ${displayNumber} supprimé.`, 'info');
                                               }}
                                               className="carton-builder-delete-icon text-red-500 hover:text-red-600 font-black text-lg leading-none w-7 h-7 rounded-lg transition-all cursor-pointer border border-red-500/15 hover:border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
                                               title="Supprimer ce carton"
-                                              aria-label={`Supprimer le carton ${cIdx + 1}`}
+                                              aria-label={`Supprimer le carton ${displayNumber}`}
                                             >
                                               ×
                                             </button>
@@ -6165,17 +6172,23 @@ export default function App() {
                                   </div>
                                   <div className="carton-builder-final-recap-table" role="table" aria-label="Quantités LAST par carton">
                                     <div className="carton-builder-final-recap-row is-header" role="row">
-                                      <span role="columnheader">Carton</span><span role="columnheader">Tailles</span><span role="columnheader">QTY LAST par taille</span><span role="columnheader">Total</span>
+                                      <span role="columnheader">Carton</span><span role="columnheader">Tailles</span><span role="columnheader">QTY LAST par taille</span><span role="columnheader">Total</span><span role="columnheader">Action</span>
                                     </div>
                                     {cartons.length > 0 ? cartons.map((carton, index) => {
+                                      const cartonNumber = Number(carton.cartonNumber) || index + 1;
                                       const entries = activeColorConfig.tailles.filter(sz => (Number(carton.sizes[sz]) || 0) > 0);
                                       const total = entries.reduce((sum, sz) => sum + (Number(carton.sizes[sz]) || 0), 0);
                                       return (
                                         <div className="carton-builder-final-recap-row" role="row" key={carton.id}>
-                                          <strong role="cell">#{String(index + 1).padStart(2, '0')}</strong>
+                                          <strong role="cell">#{String(cartonNumber).padStart(2, '0')}</strong>
                                           <span role="cell" className="carton-builder-final-recap-size-count">{entries.length} taille{entries.length > 1 ? 's' : ''}</span>
                                           <span role="cell" className="carton-builder-final-recap-qtys">{entries.length > 0 ? entries.map(sz => <b key={sz}>{sz} <i>{Number(carton.sizes[sz]) || 0}</i></b>) : <em>Vide</em>}</span>
                                           <strong role="cell">{total} / {cartonCapacity} pcs</strong>
+                                          <button type="button" className="carton-builder-recap-open" onClick={() => {
+                                            setDragActiveCartonId(carton.id);
+                                            setIsCartonFocusMode(false);
+                                            window.setTimeout(() => document.getElementById(`carton-builder-card-${carton.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 40);
+                                          }}>Ouvrir</button>
                                         </div>
                                       );
                                     }) : <div className="carton-builder-final-recap-empty">Ajoutez un carton pour voir sa répartition.</div>}

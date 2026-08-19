@@ -32,6 +32,8 @@ export interface SizeDetails {
 
 export interface CustomRemainderCarton {
   id: string;
+  /** Stable display number assigned when the carton is created. */
+  cartonNumber?: number;
   sizes: { [sizeName: string]: number };
   writtenWords?: { [sizeName: string]: string };
 }
