@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const { registerDatabaseIpc } = require('./database.cjs');
 
 const isDev = !app.isPackaged;
 
@@ -77,7 +78,21 @@ ipcMain.handle('ruba:read-file', async (_event, filePath) => {
   return { filePath, data: data.toString('base64') };
 });
 
+ipcMain.handle('ruba:capture-window', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { canceled: true };
+  const image = await win.webContents.capturePage();
+  const result = await dialog.showSaveDialog(win, {
+    defaultPath: path.join(app.getPath('pictures'), `ruba-capture-${new Date().toISOString().replace(/[:.]/g, '-')}.png`),
+    filters: [{ name: 'Image PNG', extensions: ['png'] }],
+  });
+  if (result.canceled || !result.filePath) return { canceled: true };
+  await fs.writeFile(result.filePath, image.toPNG());
+  return { canceled: false, filePath: result.filePath };
+});
+
 app.whenReady().then(() => {
+  registerDatabaseIpc({ ipcMain, app, dialog, fsPromises: fs, pathModule: path });
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'clipboard-read' || permission === 'clipboard-sanitized-write');
   });

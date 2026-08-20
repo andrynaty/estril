@@ -65,6 +65,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import BoxModal from './components/BoxModal';
 import MajBsdModal from './components/MajBsdModal';
 import ScreenshotTool from './components/ScreenshotTool';
+import IndustrialCenter from './components/IndustrialCenter';
 import ParcelLabelModule from './components/ParcelLabelModule';
 import CartonVisualizer from './components/CartonVisualizer';
 import ContainerVisualizer from './components/ContainerVisualizer';
@@ -354,6 +355,7 @@ export default function App() {
 
   // Active page state for sidebar: 'saisie' (page 1: Saisie & Préparation) or 'suivi' (page 2: Suivi & Livrables)
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
+  const [activeWorkspace, setActiveWorkspace] = useState<'packing' | 'industrial'>('packing');
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
   const handleSetActiveInputTab = (tab: 'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent' | 'dashboard_ecart' | 'rapport_ecart') => {
@@ -1999,7 +2001,7 @@ export default function App() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Save current active list to the database
-  const handleSaveCurrentList = (customName: string) => {
+  const handleSaveCurrentList = async (customName: string) => {
     try {
       const timestamp = new Date().toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -2028,6 +2030,17 @@ export default function App() {
       };
 
       setSavedLists(prev => [newListItem, ...prev]);
+      if (window.rubaDesktop) {
+        await window.rubaDesktop.saveProject({
+          id: newListItem.id,
+          name: finalName,
+          customer: meta.customer,
+          orderNumber: meta.order,
+          poNumber: meta.po,
+          status: hasGenerated ? 'completed' : 'draft',
+          payload: newListItem,
+        });
+      }
       triggerToast(`💾 Fiche sauvegardée : "${finalName}"`, 'success');
       setSavesError(null);
       setSaveNameInput('');
@@ -2057,8 +2070,9 @@ export default function App() {
   };
 
   // Delete a list snapshot with inline double click protection
-  const handleDeleteSavedList = (id: string, name: string) => {
+  const handleDeleteSavedList = async (id: string, name: string) => {
     setSavedLists(prev => prev.filter(item => item.id !== id));
+    if (window.rubaDesktop) await window.rubaDesktop.deleteProject(id);
     setConfirmDeleteId(null);
     triggerToast(`🗑️ Sauvegarde "${name}" supprimée.`, 'info');
   };
@@ -3358,8 +3372,14 @@ export default function App() {
 
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
-
-
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm print:hidden">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setActiveWorkspace('packing')} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeWorkspace === 'packing' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Colisage opérationnel</button>
+            <button onClick={() => setActiveWorkspace('industrial')} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeWorkspace === 'industrial' ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><Database className="mr-1 inline-block h-3.5 w-3.5" /> Centre industriel</button>
+          </div>
+          <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
+        </div>
+        {activeWorkspace === 'industrial' ? <IndustrialCenter onBack={() => setActiveWorkspace('packing')} /> : <>
 
         {/* Sleek Mobile Horizontal Ribbon Navigation */}
         <div className="lg:hidden sticky top-[62px] z-30 w-full overflow-x-auto scrollbar-none py-2.5 px-2 flex flex-row gap-2 print:hidden transition-all duration-300 border-b shadow-sm bg-[#f4f6fb] dark:bg-[#0C0C0E] border-slate-200/60 dark:border-white/5">
@@ -10065,6 +10085,7 @@ export default function App() {
             )}
           </div>
         )}
+        </>}
       </main>
 
       {/* Screenshot Overlay and Editor Tool Suite */}
