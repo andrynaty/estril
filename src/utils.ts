@@ -2086,12 +2086,16 @@ export async function exportToExcel(
     for (let offset = 0; offset < bytes.length; offset += chunkSize) {
       binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
     }
-    await window.rubaDesktop.saveFile({
+    const save = window.rubaDesktop.saveFileToStorage || window.rubaDesktop.saveFile;
+    const savedFile = await save({
       fileName: userFilename,
       data: btoa(binary),
       encoding: 'base64',
       filters: [{ name: 'Classeur Excel', extensions: ['xlsx'] }],
     });
+    if (savedFile.filePath && window.rubaDesktop.registerFile) {
+      await window.rubaDesktop.registerFile({ name: userFilename, path: savedFile.filePath, fileKind: 'excel_export', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    }
   } else {
     saveAs(blob, userFilename);
   }

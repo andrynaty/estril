@@ -10,6 +10,12 @@ declare global {
     }>;
     chooseDirectory: () => Promise<string | null>;
     chooseFile: (options?: { filters?: Array<{ name: string; extensions: string[] }> }) => Promise<string | null>;
+    saveFileToStorage: (payload: {
+      fileName: string;
+      data: string;
+      encoding?: 'base64';
+      filters?: Array<{ name: string; extensions: string[] }>;
+    }) => Promise<{ canceled: boolean; filePath?: string }>;
     saveFile: (payload: {
       fileName: string;
       data: string;
@@ -19,7 +25,7 @@ declare global {
     readFile: (filePath: string) => Promise<{ filePath: string; data: string }>;
     captureWindow: () => Promise<{ canceled: boolean; filePath?: string }>;
     captureWindowData: () => Promise<{ canceled: boolean; data?: string }>;
-    dbSummary: () => Promise<{ projects: number; files: number; deliveryPlans: number; breakdownRows: number }>;
+    dbSummary: () => Promise<{ projects: number; packingLists: number; files: number; deliveryPlans: number; breakdownRows: number }>;
     getSetting: (key: string) => Promise<string | null>;
     setSetting: (key: string, value: string) => Promise<boolean>;
     getStorageRoot: () => Promise<string>;
@@ -27,6 +33,11 @@ declare global {
     listProjects: (query?: string) => Promise<any[]>;
     saveProject: (project: any) => Promise<any>;
     deleteProject: (id: string) => Promise<boolean>;
+    listPackingLists: (query?: string) => Promise<any[]>;
+    getPackingList: (id: string) => Promise<any | null>;
+    savePackingList: (packingList: any) => Promise<any>;
+    deletePackingList: (id: string) => Promise<boolean>;
+    deleteAllPackingLists: () => Promise<number>;
     listFiles: (filters?: { search?: string; fileKind?: string }) => Promise<any[]>;
     importFile: (options?: { projectId?: string; fileKind?: string; mimeType?: string; filters?: Array<{ name: string; extensions: string[] }> }) => Promise<any | null>;
     registerFile: (file: any) => Promise<any>;

@@ -2,6 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electro
 const path = require('node:path');
 const fs = require('node:fs/promises');
 let registerDatabaseIpc;
+let dbForStorage = null;
 
 const isDev = !app.isPackaged;
 
@@ -78,6 +79,17 @@ ipcMain.handle('ruba:read-file', async (_event, filePath) => {
   return { filePath, data: data.toString('base64') };
 });
 
+ipcMain.handle('ruba:save-file-to-storage', async (_event, payload = {}) => {
+  const rootSetting = dbForStorage?.prepare('SELECT value FROM app_settings WHERE key = ?').get('storageRoot')?.value;
+  const root = rootSetting || path.join(app.getPath('userData'), 'files');
+  await fs.mkdir(root, { recursive: true });
+  const safeName = String(payload.fileName || 'export.xlsx').replace(/[^a-zA-Z0-9._-]+/g, '_');
+  const filePath = path.join(root, safeName);
+  const bytes = payload.encoding === 'base64' ? Buffer.from(String(payload.data || ''), 'base64') : Buffer.from(String(payload.data || ''), 'utf8');
+  await fs.writeFile(filePath, bytes);
+  return { canceled: false, filePath };
+});
+
 ipcMain.handle('ruba:capture-window-data', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return { canceled: true };
@@ -101,7 +113,7 @@ ipcMain.handle('ruba:capture-window', async (event) => {
 app.whenReady().then(() => {
   try {
     registerDatabaseIpc = require('./database.cjs').registerDatabaseIpc;
-    registerDatabaseIpc({ ipcMain, app, dialog, fsPromises: fs, pathModule: path });
+    dbForStorage = registerDatabaseIpc({ ipcMain, app, dialog, fsPromises: fs, pathModule: path });
   } catch (error) {
     console.error('SQLite initialization failed; continuing without database:', error);
   }

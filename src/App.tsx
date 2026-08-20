@@ -66,6 +66,8 @@ import BoxModal from './components/BoxModal';
 import MajBsdModal from './components/MajBsdModal';
 import ScreenshotTool from './components/ScreenshotTool';
 import IndustrialCenter from './components/IndustrialCenter';
+import IndustrialErrorBoundary from './components/IndustrialErrorBoundary';
+import PackingHistoryRibbon from './components/PackingHistoryRibbon';
 import ParcelLabelModule from './components/ParcelLabelModule';
 import CartonVisualizer from './components/CartonVisualizer';
 import ContainerVisualizer from './components/ContainerVisualizer';
@@ -259,6 +261,7 @@ export default function App() {
   };
 
   // Saved snapshots lists history database
+  const [activePackingListId, setActivePackingListId] = useState<string | null>(null);
   const [savedLists, setSavedLists] = useState<LocalSaveListItem[]>(() => {
     const saved = localStorage.getItem('packing_list_pro_saved_lists');
     return saved ? JSON.parse(saved) : [];
@@ -356,6 +359,8 @@ export default function App() {
   // Active page state for sidebar: 'saisie' (page 1: Saisie & Préparation) or 'suivi' (page 2: Suivi & Livrables)
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
   const [activeWorkspace, setActiveWorkspace] = useState<'packing' | 'industrial'>('packing');
+  const [activeMainRibbon, setActiveMainRibbon] = useState<'packing' | 'history' | 'dashboard' | 'projects' | 'files' | 'settings'>('packing');
+  const [packingHistory, setPackingHistory] = useState<any[]>([]);
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
   const handleSetActiveInputTab = (tab: 'meta' | 'strategy' | 'colors' | 'packing_list' | 'breakdown' | 'summary' | 'saves' | 'labels' | 'view_percent' | 'dashboard_ecart' | 'rapport_ecart') => {
@@ -475,10 +480,22 @@ export default function App() {
     }
   }, []);
 
-  // Persistence for user saved snapshots database
+  const refreshPackingHistory = async () => {
+    if (window.rubaDesktop?.listPackingLists) {
+      const rows = await window.rubaDesktop.listPackingLists();
+      setPackingHistory(rows);
+      return rows;
+    }
+    const fallback = savedLists.map(item => ({ id: item.id, name: item.name, status: 'local', updated_at: item.savedAt, payload: item }));
+    setPackingHistory(fallback);
+    return fallback;
+  };
+
+  // Persistence for the browser fallback; the Windows app uses one SQLite database.
   useEffect(() => {
     localStorage.setItem('packing_list_pro_saved_lists', JSON.stringify(savedLists));
   }, [savedLists]);
+  useEffect(() => { refreshPackingHistory().catch(error => console.error('History load failed', error)); }, []);
 
   // Sync isAutosaveEnabled setting
   useEffect(() => {
@@ -2017,8 +2034,9 @@ export default function App() {
       ].filter(Boolean).join(' - ') || 'Fiche sans nom';
 
       const finalName = customName.trim() || `${autoLabel} (${timestamp})`;
+      const listId = activePackingListId || ('packing_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
       const newListItem: LocalSaveListItem = {
-        id: 'save_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9),
+        id: listId,
         name: finalName,
         savedAt: new Date().toISOString(),
         meta: { ...meta },
@@ -2029,7 +2047,11 @@ export default function App() {
         colors: JSON.parse(JSON.stringify(colors)) // deep copy
       };
 
-      setSavedLists(prev => [newListItem, ...prev]);
+      setActivePackingListId(listId);
+      setSavedLists(prev => prev.some(item => item.id === listId) ? prev.map(item => item.id === listId ? newListItem : item) : [newListItem, ...prev]);
+      if (window.rubaDesktop?.savePackingList) {
+        await window.rubaDesktop.savePackingList({ id: listId, name: finalName, status: hasGenerated ? 'completed' : 'draft', payload: newListItem });
+      }
       if (window.rubaDesktop) {
         await window.rubaDesktop.saveProject({
           id: newListItem.id,
@@ -2041,7 +2063,8 @@ export default function App() {
           payload: newListItem,
         });
       }
-      triggerToast(`💾 Fiche sauvegardée : "${finalName}"`, 'success');
+      await refreshPackingHistory();
+      triggerToast(`${activePackingListId ? '↻ Fiche mise à jour' : '💾 Fiche sauvegardée'} : "${finalName}"`, 'success');
       setSavesError(null);
       setSaveNameInput('');
     } catch (err: any) {
@@ -2051,17 +2074,19 @@ export default function App() {
   };
 
   // Load a specified list from the database
-  const handleLoadSavedList = (item: LocalSaveListItem) => {
+  const handleLoadSavedList = async (item: LocalSaveListItem & { payload?: LocalSaveListItem }) => {
     try {
-      setMeta({ ...item.meta });
-      setGlobalPackingMode(item.globalPackingMode);
-      setMaxSizesPerBox(item.maxSizesPerBox);
-      setForceSingleCarton(item.forceSingleCarton);
-      setForceSubCapSolidInMixed(Boolean(item.forceSubCapSolidInMixed));
-      setColors(JSON.parse(JSON.stringify(item.colors))); // deep copy
+      const loaded = item.payload || item;
+      setActivePackingListId(item.id);
+      setMeta({ ...loaded.meta });
+      setGlobalPackingMode(loaded.globalPackingMode);
+      setMaxSizesPerBox(loaded.maxSizesPerBox);
+      setForceSingleCarton(loaded.forceSingleCarton);
+      setForceSubCapSolidInMixed(Boolean(loaded.forceSubCapSolidInMixed));
+      setColors(JSON.parse(JSON.stringify(loaded.colors))); // deep copy
       setHasGenerated(false);
       setResults([]);
-      triggerToast(`🔌 Fiche "${item.name}" rechargée !`, 'success');
+      triggerToast(`🔌 Fiche "${item.name}" chargée. Modifiez-la puis utilisez « Sauvegarder la fiche » pour mettre à jour le même ID.`, 'success');
       setSavesError(null);
     } catch (err: any) {
       setSavesError(`❌ Erreur lors du rechargement de la fiche : ${err?.message || err}`);
@@ -2072,9 +2097,21 @@ export default function App() {
   // Delete a list snapshot with inline double click protection
   const handleDeleteSavedList = async (id: string, name: string) => {
     setSavedLists(prev => prev.filter(item => item.id !== id));
+    if (window.rubaDesktop?.deletePackingList) await window.rubaDesktop.deletePackingList(id);
     if (window.rubaDesktop) await window.rubaDesktop.deleteProject(id);
+    if (activePackingListId === id) setActivePackingListId(null);
+    await refreshPackingHistory();
     setConfirmDeleteId(null);
     triggerToast(`🗑️ Sauvegarde "${name}" supprimée.`, 'info');
+  };
+
+  const handleDeleteAllPackingLists = async () => {
+    if (!window.confirm('Supprimer toutes les Packing Lists enregistrées ? Cette action est irréversible.')) return;
+    if (window.rubaDesktop?.deleteAllPackingLists) await window.rubaDesktop.deleteAllPackingLists();
+    setSavedLists([]);
+    setActivePackingListId(null);
+    await refreshPackingHistory();
+    triggerToast('Toutes les Packing Lists ont été supprimées.', 'info');
   };
 
   // Load and subscribe to cloud packing lists list
@@ -2604,6 +2641,13 @@ export default function App() {
       c.tailles.some(t => (c.sizes[t]?.sku || '').toLowerCase().includes(query))
     );
   });
+
+  const openMainRibbon = (ribbon: typeof activeMainRibbon) => {
+    setActiveMainRibbon(ribbon);
+    setActiveWorkspace(ribbon === 'packing' ? 'packing' : 'industrial');
+  };
+
+  const industrialTab = activeMainRibbon === 'dashboard' ? 'dashboard' : activeMainRibbon === 'projects' ? 'projects' : activeMainRibbon === 'files' ? 'files' : activeMainRibbon === 'settings' ? 'settings' : 'dashboard';
 
   return (
     <div className={`min-h-screen lg:h-screen lg:overflow-hidden font-sans bg-grid-pattern ${darkMode ? 'bg-[#0C0C0E] text-white' : 'bg-[#f4f6fb] text-slate-900'} transition-colors duration-300 flex flex-col`}>
@@ -3373,13 +3417,19 @@ export default function App() {
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
         <div className="mb-3 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm print:hidden">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setActiveWorkspace('packing')} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeWorkspace === 'packing' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Colisage opérationnel</button>
-            <button onClick={() => setActiveWorkspace('industrial')} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeWorkspace === 'industrial' ? 'bg-teal-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><Database className="mr-1 inline-block h-3.5 w-3.5" /> Centre industriel</button>
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              ['packing', 'Colisage opérationnel'],
+              ['history', 'Historique'],
+              ['dashboard', 'Dashboard'],
+              ['projects', 'Travaux'],
+              ['files', 'Fichiers Excel'],
+              ['settings', 'Paramètres']
+            ].map(([id, label]) => <button key={id} onClick={() => openMainRibbon(id as typeof activeMainRibbon)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeMainRibbon === id ? 'bg-teal-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>{label}</button>)}
           </div>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
         </div>
-        {activeWorkspace === 'industrial' ? <IndustrialCenter onBack={() => setActiveWorkspace('packing')} /> : <>
+        {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} /></IndustrialErrorBoundary> : <>
 
         {/* Sleek Mobile Horizontal Ribbon Navigation */}
         <div className="lg:hidden sticky top-[62px] z-30 w-full overflow-x-auto scrollbar-none py-2.5 px-2 flex flex-row gap-2 print:hidden transition-all duration-300 border-b shadow-sm bg-[#f4f6fb] dark:bg-[#0C0C0E] border-slate-200/60 dark:border-white/5">

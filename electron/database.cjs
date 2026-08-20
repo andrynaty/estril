@@ -26,6 +26,17 @@ function createDatabase(userDataPath) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS packing_lists (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      project_id TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE SET NULL
+    );
+
     CREATE TABLE IF NOT EXISTS work_files (
       id TEXT PRIMARY KEY,
       project_id TEXT,
@@ -91,6 +102,7 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
 
   ipcMain.handle('ruba:db-summary', () => ({
     projects: db.prepare('SELECT COUNT(*) AS count FROM projects').get().count,
+    packingLists: db.prepare('SELECT COUNT(*) AS count FROM packing_lists').get().count,
     files: db.prepare('SELECT COUNT(*) AS count FROM work_files').get().count,
     deliveryPlans: db.prepare('SELECT COUNT(*) AS count FROM delivery_plans').get().count,
     breakdownRows: db.prepare('SELECT COUNT(*) AS count FROM breakdown_rows').get().count,
@@ -135,6 +147,41 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     db.prepare('DELETE FROM projects WHERE id = ?').run(String(projectId));
     log.run('project', String(projectId), 'delete', '{}', now());
     return true;
+  });
+
+  ipcMain.handle('ruba:packing-lists-list', (_event, query = '') => {
+    const like = `%${String(query).trim()}%`;
+    return db.prepare(`SELECT packing_lists.*, projects.name AS project_name
+      FROM packing_lists LEFT JOIN projects ON projects.id = packing_lists.project_id
+      WHERE packing_lists.name LIKE ? OR COALESCE(projects.name, '') LIKE ?
+      ORDER BY packing_lists.updated_at DESC`).all(like, like);
+  });
+  ipcMain.handle('ruba:packing-list-get', (_event, packingListId) => {
+    const row = db.prepare('SELECT * FROM packing_lists WHERE id = ?').get(String(packingListId));
+    return row ? { ...row, payload: JSON.parse(row.payload_json || '{}') } : null;
+  });
+  ipcMain.handle('ruba:packing-list-save', (_event, packingList = {}) => {
+    const timestamp = now();
+    const packingListId = packingList.id || id('packing');
+    db.prepare(`INSERT INTO packing_lists(id, name, project_id, status, payload_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM packing_lists WHERE id = ?), ?), ?)
+      ON CONFLICT(id) DO UPDATE SET name=excluded.name, project_id=excluded.project_id,
+      status=excluded.status, payload_json=excluded.payload_json, updated_at=excluded.updated_at`)
+      .run(packingListId, packingList.name || 'Packing List sans nom', packingList.projectId || null,
+        packingList.status || 'draft', JSON.stringify(packingList.payload || {}), packingListId, timestamp, timestamp);
+    log.run('packing_list', packingListId, packingList.id ? 'update' : 'create', JSON.stringify({ name: packingList.name }), timestamp);
+    const row = db.prepare('SELECT * FROM packing_lists WHERE id = ?').get(packingListId);
+    return { ...row, payload: JSON.parse(row.payload_json || '{}') };
+  });
+  ipcMain.handle('ruba:packing-list-delete', (_event, packingListId) => {
+    db.prepare('DELETE FROM packing_lists WHERE id = ?').run(String(packingListId));
+    log.run('packing_list', String(packingListId), 'delete', '{}', now());
+    return true;
+  });
+  ipcMain.handle('ruba:packing-lists-delete-all', () => {
+    const result = db.prepare('DELETE FROM packing_lists').run();
+    log.run('packing_list', null, 'delete_all', JSON.stringify({ count: result.changes }), now());
+    return result.changes;
   });
 
   ipcMain.handle('ruba:file-import', async (_event, options = {}) => {
