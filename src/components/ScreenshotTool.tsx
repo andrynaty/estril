@@ -223,7 +223,29 @@ export default function ScreenshotTool({ isCapturing, setIsCapturing, darkMode }
     // Small delay to ensure browser repoints layouts without overlay before capturing DOM
     setTimeout(async () => {
       try {
-        // Capture standard viewport/scrolled elements. The primary pass keeps CORS support;
+        if (window.rubaDesktop?.captureWindowData) {
+          const nativeCapture = await window.rubaDesktop.captureWindowData();
+          if (nativeCapture.data) {
+            const nativeImage = new Image();
+            nativeImage.onload = () => {
+              const scaleX = nativeImage.naturalWidth / Math.max(1, window.innerWidth);
+              const scaleY = nativeImage.naturalHeight / Math.max(1, window.innerHeight);
+              const cropCanvas = document.createElement('canvas');
+              cropCanvas.width = Math.max(1, Math.round(width * scaleX));
+              cropCanvas.height = Math.max(1, Math.round(height * scaleY));
+              const cropCtx = cropCanvas.getContext('2d');
+              if (!cropCtx) return;
+              cropCtx.drawImage(nativeImage, Math.round(left * scaleX), Math.round(top * scaleY), cropCanvas.width, cropCanvas.height, 0, 0, cropCanvas.width, cropCanvas.height);
+              setCapturedImageBase64(cropCanvas.toDataURL('image/png'));
+              setUndoStack([]);
+              setShowEditModal(true);
+            };
+            nativeImage.src = nativeCapture.data;
+            return;
+          }
+        }
+
+        // Browser fallback for the web version. The primary pass keeps CORS support;
         // a minimal retry below handles browser-specific canvas invocation failures.
         const captureOptions = {
           useCORS: true,

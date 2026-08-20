@@ -1,7 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const { registerDatabaseIpc } = require('./database.cjs');
+let registerDatabaseIpc;
 
 const isDev = !app.isPackaged;
 
@@ -78,6 +78,13 @@ ipcMain.handle('ruba:read-file', async (_event, filePath) => {
   return { filePath, data: data.toString('base64') };
 });
 
+ipcMain.handle('ruba:capture-window-data', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return { canceled: true };
+  const image = await win.webContents.capturePage();
+  return { canceled: false, data: image.toDataURL() };
+});
+
 ipcMain.handle('ruba:capture-window', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return { canceled: true };
@@ -92,7 +99,12 @@ ipcMain.handle('ruba:capture-window', async (event) => {
 });
 
 app.whenReady().then(() => {
-  registerDatabaseIpc({ ipcMain, app, dialog, fsPromises: fs, pathModule: path });
+  try {
+    registerDatabaseIpc = require('./database.cjs').registerDatabaseIpc;
+    registerDatabaseIpc({ ipcMain, app, dialog, fsPromises: fs, pathModule: path });
+  } catch (error) {
+    console.error('SQLite initialization failed; continuing without database:', error);
+  }
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'clipboard-read' || permission === 'clipboard-sanitized-write');
   });

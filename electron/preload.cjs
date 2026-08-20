@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('rubaDesktop', {
   saveFile: (payload) => ipcRenderer.invoke('ruba:save-file', payload),
   readFile: (filePath) => ipcRenderer.invoke('ruba:read-file', filePath),
   captureWindow: () => ipcRenderer.invoke('ruba:capture-window'),
+  captureWindowData: () => ipcRenderer.invoke('ruba:capture-window-data'),
   dbSummary: () => ipcRenderer.invoke('ruba:db-summary'),
   getSetting: (key) => ipcRenderer.invoke('ruba:settings-get', key),
   setSetting: (key, value) => ipcRenderer.invoke('ruba:settings-set', key, value),

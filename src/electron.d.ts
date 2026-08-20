@@ -18,6 +18,7 @@ declare global {
     }) => Promise<{ canceled: boolean; filePath?: string }>;
     readFile: (filePath: string) => Promise<{ filePath: string; data: string }>;
     captureWindow: () => Promise<{ canceled: boolean; filePath?: string }>;
+    captureWindowData: () => Promise<{ canceled: boolean; data?: string }>;
     dbSummary: () => Promise<{ projects: number; files: number; deliveryPlans: number; breakdownRows: number }>;
     getSetting: (key: string) => Promise<string | null>;
     setSetting: (key: string, value: string) => Promise<boolean>;
