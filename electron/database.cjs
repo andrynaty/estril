@@ -5,6 +5,8 @@ const path = require('node:path');
 function createDatabase(userDataPath) {
   const db = new Database(path.join(userDataPath, 'ruba.sqlite'));
   db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+  db.pragma('busy_timeout = 5000');
   db.pragma('foreign_keys = ON');
 
   db.exec(`
@@ -79,6 +81,11 @@ function createDatabase(userDataPath) {
       details_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_projects_updated ON projects(updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_delivery_plans_project_updated ON delivery_plans(project_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_breakdown_plan_order ON breakdown_rows(delivery_plan_id, row_order);
+    CREATE INDEX IF NOT EXISTS idx_files_project_created ON work_files(project_id, created_at DESC);
   `);
 
   return db;
@@ -245,8 +252,16 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   });
   ipcMain.handle('ruba:delivery-plan-save', (_event, plan = {}) => {
     const timestamp = now(); const planId = plan.id || id('plan');
-    db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(planId, plan.projectId, plan.planName || 'Delivery Plan', JSON.stringify(plan.payload || {}), timestamp, timestamp);
+    const rows = Array.isArray(plan.payload?.rows) ? plan.payload.rows : [];
+    const save = db.transaction(() => {
+      db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(planId, plan.projectId, plan.planName || 'Delivery Plan', JSON.stringify(plan.payload || {}), timestamp, timestamp);
+      db.prepare('DELETE FROM breakdown_rows WHERE delivery_plan_id = ?').run(planId);
+      const insert = db.prepare(`INSERT INTO breakdown_rows(id, delivery_plan_id, row_order, size, color, quantity, destination, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+      rows.forEach((row, index) => insert.run(id('breakdown'), planId, index, row.size || '', row.color || '', Number(row.quantity || row.poQty || 0), row.destination || row.dest || '', JSON.stringify(row)));
+    });
+    save();
+    log.run('delivery_plan', planId, plan.id ? 'update' : 'create', JSON.stringify({ projectId: plan.projectId, rows: rows.length }), timestamp);
     return db.prepare('SELECT * FROM delivery_plans WHERE id = ?').get(planId);
   });
   ipcMain.handle('ruba:breakdown-replace', (_event, payload = {}) => {
