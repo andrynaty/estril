@@ -107,13 +107,75 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   const setting = db.prepare('SELECT value FROM app_settings WHERE key = ?');
   const storageRoot = () => setting.get('storageRoot')?.value || defaultRoot;
   const ensureRoot = () => fs.mkdirSync(storageRoot(), { recursive: true });
+  const csvPlanId = 'delivery_csv_plan';
+  const csvProjectId = 'delivery_csv_source';
+  const normalizeCsvHeader = (value) => String(value || '').toLowerCase().replace(/[()]/g, '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  const csvAliases = {
+    date: 'date', season: 'season', 'customer code': 'customerCode', 'customer name': 'customerName', 'customer po': 'customerPo', color: 'color', dest: 'dest', destination: 'dest', 'po qty': 'poQty', 'target booking': 'targetBooking', 'target date for booking': 'targetBooking', 'actual booking': 'actualBooking', 'actual date for booking': 'actualBooking', 'target approval': 'targetApproval', 'target approval date': 'targetApproval', 'approval received': 'approvalReceived', 'date received approval': 'approvalReceived', 'pcs / ctn': 'pcsPerCtn', 'pcs per ctn': 'pcsPerCtn', 'packing type': 'packingType', 'number of carton': 'numberOfCarton', l: 'l', h: 'h', w: 'w', cbm: 'cbm', 'gross kg / ctn': 'grossWeight', 'gross weight per carton': 'grossWeight', 'initial ship mode': 'initialShipMode', 'target pl': 'targetPl'
+  };
+  const parseCsvLine = (line, delimiter) => {
+    const values = []; let value = ''; let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (char === '"' && line[index + 1] === '"') { value += '"'; index += 1; continue; }
+      if (char === '"') { quoted = !quoted; continue; }
+      if (char === delimiter && !quoted) { values.push(value.trim()); value = ''; continue; }
+      value += char;
+    }
+    values.push(value.trim()); return values;
+  };
+  const parseDeliveryCsv = (content) => {
+    const lines = String(content || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+    if (!lines.length) return [];
+    const delimiter = (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length ? ';' : ',';
+    const keys = parseCsvLine(lines[0], delimiter).map(header => csvAliases[normalizeCsvHeader(header)] || '');
+    return lines.slice(1).map(line => parseCsvLine(line, delimiter)).filter(values => values.some(Boolean)).map(values => {
+      const row = {};
+      keys.forEach((key, index) => { if (key) row[key] = values[index] ?? ''; });
+      const numeric = ['poQty', 'pcsPerCtn', 'numberOfCarton', 'l', 'h', 'w', 'cbm', 'grossWeight'];
+      numeric.forEach(key => { if (row[key] !== undefined && row[key] !== '') row[key] = Number(String(row[key]).replace(',', '.')) || 0; });
+      row.id = row.id || id('delivery_csv');
+      row.cbm = Number(((Number(row.l) || 0) * (Number(row.h) || 0) * (Number(row.w) || 0)) / 1000000).toFixed(6);
+      return row;
+    });
+  };
+  const csvCandidates = () => {
+    let executableDirectory = ''; let resourcesDirectory = '';
+    try { executableDirectory = pathModule.dirname(app.getPath('exe')); } catch {}
+    try { resourcesDirectory = process.resourcesPath || ''; } catch {}
+    return Array.from(new Set([pathModule.join(executableDirectory, 'Delivery plan.csv'), pathModule.join(resourcesDirectory, 'Delivery plan.csv'), pathModule.join(app.getPath('userData'), 'Delivery plan.csv'), pathModule.join(storageRoot(), 'Delivery plan.csv')].filter(Boolean)));
+  };
+  let csvSyncPromise = null;
+  const syncDeliveryCsv = () => {
+    if (csvSyncPromise) return csvSyncPromise;
+    csvSyncPromise = (async () => {
+      const source = csvCandidates().find(candidate => fs.existsSync(candidate));
+      if (!source) return { found: false, candidates: csvCandidates() };
+      const [content, stat] = await Promise.all([fsPromises.readFile(source, 'utf8'), fsPromises.stat(source)]);
+      const rows = parseDeliveryCsv(content);
+      const timestamp = now();
+      db.prepare(`INSERT INTO projects(id, name, customer, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvProjectId, 'Delivery plan.csv', '', 'system', JSON.stringify({ source, rows }), timestamp, timestamp);
+      db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvPlanId, csvProjectId, 'Delivery plan.csv', JSON.stringify({ source, rows }), timestamp, timestamp);
+      db.prepare(`INSERT INTO app_settings(key, value, updated_at) VALUES ('deliveryCsvLastImported', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`).run(JSON.stringify({ source, modifiedAt: stat.mtime.toISOString(), rows: rows.length }), timestamp);
+      return { found: true, source, modifiedAt: stat.mtime.toISOString(), rows: rows.length };
+    })().finally(() => { csvSyncPromise = null; });
+    return csvSyncPromise;
+  };
+  const csvWatchers = csvCandidates();
+  csvWatchers.forEach(candidate => fs.watchFile(candidate, { interval: 2000 }, async (current, previous) => {
+    if (current.mtimeMs !== previous.mtimeMs && current.mtimeMs > 0) { try { await syncDeliveryCsv(); } catch {} }
+  }));
+  void syncDeliveryCsv().catch(() => {});
 
   ipcMain.handle('ruba:db-summary', () => ({
-    projects: db.prepare('SELECT COUNT(*) AS count FROM projects').get().count,
+    projects: db.prepare('SELECT COUNT(*) AS count FROM projects WHERE id <> ?').get(csvProjectId).count,
     packingLists: db.prepare('SELECT COUNT(*) AS count FROM packing_lists').get().count,
     files: db.prepare('SELECT COUNT(*) AS count FROM work_files').get().count,
-    deliveryPlans: db.prepare('SELECT COUNT(*) AS count FROM delivery_plans').get().count,
-    breakdownRows: db.prepare('SELECT COUNT(*) AS count FROM breakdown_rows').get().count,
+    deliveryPlans: db.prepare('SELECT COUNT(*) AS count FROM delivery_plans WHERE id <> ?').get(csvPlanId).count,
+    breakdownRows: db.prepare('SELECT COUNT(*) AS count FROM breakdown_rows WHERE delivery_plan_id <> ?').get(csvPlanId).count,
   }));
 
   ipcMain.handle('ruba:settings-get', (_event, key) => setting.get(String(key))?.value ?? null);
@@ -125,6 +187,9 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   });
 
   ipcMain.handle('ruba:storage-root', () => storageRoot());
+  ipcMain.handle('ruba:delivery-csv-sync', async () => syncDeliveryCsv());
+  ipcMain.handle('ruba:delivery-csv-status', () => setting.get('deliveryCsvLastImported')?.value ? parsePayload(setting.get('deliveryCsvLastImported').value) : { found: false, candidates: csvCandidates() });
+
   ipcMain.handle('ruba:storage-root-choose', async () => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] });
     if (result.canceled || !result.filePaths[0]) return null;
@@ -138,7 +203,7 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
 
   ipcMain.handle('ruba:projects-list', (_event, query = '') => {
     const like = `%${String(query).trim()}%`;
-    return db.prepare(`SELECT * FROM projects WHERE name LIKE ? OR customer LIKE ? OR order_number LIKE ? ORDER BY updated_at DESC`).all(like, like, like).map(row => ({ ...row, payload: parsePayload(row.payload_json) }));
+    return db.prepare(`SELECT * FROM projects WHERE id <> ? AND (name LIKE ? OR customer LIKE ? OR order_number LIKE ?) ORDER BY updated_at DESC`).all(csvProjectId, like, like, like).map(row => ({ ...row, payload: parsePayload(row.payload_json) }));
   });
   ipcMain.handle('ruba:project-get', (_event, projectId) => {
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(String(projectId));

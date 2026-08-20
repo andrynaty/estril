@@ -284,6 +284,8 @@ export default function App() {
   const [custQuery, setCustQuery] = useState('');
   const [custSuggestions, setCustSuggestions] = useState<string[]>([]);
   const [showCustDropdown, setShowCustDropdown] = useState(false);
+  const [deliveryReferenceOptions, setDeliveryReferenceOptions] = useState<{ customers: string[]; pos: string[]; colors: string[]; destinations: string[] }>({ customers: [], pos: [], colors: [], destinations: [] });
+  const [deliveryAutoValues, setDeliveryAutoValues] = useState({ customer: '', destination: '' });
 
   // Modals state triggers
   const [boxModalCtx, setBoxModalCtx] = useState<{
@@ -681,6 +683,27 @@ export default function App() {
     };
     loadTemplatesFromSqlite().catch(error => console.error('Template SQLite load failed', error));
   }, []);
+
+  useEffect(() => {
+    const orderNumber = String(meta.order || '').trim();
+    if (!window.rubaDesktop?.getDeliveryReferenceOptions || !orderNumber) {
+      setDeliveryReferenceOptions({ customers: [], pos: [], colors: [], destinations: [] });
+      return;
+    }
+    let cancelled = false;
+    window.rubaDesktop.getDeliveryReferenceOptions(orderNumber).then((options) => {
+      if (cancelled) return;
+      setDeliveryReferenceOptions({ customers: options.customers || [], pos: options.pos || [], colors: options.colors || [], destinations: options.destinations || [] });
+      setMeta((previous) => {
+        const next = { ...previous };
+        if (options.customers?.length === 1 && (!previous.customer || previous.customer === deliveryAutoValues.customer)) next.customer = options.customers[0];
+        if (options.destinations?.length === 1 && (!previous.destination || previous.destination === deliveryAutoValues.destination)) next.destination = options.destinations[0];
+        return next;
+      });
+      setDeliveryAutoValues({ customer: options.customers?.length === 1 ? options.customers[0] : '', destination: options.destinations?.length === 1 ? options.destinations[0] : '' });
+    }).catch(() => { if (!cancelled) setDeliveryReferenceOptions({ customers: [], pos: [], colors: [], destinations: [] }); });
+    return () => { cancelled = true; };
+  }, [meta.order]);
 
   const handleLoadProject = async (project: any) => {
     const payload = project?.payload || {};
@@ -4084,6 +4107,7 @@ export default function App() {
                       ))}
                     </div>
                   )}
+                  {deliveryReferenceOptions.customers.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">Delivery:</span>{deliveryReferenceOptions.customers.slice(0, 5).map(customerOption => <button key={customerOption} type="button" onClick={() => handleMetaChange('customer', customerOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{customerOption}</button>)}</div>}
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -4095,6 +4119,7 @@ export default function App() {
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
                     placeholder="ex: 08788-00"
                   />
+                  {deliveryReferenceOptions.pos.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">PO disponibles:</span>{deliveryReferenceOptions.pos.slice(0, 8).map(poOption => <button key={poOption} type="button" onClick={() => handleMetaChange('po', poOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{poOption}</button>)}</div>}
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -4183,6 +4208,7 @@ export default function App() {
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles(true)}`}
                     placeholder="ex: New York"
                   />
+                  {deliveryReferenceOptions.destinations.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">Destinations:</span>{deliveryReferenceOptions.destinations.slice(0, 5).map(destinationOption => <button key={destinationOption} type="button" onClick={() => handleMetaChange('destination', destinationOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{destinationOption}</button>)}</div>}
                 </div>
 
                 <div className="flex flex-col gap-1">

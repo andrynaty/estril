@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('rubaDesktop', {
   getSetting: (key) => ipcRenderer.invoke('ruba:settings-get', key),
   setSetting: (key, value) => ipcRenderer.invoke('ruba:settings-set', key, value),
   getStorageRoot: () => ipcRenderer.invoke('ruba:storage-root'),
+  syncDeliveryCsv: () => ipcRenderer.invoke('ruba:delivery-csv-sync'),
+  getDeliveryCsvStatus: () => ipcRenderer.invoke('ruba:delivery-csv-status'),
   chooseStorageRoot: () => ipcRenderer.invoke('ruba:storage-root-choose'),
   listProjects: (query) => ipcRenderer.invoke('ruba:projects-list', query),
   getProject: (id) => ipcRenderer.invoke('ruba:project-get', id),

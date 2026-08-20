@@ -30,6 +30,8 @@ declare global {
     getSetting: (key: string) => Promise<string | null>;
     setSetting: (key: string, value: string) => Promise<boolean>;
     getStorageRoot: () => Promise<string>;
+    syncDeliveryCsv: () => Promise<{ found: boolean; source?: string; modifiedAt?: string; rows?: number; candidates?: string[] }>;
+    getDeliveryCsvStatus: () => Promise<{ found: boolean; source?: string; modifiedAt?: string; rows?: number; candidates?: string[] }>;
     chooseStorageRoot: () => Promise<string | null>;
     listProjects: (query?: string) => Promise<any[]>;
     getProject: (id: string) => Promise<any | null>;
