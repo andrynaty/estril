@@ -13,7 +13,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "desktop:dev": "npm run build && electron .",
-    "desktop:dist": "npm run build && electron-builder --win nsis portable --publish never"
+    "desktop:dist": "npm run build && electron-builder --win nsis --publish never --config.artifactName=Ruba-Installer-${version}-${arch}.${ext} && electron-builder --win portable --publish never --config.artifactName=Ruba-Portable-${version}-${arch}.${ext}"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
