@@ -480,13 +480,13 @@ export default function App() {
     }
   }, []);
 
-  const refreshPackingHistory = async () => {
+  const refreshPackingHistory = async (fallbackSource?: LocalSaveListItem[]) => {
     if (window.rubaDesktop?.listPackingLists) {
       const rows = await window.rubaDesktop.listPackingLists();
       setPackingHistory(rows);
       return rows;
     }
-    const fallback = savedLists.map(item => ({ id: item.id, name: item.name, status: 'local', updated_at: item.savedAt, payload: item }));
+    const fallback = (fallbackSource || savedLists).map(item => ({ id: item.id, name: item.name, status: 'local', updated_at: item.savedAt, payload: item }));
     setPackingHistory(fallback);
     return fallback;
   };
@@ -2048,7 +2048,8 @@ export default function App() {
       };
 
       setActivePackingListId(listId);
-      setSavedLists(prev => prev.some(item => item.id === listId) ? prev.map(item => item.id === listId ? newListItem : item) : [newListItem, ...prev]);
+      const nextSavedLists = savedLists.some(item => item.id === listId) ? savedLists.map(item => item.id === listId ? newListItem : item) : [newListItem, ...savedLists];
+      setSavedLists(nextSavedLists);
       if (window.rubaDesktop?.savePackingList) {
         await window.rubaDesktop.savePackingList({ id: listId, name: finalName, status: hasGenerated ? 'completed' : 'draft', payload: newListItem });
       }
@@ -2063,7 +2064,7 @@ export default function App() {
           payload: newListItem,
         });
       }
-      await refreshPackingHistory();
+      await refreshPackingHistory(nextSavedLists);
       triggerToast(`${activePackingListId ? '↻ Fiche mise à jour' : '💾 Fiche sauvegardée'} : "${finalName}"`, 'success');
       setSavesError(null);
       setSaveNameInput('');
@@ -6527,6 +6528,10 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="space-y-6">
+                      <div className={`flex flex-col gap-3 rounded-2xl border-2 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between ${darkMode ? 'border-emerald-400/40 bg-emerald-950/20' : 'border-emerald-200 bg-emerald-50'}`}>
+                        <div><p className={`text-[10px] font-black uppercase tracking-[0.18em] ${darkMode ? 'text-emerald-300' : 'text-emerald-700'}`}>Packing List générée</p><p className={`mt-1 text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>{activePackingListId ? `Fiche active : ${activePackingListId}` : 'Cette fiche n’est pas encore enregistrée dans l’historique.'}</p></div>
+                        <div className="flex flex-wrap items-center gap-2"><input value={saveNameInput} onChange={e => setSaveNameInput(e.target.value)} placeholder="Nom de la Packing List" className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none"/><button onClick={() => handleSaveCurrentList(saveNameInput)} className="flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-emerald-800"><Save size={15}/>{activePackingListId ? 'METTRE À JOUR' : 'SAUVEGARDER'}</button><button onClick={() => openMainRibbon('history')} className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-bold text-emerald-800">VOIR L’HISTORIQUE</button></div>
+                      </div>
                       {/* Sub-Tab Navigation for Packing List Views */}
                       <div className="flex border-b pb-1 gap-2 border-slate-700/10 print:hidden">
                         <button
