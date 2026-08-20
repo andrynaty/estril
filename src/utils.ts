@@ -2078,7 +2078,23 @@ export async function exportToExcel(
   // 4. FILE EMISSION
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  saveAs(blob, userFilename);
+
+  if (typeof window !== 'undefined' && window.rubaDesktop) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
+    }
+    await window.rubaDesktop.saveFile({
+      fileName: userFilename,
+      data: btoa(binary),
+      encoding: 'base64',
+      filters: [{ name: 'Classeur Excel', extensions: ['xlsx'] }],
+    });
+  } else {
+    saveAs(blob, userFilename);
+  }
 }
 
 /**
