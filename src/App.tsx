@@ -680,6 +680,28 @@ export default function App() {
     loadTemplatesFromSqlite().catch(error => console.error('Template SQLite load failed', error));
   }, []);
 
+  const handleLoadProject = async (project: any) => {
+    const payload = project?.payload || {};
+    try {
+      if (payload.meta && typeof payload.meta === 'object') setMeta({ ...meta, ...payload.meta });
+      if (payload.db && typeof payload.db === 'object') setDb({ ...db, ...payload.db });
+      if (Array.isArray(payload.colors)) setColors(payload.colors);
+      if (payload.globalPackingMode) setGlobalPackingMode(payload.globalPackingMode);
+      if (payload.maxSizesPerBox) setMaxSizesPerBox(payload.maxSizesPerBox);
+      if (payload.forceSingleCarton !== undefined) setForceSingleCarton(Boolean(payload.forceSingleCarton));
+      if (payload.forceSubCapSolidInMixed !== undefined) setForceSubCapSolidInMixed(Boolean(payload.forceSubCapSolidInMixed));
+      if (payload.hasGenerated !== undefined) setHasGenerated(Boolean(payload.hasGenerated));
+      if (Array.isArray(payload.results)) setResults(payload.results);
+      if (payload.activeInputTab) setActiveInputTab(payload.activeInputTab);
+      setActiveMainRibbon('packing');
+      setActiveWorkspace('packing');
+      triggerToast(`Projet chargé : ${project.name || project.id}`, 'success');
+    } catch (error: any) {
+      triggerToast(`Erreur de restauration du projet : ${error?.message || error}`, 'error');
+      throw error;
+    }
+  };
+
   const resetColorsToDefault = () => {
     const defaultColor: ColorConfig = {
       nom: 'COULEUR 1',
@@ -3465,7 +3487,7 @@ export default function App() {
           </div>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
         </div>
-        {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeMainRibbon === 'exports' ? <ExportedFilesRibbon /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} /></IndustrialErrorBoundary> : <>
+        {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeMainRibbon === 'exports' ? <ExportedFilesRibbon /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} onLoadProject={handleLoadProject} projectPayload={{ meta, db, colors, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, hasGenerated, results, activeInputTab }} /></IndustrialErrorBoundary> : <>
 
         {/* Sleek Mobile Horizontal Ribbon Navigation */}
         <div className="lg:hidden sticky top-[62px] z-30 w-full overflow-x-auto scrollbar-none py-2.5 px-2 flex flex-row gap-2 print:hidden transition-all duration-300 border-b shadow-sm bg-[#f4f6fb] dark:bg-[#0C0C0E] border-slate-200/60 dark:border-white/5">

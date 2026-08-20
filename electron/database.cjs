@@ -86,6 +86,7 @@ function createDatabase(userDataPath) {
 
 function now() { return new Date().toISOString(); }
 function id(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`; }
+function parsePayload(value) { try { return JSON.parse(value || '{}'); } catch { return {}; } }
 
 function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   const db = createDatabase(app.getPath('userData'));
@@ -130,7 +131,11 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
 
   ipcMain.handle('ruba:projects-list', (_event, query = '') => {
     const like = `%${String(query).trim()}%`;
-    return db.prepare(`SELECT * FROM projects WHERE name LIKE ? OR customer LIKE ? OR order_number LIKE ? ORDER BY updated_at DESC`).all(like, like, like);
+    return db.prepare(`SELECT * FROM projects WHERE name LIKE ? OR customer LIKE ? OR order_number LIKE ? ORDER BY updated_at DESC`).all(like, like, like).map(row => ({ ...row, payload: parsePayload(row.payload_json) }));
+  });
+  ipcMain.handle('ruba:project-get', (_event, projectId) => {
+    const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(String(projectId));
+    return row ? { ...row, payload: parsePayload(row.payload_json) } : null;
   });
   ipcMain.handle('ruba:project-save', (_event, project = {}) => {
     const timestamp = now();
@@ -245,4 +250,4 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   return db;
 }
 
-module.exports = { registerDatabaseIpc };
+module.exports = { registerDatabaseIpc, createDatabase };

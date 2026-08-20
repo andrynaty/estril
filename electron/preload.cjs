@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('rubaDesktop', {
   getStorageRoot: () => ipcRenderer.invoke('ruba:storage-root'),
   chooseStorageRoot: () => ipcRenderer.invoke('ruba:storage-root-choose'),
   listProjects: (query) => ipcRenderer.invoke('ruba:projects-list', query),
+  getProject: (id) => ipcRenderer.invoke('ruba:project-get', id),
   saveProject: (project) => ipcRenderer.invoke('ruba:project-save', project),
   deleteProject: (id) => ipcRenderer.invoke('ruba:project-delete', id),
   listPackingLists: (query) => ipcRenderer.invoke('ruba:packing-lists-list', query),

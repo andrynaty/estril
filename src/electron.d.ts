@@ -32,6 +32,7 @@ declare global {
     getStorageRoot: () => Promise<string>;
     chooseStorageRoot: () => Promise<string | null>;
     listProjects: (query?: string) => Promise<any[]>;
+    getProject: (id: string) => Promise<any | null>;
     saveProject: (project: any) => Promise<any>;
     deleteProject: (id: string) => Promise<boolean>;
     listPackingLists: (query?: string) => Promise<any[]>;
