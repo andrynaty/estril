@@ -2091,6 +2091,7 @@ export async function exportToExcel(
       fileName: userFilename,
       data: btoa(binary),
       encoding: 'base64',
+      exportType: 'xlsx',
       filters: [{ name: 'Classeur Excel', extensions: ['xlsx'] }],
     });
     if (savedFile.filePath && window.rubaDesktop.registerFile) {

@@ -2,7 +2,9 @@ const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electro
 const path = require('node:path');
 const fs = require('node:fs/promises');
 let registerDatabaseIpc;
+let registerTemplatesDatabaseIpc;
 let dbForStorage = null;
+let templatesDb = null;
 
 const isDev = !app.isPackaged;
 
@@ -79,14 +81,71 @@ ipcMain.handle('ruba:read-file', async (_event, filePath) => {
   return { filePath, data: data.toString('base64') };
 });
 
+const getExportFolders = () => {
+  const root = path.join(app.getPath('userData'), 'exports');
+  return { root, pdf: path.join(root, 'PDF_Exports'), xlsx: path.join(root, 'XLSX_Exports') };
+};
+
+ipcMain.handle('ruba:export-folders', async () => {
+  const folders = getExportFolders();
+  await Promise.all([fs.mkdir(folders.pdf, { recursive: true }), fs.mkdir(folders.xlsx, { recursive: true })]);
+  return folders;
+});
+
+ipcMain.handle('ruba:export-files-list', async (_event, type = 'all') => {
+  const folders = getExportFolders();
+  await Promise.all([fs.mkdir(folders.pdf, { recursive: true }), fs.mkdir(folders.xlsx, { recursive: true })]);
+  const sources = type === 'pdf' ? [['pdf', folders.pdf]] : type === 'xlsx' ? [['xlsx', folders.xlsx]] : [['pdf', folders.pdf], ['xlsx', folders.xlsx]];
+  const result = [];
+  for (const [fileType, folder] of sources) {
+    const names = await fs.readdir(folder);
+    for (const name of names) {
+      const filePath = path.join(folder, name);
+      const stat = await fs.stat(filePath);
+      if (stat.isFile()) result.push({ name, type: fileType, filePath, sizeBytes: stat.size, updatedAt: stat.mtime.toISOString() });
+    }
+  }
+  return result.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+});
+ipcMain.handle('ruba:export-folder-open', async () => {
+  const folders = getExportFolders();
+  await Promise.all([fs.mkdir(folders.pdf, { recursive: true }), fs.mkdir(folders.xlsx, { recursive: true })]);
+  return shell.openPath(folders.root);
+});
+ipcMain.handle('ruba:export-file-open', async (_event, filePath) => {
+  const folders = getExportFolders();
+  const resolved = path.resolve(String(filePath || ''));
+  if (![folders.pdf, folders.xlsx].some(folder => resolved.startsWith(path.resolve(folder) + path.sep))) throw new Error('Chemin d’export non autorisé.');
+  return shell.openPath(resolved);
+});
+ipcMain.handle('ruba:export-file-delete', async (_event, filePath) => {
+  const folders = getExportFolders();
+  const resolved = path.resolve(String(filePath || ''));
+  if (![folders.pdf, folders.xlsx].some(folder => resolved.startsWith(path.resolve(folder) + path.sep))) throw new Error('Chemin d’export non autorisé.');
+  await fs.rm(resolved, { force: true });
+  return true;
+});
+
 ipcMain.handle('ruba:save-file-to-storage', async (_event, payload = {}) => {
-  const rootSetting = dbForStorage?.prepare('SELECT value FROM app_settings WHERE key = ?').get('storageRoot')?.value;
-  const root = rootSetting || path.join(app.getPath('userData'), 'files');
-  await fs.mkdir(root, { recursive: true });
+  const folders = getExportFolders();
+  await Promise.all([fs.mkdir(folders.pdf, { recursive: true }), fs.mkdir(folders.xlsx, { recursive: true })]);
+  const targetFolder = String(payload.exportType || '').toLowerCase() === 'pdf' ? folders.pdf : folders.xlsx;
   const safeName = String(payload.fileName || 'export.xlsx').replace(/[^a-zA-Z0-9._-]+/g, '_');
-  const filePath = path.join(root, safeName);
+  const filePath = path.join(targetFolder, safeName);
   const bytes = payload.encoding === 'base64' ? Buffer.from(String(payload.data || ''), 'base64') : Buffer.from(String(payload.data || ''), 'utf8');
   await fs.writeFile(filePath, bytes);
+  return { canceled: false, filePath };
+});
+
+ipcMain.handle('ruba:save-window-pdf', async (event, payload = {}) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) throw new Error('Fenêtre Ruba introuvable.');
+  const folders = getExportFolders();
+  await fs.mkdir(folders.pdf, { recursive: true });
+  const safeName = String(payload.fileName || 'packing-list.pdf').replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/\.pdf$/i, '') + '.pdf';
+  const filePath = path.join(folders.pdf, safeName);
+  const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+  await fs.writeFile(filePath, pdf);
   return { canceled: false, filePath };
 });
 
@@ -114,8 +173,16 @@ app.whenReady().then(() => {
   try {
     registerDatabaseIpc = require('./database.cjs').registerDatabaseIpc;
     dbForStorage = registerDatabaseIpc({ ipcMain, app, dialog, fsPromises: fs, pathModule: path });
+    registerTemplatesDatabaseIpc = require('./templates-database.cjs').registerTemplatesDatabaseIpc;
+    templatesDb = registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises: fs });
   } catch (error) {
     console.error('SQLite initialization failed; continuing without database:', error);
+    try {
+      registerTemplatesDatabaseIpc = require('./templates-database.cjs').registerTemplatesDatabaseIpc;
+      templatesDb = registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises: fs });
+    } catch (templateError) {
+      console.error('Template SQLite initialization failed:', templateError);
+    }
   }
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'clipboard-read' || permission === 'clipboard-sanitized-write');

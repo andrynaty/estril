@@ -64,10 +64,12 @@ import {
 import WelcomeScreen from './components/WelcomeScreen';
 import BoxModal from './components/BoxModal';
 import MajBsdModal from './components/MajBsdModal';
+import TemplateManagerModal from './components/TemplateManagerModal';
 import ScreenshotTool from './components/ScreenshotTool';
 import IndustrialCenter from './components/IndustrialCenter';
 import IndustrialErrorBoundary from './components/IndustrialErrorBoundary';
 import PackingHistoryRibbon from './components/PackingHistoryRibbon';
+import ExportedFilesRibbon from './components/ExportedFilesRibbon';
 import ParcelLabelModule from './components/ParcelLabelModule';
 import CartonVisualizer from './components/CartonVisualizer';
 import ContainerVisualizer from './components/ContainerVisualizer';
@@ -359,7 +361,7 @@ export default function App() {
   // Active page state for sidebar: 'saisie' (page 1: Saisie & Préparation) or 'suivi' (page 2: Suivi & Livrables)
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
   const [activeWorkspace, setActiveWorkspace] = useState<'packing' | 'industrial'>('packing');
-  const [activeMainRibbon, setActiveMainRibbon] = useState<'packing' | 'history' | 'dashboard' | 'projects' | 'files' | 'settings'>('packing');
+  const [activeMainRibbon, setActiveMainRibbon] = useState<'packing' | 'projects' | 'history' | 'exports' | 'dashboard' | 'files' | 'settings'>('packing');
   const [packingHistory, setPackingHistory] = useState<any[]>([]);
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
@@ -641,10 +643,42 @@ export default function App() {
   };
 
   // Save database modifications
-  const handleSaveDatabase = (newDb: ModelsDatabase) => {
+  const handleSaveDatabase = async (newDb: ModelsDatabase) => {
     setDb(newDb);
     localStorage.setItem('packing_list_pro_db', JSON.stringify(newDb));
+    if (window.rubaDesktop?.seedTemplates) {
+      await window.rubaDesktop.seedTemplates([
+        ...newDb.dim_models.map(model => ({ id: `dimension_${model.name}`, category: 'dimension', name: model.name, lengthCm: model.L, widthCm: model.l, heightCm: model.h })),
+        ...newDb.weight_piece_models.map(model => ({ id: `weight_piece_${model.name}`, category: 'weight_piece', name: model.name, weightKg: model.wPiece })),
+        ...newDb.weight_carton_models.map(model => ({ id: `weight_carton_${model.name}`, category: 'weight_carton', name: model.name, weightKg: model.wCarton }))
+      ]);
+    }
   };
+
+  useEffect(() => {
+    if (!window.rubaDesktop?.listTemplates) return;
+    const loadTemplatesFromSqlite = async () => {
+      let rows = await window.rubaDesktop!.listTemplates();
+      if (rows.length === 0 && window.rubaDesktop!.seedTemplates) {
+        rows = await window.rubaDesktop!.seedTemplates([
+          ...DEFAULT_DATABASE.dim_models.map(model => ({ id: `dimension_${model.name}`, category: 'dimension', name: model.name, lengthCm: model.L, widthCm: model.l, heightCm: model.h })),
+          ...DEFAULT_DATABASE.weight_piece_models.map(model => ({ id: `weight_piece_${model.name}`, category: 'weight_piece', name: model.name, weightKg: model.wPiece })),
+          ...DEFAULT_DATABASE.weight_carton_models.map(model => ({ id: `weight_carton_${model.name}`, category: 'weight_carton', name: model.name, weightKg: model.wCarton }))
+        ]);
+      }
+      const activeRows = rows.filter(row => Number(row.active) !== 0);
+      const nextDb: ModelsDatabase = {
+        dim_models: activeRows.filter(row => row.category === 'dimension').map(row => ({ name: row.name, L: Number(row.length_cm), l: Number(row.width_cm), h: Number(row.height_cm) })),
+        weight_piece_models: activeRows.filter(row => row.category === 'weight_piece').map(row => ({ name: row.name, wPiece: Number(row.weight_kg) })),
+        weight_carton_models: activeRows.filter(row => row.category === 'weight_carton').map(row => ({ name: row.name, wCarton: Number(row.weight_kg) }))
+      };
+      if (nextDb.dim_models.length || nextDb.weight_piece_models.length || nextDb.weight_carton_models.length) {
+        setDb(nextDb);
+        localStorage.setItem('packing_list_pro_db', JSON.stringify(nextDb));
+      }
+    };
+    loadTemplatesFromSqlite().catch(error => console.error('Template SQLite load failed', error));
+  }, []);
 
   const resetColorsToDefault = () => {
     const defaultColor: ColorConfig = {
@@ -2269,11 +2303,19 @@ export default function App() {
     styleEl.innerHTML = `@media print { ${css} }`;
     document.head.appendChild(styleEl);
 
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => {
-        styleEl.remove();
-      }, 500);
+    setTimeout(async () => {
+      if (window.rubaDesktop?.saveWindowPdf) {
+        try {
+          const safeOrder = String(meta.order || 'PACKING_LIST').replace(/[^a-zA-Z0-9._-]+/g, '_');
+          const saved = await window.rubaDesktop.saveWindowPdf({ fileName: `${safeOrder}_${new Date().toISOString().slice(0, 10)}.pdf` });
+          if (saved.filePath) triggerToast(`PDF enregistré dans PDF_Exports : ${saved.filePath.split(/[\\/]/).pop()}`, 'success');
+        } catch (error: any) {
+          triggerToast(`Erreur export PDF : ${error?.message || error}`, 'error');
+        }
+      } else {
+        window.print();
+      }
+      setTimeout(() => styleEl.remove(), 500);
     }, 200);
   };
 
@@ -2833,15 +2875,7 @@ export default function App() {
         </div>
       )}
 
-      {isMajBsdOpen && (
-        <MajBsdModal
-          isOpen={isMajBsdOpen}
-          database={db}
-          onClose={() => setIsMajBsdOpen(false)}
-          onSaveDatabase={handleSaveDatabase}
-          darkMode={darkMode}
-        />
-      )}
+      {isMajBsdOpen && (window.rubaDesktop?.listTemplates ? <TemplateManagerModal isOpen={isMajBsdOpen} onClose={() => setIsMajBsdOpen(false)} darkMode={darkMode} /> : <MajBsdModal isOpen={isMajBsdOpen} database={db} onClose={() => setIsMajBsdOpen(false)} onSaveDatabase={handleSaveDatabase} darkMode={darkMode} />)}
 
       {/* Smart Raw Text / Excel Import Modal */}
       {isSmartImportOpen && (
@@ -3425,12 +3459,13 @@ export default function App() {
               ['dashboard', 'Dashboard'],
               ['projects', 'Travaux'],
               ['files', 'Fichiers Excel'],
-              ['settings', 'Paramètres']
+              ['settings', 'Paramètres'],
+              ['exports', 'Fichiers exportés'],
             ].map(([id, label]) => <button key={id} onClick={() => openMainRibbon(id as typeof activeMainRibbon)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeMainRibbon === id ? 'bg-teal-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>{label}</button>)}
           </div>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
         </div>
-        {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} /></IndustrialErrorBoundary> : <>
+        {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeMainRibbon === 'exports' ? <ExportedFilesRibbon /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} /></IndustrialErrorBoundary> : <>
 
         {/* Sleek Mobile Horizontal Ribbon Navigation */}
         <div className="lg:hidden sticky top-[62px] z-30 w-full overflow-x-auto scrollbar-none py-2.5 px-2 flex flex-row gap-2 print:hidden transition-all duration-300 border-b shadow-sm bg-[#f4f6fb] dark:bg-[#0C0C0E] border-slate-200/60 dark:border-white/5">

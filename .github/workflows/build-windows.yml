@@ -46,12 +46,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="v1.0.0"
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          INSTALLER="release/Ruba-Installer-${VERSION}-x64.exe"
+          PORTABLE="release/Ruba-Portable-${VERSION}-x64.exe"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" release/Ruba-Installer-1.0.0-x64.exe release/Ruba-Portable-1.0.0-x64.exe --clobber
+            gh release upload "$TAG" "$INSTALLER" "$PORTABLE" --clobber
           else
-            gh release create "$TAG" release/Ruba-Installer-1.0.0-x64.exe release/Ruba-Portable-1.0.0-x64.exe \
-              --title "Ruba Packing List 1.0.0" \
-              --notes "Installateur Windows et version portable de Ruba Packing List." \
+            gh release create "$TAG" "$INSTALLER" "$PORTABLE" \
+              --title "Ruba Packing List $VERSION" \
+              --notes "Installateur Windows et version portable de Ruba Packing List $VERSION." \
               --latest
           fi

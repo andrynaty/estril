@@ -14,6 +14,7 @@ declare global {
       fileName: string;
       data: string;
       encoding?: 'base64';
+      exportType?: 'pdf' | 'xlsx';
       filters?: Array<{ name: string; extensions: string[] }>;
     }) => Promise<{ canceled: boolean; filePath?: string }>;
     saveFile: (payload: {
@@ -38,6 +39,17 @@ declare global {
     savePackingList: (packingList: any) => Promise<any>;
     deletePackingList: (id: string) => Promise<boolean>;
     deleteAllPackingLists: () => Promise<number>;
+    getTemplatesDbPath: () => Promise<string>;
+    listTemplates: (category?: string) => Promise<any[]>;
+    saveTemplate: (template: any) => Promise<any>;
+    deleteTemplate: (id: string) => Promise<boolean>;
+    seedTemplates: (templates: any[]) => Promise<any[]>;
+    getExportFolders: () => Promise<{ root: string; pdf: string; xlsx: string }>;
+    listExportFiles: (type?: string) => Promise<Array<{ name: string; type: string; filePath: string; sizeBytes: number; updatedAt: string }>>;
+    openExportFolder: () => Promise<string>;
+    openExportFile: (filePath: string) => Promise<string>;
+    deleteExportFile: (filePath: string) => Promise<boolean>;
+    saveWindowPdf: (payload: { fileName?: string }) => Promise<{ canceled: boolean; filePath?: string }>;
     listFiles: (filters?: { search?: string; fileKind?: string }) => Promise<any[]>;
     importFile: (options?: { projectId?: string; fileKind?: string; mimeType?: string; filters?: Array<{ name: string; extensions: string[] }> }) => Promise<any | null>;
     registerFile: (file: any) => Promise<any>;
