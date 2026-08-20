@@ -230,6 +230,19 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   });
 
   ipcMain.handle('ruba:delivery-plans-list', (_event, projectId) => db.prepare('SELECT * FROM delivery_plans WHERE project_id = ? ORDER BY updated_at DESC').all(String(projectId)));
+  ipcMain.handle('ruba:delivery-reference-options', (_event, orderNumber = '') => {
+    const target = String(orderNumber || '').trim().toLowerCase();
+    const plans = db.prepare('SELECT payload_json FROM delivery_plans ORDER BY updated_at DESC').all();
+    const rows = plans.flatMap((plan) => {
+      const payload = parsePayload(plan.payload_json);
+      return Array.isArray(payload.rows) ? payload.rows : [];
+    }).filter((row) => {
+      const order = String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim().toLowerCase();
+      return !target || order === target || order.includes(target);
+    });
+    const unique = (key) => Array.from(new Set(rows.map((row) => String(row[key] ?? '').trim()).filter(Boolean)));
+    return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest') };
+  });
   ipcMain.handle('ruba:delivery-plan-save', (_event, plan = {}) => {
     const timestamp = now(); const planId = plan.id || id('plan');
     db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)

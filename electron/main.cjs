@@ -112,6 +112,11 @@ ipcMain.handle('ruba:export-folder-open', async () => {
   await Promise.all([fs.mkdir(folders.pdf, { recursive: true }), fs.mkdir(folders.xlsx, { recursive: true })]);
   return shell.openPath(folders.root);
 });
+ipcMain.handle('ruba:stored-file-open', async (_event, filePath) => {
+  const resolved = path.resolve(String(filePath || ''));
+  try { await fs.access(resolved); } catch { throw new Error('Fichier introuvable.'); }
+  return shell.openPath(resolved);
+});
 ipcMain.handle('ruba:export-file-open', async (_event, filePath) => {
   const folders = getExportFolders();
   const resolved = path.resolve(String(filePath || ''));
@@ -144,7 +149,7 @@ ipcMain.handle('ruba:save-window-pdf', async (event, payload = {}) => {
   await fs.mkdir(folders.pdf, { recursive: true });
   const safeName = String(payload.fileName || 'packing-list.pdf').replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/\.pdf$/i, '') + '.pdf';
   const filePath = path.join(folders.pdf, safeName);
-  const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true });
+  const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, landscape: true, marginsType: 0 });
   await fs.writeFile(filePath, pdf);
   return { canceled: false, filePath };
 });

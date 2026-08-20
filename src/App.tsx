@@ -263,7 +263,10 @@ export default function App() {
   };
 
   // Saved snapshots lists history database
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => localStorage.getItem('ruba_active_project_id'));
   const [activePackingListId, setActivePackingListId] = useState<string | null>(null);
+  useEffect(() => { if (activeProjectId) localStorage.setItem('ruba_active_project_id', activeProjectId); else localStorage.removeItem('ruba_active_project_id'); }, [activeProjectId]);
+
   const [savedLists, setSavedLists] = useState<LocalSaveListItem[]>(() => {
     const saved = localStorage.getItem('packing_list_pro_saved_lists');
     return saved ? JSON.parse(saved) : [];
@@ -281,6 +284,8 @@ export default function App() {
   // Auto-complete choices
   const [custQuery, setCustQuery] = useState('');
   const [custSuggestions, setCustSuggestions] = useState<string[]>([]);
+  const [templateCustomers, setTemplateCustomers] = useState<string[]>([]);
+  const [deliveryReferenceOptions, setDeliveryReferenceOptions] = useState<{ customers: string[]; pos: string[]; colors: string[]; destinations: string[] }>({ customers: [], pos: [], colors: [], destinations: [] });
   const [showCustDropdown, setShowCustDropdown] = useState(false);
 
   // Modals state triggers
@@ -361,7 +366,7 @@ export default function App() {
   // Active page state for sidebar: 'saisie' (page 1: Saisie & Préparation) or 'suivi' (page 2: Suivi & Livrables)
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
   const [activeWorkspace, setActiveWorkspace] = useState<'packing' | 'industrial'>('packing');
-  const [activeMainRibbon, setActiveMainRibbon] = useState<'packing' | 'projects' | 'history' | 'exports' | 'dashboard' | 'files' | 'settings'>('packing');
+  const [activeMainRibbon, setActiveMainRibbon] = useState<'packing' | 'projects' | 'history' | 'exports' | 'dashboard' | 'files' | 'settings' | 'delivery'>('packing');
   const [packingHistory, setPackingHistory] = useState<any[]>([]);
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
@@ -456,6 +461,23 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  useEffect(() => {
+    const orderNumber = meta.order.trim();
+    if (!orderNumber || !window.rubaDesktop?.getDeliveryReferenceOptions) {
+      setDeliveryReferenceOptions({ customers: [], pos: [], colors: [], destinations: [] });
+      return;
+    }
+    window.rubaDesktop.getDeliveryReferenceOptions(orderNumber).then((options) => {
+      setDeliveryReferenceOptions(options);
+      setMeta((current) => ({
+        ...current,
+        customer: current.customer || (options.customers.length === 1 ? options.customers[0] : ''),
+        po: current.po || (options.pos.length === 1 ? options.pos[0] : ''),
+        destination: current.destination || (options.destinations.length === 1 ? options.destinations[0] : ''),
+      }));
+    }).catch(() => setDeliveryReferenceOptions({ customers: [], pos: [], colors: [], destinations: [] }));
+  }, [meta.order]);
 
   // Sync selected export colors when results compute
   useEffect(() => {
@@ -659,6 +681,8 @@ export default function App() {
     if (!window.rubaDesktop?.listTemplates) return;
     const loadTemplatesFromSqlite = async () => {
       let rows = await window.rubaDesktop!.listTemplates();
+      const customerRows = await window.rubaDesktop!.listTemplates('customer');
+      setTemplateCustomers(customerRows.filter((row: any) => Number(row.active) !== 0).map((row: any) => String(row.name)).filter(Boolean));
       if (rows.length === 0 && window.rubaDesktop!.seedTemplates) {
         rows = await window.rubaDesktop!.seedTemplates([
           ...DEFAULT_DATABASE.dim_models.map(model => ({ id: `dimension_${model.name}`, category: 'dimension', name: model.name, lengthCm: model.L, widthCm: model.l, heightCm: model.h })),
@@ -772,7 +796,8 @@ export default function App() {
         setCustSuggestions([]);
         setShowCustDropdown(false);
       } else {
-        const filtered = CUSTS.filter(c => c.toUpperCase().includes(value.toUpperCase())).slice(0, 10);
+        const customerCatalog = Array.from(new Set([...templateCustomers, ...CUSTS]));
+        const filtered = customerCatalog.filter(c => c.toUpperCase().includes(value.toUpperCase())).slice(0, 10);
         setCustSuggestions(filtered);
         setShowCustDropdown(filtered.length > 0);
       }
@@ -2073,81 +2098,125 @@ export default function App() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  // Save current active list to the database
+  // Save the complete industrial project and keep a linked Packing List snapshot.
   const handleSaveCurrentList = async (customName: string) => {
     try {
-      const timestamp = new Date().toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      const autoLabel = [
-        meta.order ? `Order #${meta.order}` : '',
-        meta.customer ? `${meta.customer}` : '',
-        meta.style ? `${meta.style}` : ''
-      ].filter(Boolean).join(' - ') || 'Fiche sans nom';
-
-      const finalName = customName.trim() || `${autoLabel} (${timestamp})`;
-      const listId = activePackingListId || ('packing_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
-      const newListItem: LocalSaveListItem = {
-        id: listId,
-        name: finalName,
+      const timestamp = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const autoLabel = [meta.order ? `Order #${meta.order}` : '', meta.customer || '', meta.style || ''].filter(Boolean).join(' - ') || 'Projet sans nom';
+      const finalName = customName.trim() || autoLabel;
+      const projectWasExisting = Boolean(activeProjectId);
+      const projectPayload: any = {
+        schemaVersion: 2,
         savedAt: new Date().toISOString(),
-        meta: { ...meta },
+        meta: JSON.parse(JSON.stringify(meta)),
+        db: JSON.parse(JSON.stringify(db)),
         globalPackingMode,
         maxSizesPerBox,
         forceSingleCarton,
         forceSubCapSolidInMixed,
-        colors: JSON.parse(JSON.stringify(colors)) // deep copy
+        colors: JSON.parse(JSON.stringify(colors)),
+        results: JSON.parse(JSON.stringify(results)),
+        hasGenerated,
+        activeInputTab,
+        activeMainRibbon,
+        activeWorkspace,
+        sidebarActivePage,
+        viewPercentCustomData: JSON.parse(JSON.stringify(viewPercentCustomData)),
+        viewPercentMode,
+        viewPercentToleranceType,
+        viewPercentToleranceValue,
+        discrepancyReasons: JSON.parse(JSON.stringify(discrepancyReasons)),
+        auditNotes,
+        auditorName,
+        printSections,
+        printColumns,
+        packingListSubTab,
+        selectedLabelCarton,
+        ssccCompanyPrefix,
+        gs1BarcodeType,
+        selectedExportColors,
+        cartonBuilderMode,
+        dragAutoClose,
+        dragAutoAdvance,
+        customRemainders: JSON.parse(JSON.stringify(colors.map(color => ({ name: color.nom, cartons: color.customRemainders || [] })))),
+        uiSettings: { accent: localStorage.getItem('ruba_accent'), headerColor: localStorage.getItem('ruba_table_header_color'), zoom: localStorage.getItem('ruba_ui_zoom') }
       };
-
-      setActivePackingListId(listId);
-      const nextSavedLists = savedLists.some(item => item.id === listId) ? savedLists.map(item => item.id === listId ? newListItem : item) : [newListItem, ...savedLists];
-      setSavedLists(nextSavedLists);
-      if (window.rubaDesktop?.savePackingList) {
-        await window.rubaDesktop.savePackingList({ id: listId, name: finalName, status: hasGenerated ? 'completed' : 'draft', payload: newListItem });
-      }
-      if (window.rubaDesktop) {
-        await window.rubaDesktop.saveProject({
-          id: newListItem.id,
+      const listId = activePackingListId || ('packing_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
+      const newListItem: LocalSaveListItem = { id: listId, name: finalName, savedAt: projectPayload.savedAt, meta: { ...meta }, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, colors: projectPayload.colors };
+      let savedProject: any = { id: activeProjectId };
+      if (window.rubaDesktop?.saveProject) {
+        savedProject = await window.rubaDesktop.saveProject({
+          id: activeProjectId || undefined,
           name: finalName,
           customer: meta.customer,
           orderNumber: meta.order,
           poNumber: meta.po,
           status: hasGenerated ? 'completed' : 'draft',
-          payload: newListItem,
+          payload: projectPayload,
         });
+        setActiveProjectId(savedProject.id);
       }
+      if (window.rubaDesktop?.savePackingList) {
+        await window.rubaDesktop.savePackingList({ id: listId, name: finalName, projectId: savedProject.id || activeProjectId || null, status: hasGenerated ? 'completed' : 'draft', payload: projectPayload });
+      }
+      setActivePackingListId(listId);
+      const nextSavedLists = savedLists.some(item => item.id === listId) ? savedLists.map(item => item.id === listId ? newListItem : item) : [newListItem, ...savedLists];
+      setSavedLists(nextSavedLists);
       await refreshPackingHistory(nextSavedLists);
-      triggerToast(`${activePackingListId ? '↻ Fiche mise à jour' : '💾 Fiche sauvegardée'} : "${finalName}"`, 'success');
-      setSavesError(null);
-      setSaveNameInput('');
+      triggerToast(`${projectWasExisting ? '↻ Projet mis à jour' : '💾 Projet enregistré'} : "${finalName}"`, 'success');
+      setSavesError(null); setSaveNameInput('');
     } catch (err: any) {
-      setSavesError(`❌ Erreur lors de la sauvegarde : ${err?.message || err}`);
-      triggerToast(`Erreur lors de la sauvegarde`, 'error');
+      setSavesError(`❌ Erreur lors de la sauvegarde du projet : ${err?.message || err}`);
+      triggerToast('Erreur lors de la sauvegarde globale', 'error');
     }
   };
 
-  // Load a specified list from the database
-  const handleLoadSavedList = async (item: LocalSaveListItem & { payload?: LocalSaveListItem }) => {
+  // Load a complete project snapshot from the database or history.
+  const handleLoadSavedList = async (item: any) => {
     try {
       const loaded = item.payload || item;
-      setActivePackingListId(item.id);
-      setMeta({ ...loaded.meta });
-      setGlobalPackingMode(loaded.globalPackingMode);
-      setMaxSizesPerBox(loaded.maxSizesPerBox);
-      setForceSingleCarton(loaded.forceSingleCarton);
-      setForceSubCapSolidInMixed(Boolean(loaded.forceSubCapSolidInMixed));
-      setColors(JSON.parse(JSON.stringify(loaded.colors))); // deep copy
-      setHasGenerated(false);
-      setResults([]);
-      triggerToast(`🔌 Fiche "${item.name}" chargée. Modifiez-la puis utilisez « Sauvegarder la fiche » pour mettre à jour le même ID.`, 'success');
+      setActiveProjectId(item.project_id || item.projectId || activeProjectId);
+      setActivePackingListId(item.id || activePackingListId);
+      if (loaded.meta && typeof loaded.meta === 'object') setMeta({ ...meta, ...loaded.meta });
+      if (loaded.db && typeof loaded.db === 'object') setDb({ ...db, ...loaded.db });
+      if (loaded.globalPackingMode) setGlobalPackingMode(loaded.globalPackingMode);
+      if (loaded.maxSizesPerBox != null) setMaxSizesPerBox(Number(loaded.maxSizesPerBox));
+      if (loaded.forceSingleCarton !== undefined) setForceSingleCarton(Boolean(loaded.forceSingleCarton));
+      if (loaded.forceSubCapSolidInMixed !== undefined) setForceSubCapSolidInMixed(Boolean(loaded.forceSubCapSolidInMixed));
+      if (Array.isArray(loaded.colors)) setColors(JSON.parse(JSON.stringify(loaded.colors)));
+      if (Array.isArray(loaded.results)) setResults(JSON.parse(JSON.stringify(loaded.results)));
+      if (loaded.hasGenerated !== undefined) setHasGenerated(Boolean(loaded.hasGenerated));
+      if (loaded.activeInputTab) handleSetActiveInputTab(loaded.activeInputTab);
+      if (loaded.activeMainRibbon) setActiveMainRibbon(loaded.activeMainRibbon);
+      if (loaded.activeWorkspace) setActiveWorkspace(loaded.activeWorkspace);
+      if (loaded.sidebarActivePage) setSidebarActivePage(loaded.sidebarActivePage);
+      if (loaded.viewPercentCustomData) setViewPercentCustomData(loaded.viewPercentCustomData);
+      if (loaded.viewPercentMode) setViewPercentMode(loaded.viewPercentMode);
+      if (loaded.viewPercentToleranceType) setViewPercentToleranceType(loaded.viewPercentToleranceType);
+      if (loaded.viewPercentToleranceValue != null) setViewPercentToleranceValue(Number(loaded.viewPercentToleranceValue));
+      if (loaded.discrepancyReasons) setDiscrepancyReasons(loaded.discrepancyReasons);
+      if (loaded.auditNotes != null) setAuditNotes(loaded.auditNotes);
+      if (loaded.auditorName != null) setAuditorName(loaded.auditorName);
+      if (loaded.printSections) setPrintSections(loaded.printSections);
+      if (loaded.printColumns) setPrintColumns(loaded.printColumns);
+      if (loaded.packingListSubTab) setPackingListSubTab(loaded.packingListSubTab);
+      if (loaded.selectedLabelCarton != null) setSelectedLabelCarton(Number(loaded.selectedLabelCarton));
+      if (loaded.ssccCompanyPrefix) setSsccCompanyPrefix(loaded.ssccCompanyPrefix);
+      if (loaded.gs1BarcodeType) setGs1BarcodeType(loaded.gs1BarcodeType);
+      if (Array.isArray(loaded.selectedExportColors)) setSelectedExportColors(loaded.selectedExportColors);
+      if (loaded.cartonBuilderMode) setCartonBuilderMode(loaded.cartonBuilderMode);
+      if (loaded.dragAutoClose !== undefined) setDragAutoClose(Boolean(loaded.dragAutoClose));
+      if (loaded.dragAutoAdvance !== undefined) setDragAutoAdvance(Boolean(loaded.dragAutoAdvance));
+      if (loaded.uiSettings) {
+        if (loaded.uiSettings.accent) localStorage.setItem('ruba_accent', loaded.uiSettings.accent);
+        if (loaded.uiSettings.headerColor) localStorage.setItem('ruba_table_header_color', loaded.uiSettings.headerColor);
+        if (loaded.uiSettings.zoom) localStorage.setItem('ruba_ui_zoom', loaded.uiSettings.zoom);
+      }
+      triggerToast(`Projet « ${item.name || item.id} » chargé. Toutes les sections sont restaurées.`, 'success');
       setSavesError(null);
     } catch (err: any) {
-      setSavesError(`❌ Erreur lors du rechargement de la fiche : ${err?.message || err}`);
-      triggerToast(`Erreur de chargement`, 'error');
+      setSavesError(`❌ Erreur lors du rechargement du projet : ${err?.message || err}`);
+      triggerToast('Erreur de chargement', 'error');
     }
   };
 
@@ -2712,7 +2781,7 @@ export default function App() {
     setActiveWorkspace(ribbon === 'packing' ? 'packing' : 'industrial');
   };
 
-  const industrialTab = activeMainRibbon === 'dashboard' ? 'dashboard' : activeMainRibbon === 'projects' ? 'projects' : activeMainRibbon === 'files' ? 'files' : activeMainRibbon === 'settings' ? 'settings' : 'dashboard';
+  const industrialTab = activeMainRibbon === 'dashboard' ? 'dashboard' : activeMainRibbon === 'projects' ? 'projects' : activeMainRibbon === 'files' ? 'files' : activeMainRibbon === 'settings' ? 'settings' : activeMainRibbon === 'delivery' ? 'delivery' : 'dashboard';
 
   return (
     <div className={`min-h-screen lg:h-screen lg:overflow-hidden font-sans bg-grid-pattern ${darkMode ? 'bg-[#0C0C0E] text-white' : 'bg-[#f4f6fb] text-slate-900'} transition-colors duration-300 flex flex-col`}>
@@ -3482,10 +3551,11 @@ export default function App() {
               ['projects', 'Travaux'],
               ['files', 'Fichiers Excel'],
               ['settings', 'Paramètres'],
+              ['delivery', 'Delivery Plan'],
               ['exports', 'Fichiers exportés'],
             ].map(([id, label]) => <button key={id} onClick={() => openMainRibbon(id as typeof activeMainRibbon)} className={`rounded-lg px-3 py-2 text-xs font-black transition ${activeMainRibbon === id ? 'bg-teal-700 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}>{label}</button>)}
           </div>
-          <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
+          <div className="flex items-center gap-2"><button onClick={() => handleSaveCurrentList(saveNameInput)} className="flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-emerald-800"><Save size={14}/> Sauvegarder le projet</button><span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span></div>
         </div>
         {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeMainRibbon === 'exports' ? <ExportedFilesRibbon /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} onLoadProject={handleLoadProject} projectPayload={{ meta, db, colors, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, hasGenerated, results, activeInputTab }} /></IndustrialErrorBoundary> : <>
 
@@ -3998,7 +4068,10 @@ export default function App() {
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
                     placeholder="ex: Johnnie-O"
                     autoComplete="off"
+                    list="ruba-delivery-customers"
                   />
+                  <datalist id="ruba-delivery-customers">{deliveryReferenceOptions.customers.map(value => <option key={value} value={value} />)}</datalist>
+                  {deliveryReferenceOptions.customers.length > 1 && <p className="text-[9px] font-semibold text-teal-700">{deliveryReferenceOptions.customers.length} client(s) proposé(s) par Delivery Plan</p>}
 
                   {/* Autocomplete suggestions */}
                   {showCustDropdown && (
@@ -4026,7 +4099,9 @@ export default function App() {
                     onChange={(e) => handleMetaChange('po', e.target.value)}
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
                     placeholder="ex: 08788-00"
+                    list="ruba-delivery-pos"
                   />
+                  <datalist id="ruba-delivery-pos">{deliveryReferenceOptions.pos.map(value => <option key={value} value={value} />)}</datalist>
                 </div>
 
                 <div className="flex flex-col gap-1">
@@ -4114,7 +4189,10 @@ export default function App() {
                     onChange={(e) => handleMetaChange('destination', e.target.value)}
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles(true)}`}
                     placeholder="ex: New York"
+                    list="ruba-delivery-destinations"
                   />
+                  <datalist id="ruba-delivery-destinations">{deliveryReferenceOptions.destinations.map(value => <option key={value} value={value} />)}</datalist>
+                  {deliveryReferenceOptions.colors.length > 0 && <p className="text-[9px] font-semibold text-teal-700">Couleurs disponibles : {deliveryReferenceOptions.colors.join(', ')}</p>}
                 </div>
 
                 <div className="flex flex-col gap-1">

@@ -11,7 +11,7 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS template_models (
       id TEXT PRIMARY KEY,
-      category TEXT NOT NULL CHECK(category IN ('dimension', 'weight_piece', 'weight_carton')),
+      category TEXT NOT NULL,
       name TEXT NOT NULL,
       length_cm REAL,
       width_cm REAL,
@@ -24,27 +24,53 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
     CREATE INDEX IF NOT EXISTS idx_template_models_category ON template_models(category);
   `);
 
+  const legacySchema = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'template_models'").get()?.sql || '';
+  if (/CHECK\s*\(\s*category\s+IN/i.test(legacySchema)) {
+    const migrate = db.transaction(() => {
+      db.exec(`CREATE TABLE template_models_v2 (
+        id TEXT PRIMARY KEY, category TEXT NOT NULL, name TEXT NOT NULL,
+        length_cm REAL, width_cm REAL, height_cm REAL, weight_kg REAL,
+        active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`);
+      db.exec('INSERT INTO template_models_v2 SELECT id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at FROM template_models');
+      db.exec('DROP TABLE template_models');
+      db.exec('ALTER TABLE template_models_v2 RENAME TO template_models');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_template_models_category ON template_models(category)');
+    });
+    migrate();
+  }
+
+  const normalizeCategory = (value) => {
+    const category = String(value || 'dimension').trim().toLowerCase();
+    if (!['dimension', 'weight_piece', 'weight_carton', 'customer'].includes(category)) throw new Error('Catégorie de gabarit invalide.');
+    return category;
+  };
   const normalize = (template = {}) => {
-    const category = String(template.category || 'dimension');
-    if (!['dimension', 'weight_piece', 'weight_carton'].includes(category)) throw new Error('Catégorie de gabarit invalide.');
+    const category = normalizeCategory(template.category);
+    const numberOrNull = (value) => value === '' || value == null || Number.isNaN(Number(value)) ? null : Number(value);
     return {
-      id: template.id || makeId(),
-      category,
-      name: String(template.name || 'Gabarit sans nom').trim(),
-      lengthCm: template.lengthCm == null ? null : Number(template.lengthCm),
-      widthCm: template.widthCm == null ? null : Number(template.widthCm),
-      heightCm: template.heightCm == null ? null : Number(template.heightCm),
-      weightKg: template.weightKg == null ? null : Number(template.weightKg),
-      active: template.active === false ? 0 : 1,
+      id: template.id || makeId(), category,
+      name: String(template.name || template.customerName || 'Gabarit sans nom').trim(),
+      lengthCm: category === 'dimension' ? numberOrNull(template.lengthCm ?? template.length_cm ?? template.L) : null,
+      widthCm: category === 'dimension' ? numberOrNull(template.widthCm ?? template.width_cm ?? template.l) : null,
+      heightCm: category === 'dimension' ? numberOrNull(template.heightCm ?? template.height_cm ?? template.h) : null,
+      weightKg: category === 'weight_piece' || category === 'weight_carton' ? numberOrNull(template.weightKg ?? template.weight_kg ?? template.weight) : null,
+      active: template.active === false || Number(template.active) === 0 ? 0 : 1,
     };
   };
+  const present = (row) => row ? { ...row,
+    lengthCm: row.length_cm == null ? null : Number(row.length_cm),
+    widthCm: row.width_cm == null ? null : Number(row.width_cm),
+    heightCm: row.height_cm == null ? null : Number(row.height_cm),
+    weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
+  } : null;
 
   ipcMain.handle('ruba:templates-db-path', () => dbPath);
   ipcMain.handle('ruba:templates-list', (_event, category = '') => {
-    if (category && ['dimension', 'weight_piece', 'weight_carton'].includes(String(category))) {
-      return db.prepare('SELECT * FROM template_models WHERE category = ? ORDER BY active DESC, name COLLATE NOCASE').all(String(category));
+    if (category && ['dimension', 'weight_piece', 'weight_carton', 'customer'].includes(String(category))) {
+      return db.prepare('SELECT * FROM template_models WHERE category = ? ORDER BY active DESC, name COLLATE NOCASE').all(String(category)).map(present);
     }
-    return db.prepare('SELECT * FROM template_models ORDER BY category, active DESC, name COLLATE NOCASE').all();
+    return db.prepare('SELECT * FROM template_models ORDER BY category, active DESC, name COLLATE NOCASE').all().map(present);
   });
   ipcMain.handle('ruba:template-save', (_event, input = {}) => {
     const template = normalize(input);
@@ -57,7 +83,7 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
       template.id, template.category, template.name, template.lengthCm, template.widthCm,
       template.heightCm, template.weightKg, template.active, template.id, timestamp, timestamp
     );
-    return db.prepare('SELECT * FROM template_models WHERE id = ?').get(template.id);
+    return present(db.prepare('SELECT * FROM template_models WHERE id = ?').get(template.id));
   });
   ipcMain.handle('ruba:template-delete', (_event, id) => {
     db.prepare('DELETE FROM template_models WHERE id = ?').run(String(id));
@@ -74,7 +100,7 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
       return template.id;
     }));
     transaction(Array.isArray(templates) ? templates : []);
-    return db.prepare('SELECT * FROM template_models ORDER BY category, name COLLATE NOCASE').all();
+    return db.prepare('SELECT * FROM template_models ORDER BY category, name COLLATE NOCASE').all().map(present);
   });
   ipcMain.handle('ruba:templates-open-folder', async () => {
     const folder = path.dirname(dbPath);

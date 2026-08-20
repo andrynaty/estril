@@ -49,6 +49,7 @@ declare global {
     listExportFiles: (type?: string) => Promise<Array<{ name: string; type: string; filePath: string; sizeBytes: number; updatedAt: string }>>;
     openExportFolder: () => Promise<string>;
     openExportFile: (filePath: string) => Promise<string>;
+    openStoredFile: (filePath: string) => Promise<string>;
     deleteExportFile: (filePath: string) => Promise<boolean>;
     saveWindowPdf: (payload: { fileName?: string }) => Promise<{ canceled: boolean; filePath?: string }>;
     listFiles: (filters?: { search?: string; fileKind?: string }) => Promise<any[]>;
@@ -56,6 +57,7 @@ declare global {
     registerFile: (file: any) => Promise<any>;
     deleteFile: (id: string) => Promise<boolean>;
     listDeliveryPlans: (projectId: string) => Promise<any[]>;
+    getDeliveryReferenceOptions: (orderNumber?: string) => Promise<{ rows: any[]; customers: string[]; pos: string[]; colors: string[]; destinations: string[] }>;
     saveDeliveryPlan: (plan: any) => Promise<any>;
     replaceBreakdown: (payload: any) => Promise<any[]>;
     listAuditEvents: (limit?: number) => Promise<any[]>;
