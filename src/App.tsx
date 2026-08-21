@@ -284,7 +284,9 @@ export default function App() {
   const [custQuery, setCustQuery] = useState('');
   const [custSuggestions, setCustSuggestions] = useState<string[]>([]);
   const [showCustDropdown, setShowCustDropdown] = useState(false);
-  const [deliveryReferenceOptions, setDeliveryReferenceOptions] = useState<{ customers: string[]; pos: string[]; colors: string[]; destinations: string[]; dimensions: Array<{ orderNumber: string; po: string; customer: string; color: string; destination: string; length: number; width: number; height: number; cbm: number }> }>({ customers: [], pos: [], colors: [], destinations: [], dimensions: [] });
+  const [deliveryReferenceOptions, setDeliveryReferenceOptions] = useState<{ customers: string[]; pos: string[]; colors: string[]; destinations: string[]; dimensions: Array<{ orderNumber: string; po: string; customer: string; color: string; destination: string; length: number; width: number; height: number; cbm: number; poQty: number }> }>({ customers: [], pos: [], colors: [], destinations: [], dimensions: [] });
+  const [deliveryColorOptions, setDeliveryColorOptions] = useState<Array<{ color: string; po: string; poQty: number; customer: string; destination: string }>>([]);
+  const [deliverySelectedColors, setDeliverySelectedColors] = useState<string[]>([]);
   const [deliveryAutoValues, setDeliveryAutoValues] = useState({ customer: '', destination: '' });
   const [deliveryAutoDimensions, setDeliveryAutoDimensions] = useState<{ length: number; width: number; height: number; cbm: number } | null>(null);
   const [deliveryLookupAlert, setDeliveryLookupAlert] = useState('');
@@ -692,6 +694,7 @@ export default function App() {
     const emptyOptions = { customers: [], pos: [], colors: [], destinations: [], dimensions: [] };
     if (!window.rubaDesktop?.getDeliveryReferenceOptions || !orderNumber) {
       setDeliveryReferenceOptions(emptyOptions);
+      setDeliveryColorOptions([]);
       setDeliveryAutoDimensions(null);
       setDeliveryLookupAlert('');
       return;
@@ -704,6 +707,16 @@ export default function App() {
         if (cancelled) return;
         const dimensions = options.dimensions || [];
         setDeliveryReferenceOptions({ customers: options.customers || [], pos: options.pos || [], colors: options.colors || [], destinations: options.destinations || [], dimensions });
+        const colorMap = new Map<string, { color: string; po: string; poQty: number; customer: string; destination: string }>();
+        (options.rows || []).forEach((row: any) => {
+          const color = String(row.color || '').trim();
+          if (!color) return;
+          const po = String(row.customerPo || '').trim();
+          const key = `${color.toLowerCase()}|${po.toLowerCase()}`;
+          const previous = colorMap.get(key);
+          colorMap.set(key, { color, po, poQty: Number(previous?.poQty || 0) + Number(row.poQty || 0), customer: String(row.customerName || ''), destination: String(row.dest || '') });
+        });
+        setDeliveryColorOptions(Array.from(colorMap.values()));
         setMeta((previous) => {
           const next = { ...previous };
           if (options.customers?.length === 1 && (!previous.customer || previous.customer === deliveryAutoValues.customer)) next.customer = options.customers[0];
@@ -939,6 +952,30 @@ export default function App() {
     setActiveColorIdx(nextColors.length - 1);
     setHasGenerated(false);
     updateFilenameAndTotal(meta, nextColors);
+  };
+
+  const handleToggleDeliveryColor = (option: { color: string; po: string; poQty: number }) => {
+    const key = `${option.color}|${option.po}`;
+    const exists = deliverySelectedColors.includes(key);
+    const nextSelected = exists ? deliverySelectedColors.filter(item => item !== key) : [...deliverySelectedColors, key];
+    if (!exists) {
+      const modelColor = colors[0] || { tailles: [...DEFAULT_SIZES], sizes: {} as Record<string, any> };
+      const newColor: ColorConfig = { nom: option.color, mode: 'inherit', tailles: [...(modelColor.tailles || DEFAULT_SIZES)], sizes: {} };
+      newColor.tailles.forEach((size, index) => {
+        const source = modelColor.sizes?.[size];
+        newColor.sizes[size] = { qtyTot: index === 0 ? option.poQty : 0, cap: source?.cap || 25, wPiece: source?.wPiece || 0.25, wCarton: source?.wCarton || 0.8, cbmUnit: source?.cbmUnit || (61 * 41 * 30) / 1000000, dimL: source?.dimL || 61, diml: source?.diml || 41, dimH: source?.dimH || 30, sku: '' };
+      });
+      const withoutPlaceholder = colors.length === 1 && /^COULEUR 1$/i.test(colors[0]?.nom || '') && colors[0].tailles.every(size => Number(colors[0].sizes?.[size]?.qtyTot || 0) === 0) ? [] : colors;
+      const nextColors = [...withoutPlaceholder, newColor];
+      setColors(nextColors);
+      setActiveColorIdx(nextColors.length - 1);
+      updateFilenameAndTotal(meta, nextColors);
+    } else {
+      const nextColors = colors.filter(color => color.nom.toLowerCase() !== option.color.toLowerCase());
+      if (nextColors.length) { setColors(nextColors); setActiveColorIdx(Math.min(activeColorIdx, nextColors.length - 1)); updateFilenameAndTotal(meta, nextColors); }
+    }
+    setDeliverySelectedColors(nextSelected);
+    setHasGenerated(false);
   };
 
   const handleRemoveActiveColorTab = () => {
@@ -4262,15 +4299,8 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-1 md:col-span-2">
-                  <label className="text-[10px] font-mono text-slate-500 uppercase">Couleur(s) (Auto)</label>
-                  <input
-                    type="text"
-                    value={colors.map(c => c.nom).filter(Boolean).join(', ')}
-                    disabled
-                    className={`w-full text-xs font-mono rounded-lg border px-3 py-2 font-medium opacity-70 ${
-                      darkMode ? 'bg-[#0F0F12] border-white/10 text-white' : 'bg-slate-100 border-slate-350 text-[#ff5000]'
-                    }`}
-                  />
+                  <label className="text-[10px] font-mono text-slate-500 uppercase">Couleur(s) du projet — Delivery Plan</label>
+                  {deliveryColorOptions.length > 0 ? <div className={`rounded-lg border p-2 ${darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-blue-200 bg-blue-50/50'}`}><div className="mb-2 flex flex-wrap gap-2">{deliveryColorOptions.map(option => { const key = `${option.color}|${option.po}`; const selected = deliverySelectedColors.includes(key); return <button key={key} type="button" onClick={() => handleToggleDeliveryColor(option)} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition-all ${selected ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-blue-200 bg-white text-blue-800 hover:bg-blue-100'}`}><span>{selected ? '✓' : '＋'}</span><span>{option.color}</span><span className={selected ? 'text-blue-100' : 'text-slate-500'}>{Number(option.poQty || 0).toLocaleString('fr-FR')} pcs</span></button>; })}</div><div className="flex flex-wrap items-center justify-between gap-2 border-t border-blue-200/60 pt-2 text-[10px] font-bold"><span className="text-blue-800">{deliverySelectedColors.length} couleur(s) sélectionnée(s)</span><span className="text-emerald-700">Total PO QTY : {deliveryColorOptions.filter(option => deliverySelectedColors.includes(`${option.color}|${option.po}`)).reduce((sum, option) => sum + Number(option.poQty || 0), 0).toLocaleString('fr-FR')} pcs</span></div></div> : <input type="text" value={colors.map(c => c.nom).filter(Boolean).join(', ')} disabled className={`w-full text-xs font-mono rounded-lg border px-3 py-2 font-medium opacity-70 ${darkMode ? 'bg-[#0F0F12] border-white/10 text-white' : 'bg-slate-100 border-slate-350 text-[#ff5000]'}`} />}
                 </div>
 
                 <div className="flex flex-col gap-1">

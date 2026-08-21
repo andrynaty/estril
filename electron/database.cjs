@@ -26,7 +26,23 @@ function createDatabase(userDataPath) {
       status TEXT NOT NULL DEFAULT 'draft',
       payload_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      archived_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS project_versions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      customer TEXT,
+      order_number TEXT,
+      po_number TEXT,
+      status TEXT NOT NULL,
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+      UNIQUE(project_id, version_number)
     );
 
     CREATE TABLE IF NOT EXISTS packing_lists (
@@ -89,6 +105,10 @@ function createDatabase(userDataPath) {
     CREATE INDEX IF NOT EXISTS idx_files_project_created ON work_files(project_id, created_at DESC);
   `);
 
+  // Migrations for databases created by versions before v1.5.
+  try { db.exec('ALTER TABLE projects ADD COLUMN archived_at TEXT'); } catch {}
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_archived_updated ON projects(archived_at, updated_at DESC);`);
+
   return db;
 }
 
@@ -147,8 +167,11 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   };
   const parseDeliveryWorkbook = (source) => {
     const workbook = XLSX.readFile(source, { raw: false, cellDates: false });
-    const firstSheet = workbook.SheetNames[0];
-    return firstSheet ? normalizeDeliveryMatrix(XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: '', raw: false })) : [];
+    const sheets = workbook.SheetNames.map((sheetName) => ({
+      name: sheetName,
+      rows: normalizeDeliveryMatrix(XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '', raw: false }))
+    }));
+    return { rows: sheets[0]?.rows || [], sheets };
   };
   const csvCandidates = () => {
     let executableDirectory = ''; let resourcesDirectory = '';
@@ -165,15 +188,16 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
       const source = csvCandidates().find(candidate => fs.existsSync(candidate));
       if (!source) return { found: false, candidates: csvCandidates() };
       const stat = await fsPromises.stat(source);
-      const rows = /\.xlsx?$/i.test(source) ? parseDeliveryWorkbook(source) : parseDeliveryCsv(await fsPromises.readFile(source, 'utf8'));
+      const parsed = /\.xlsx?$/i.test(source) ? parseDeliveryWorkbook(source) : { rows: parseDeliveryCsv(await fsPromises.readFile(source, 'utf8')), sheets: [] };
+      const rows = parsed.rows;
       const timestamp = now();
       db.prepare(`INSERT INTO projects(id, name, customer, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvProjectId, pathModule.basename(source), '', 'system', JSON.stringify({ source, rows }), timestamp, timestamp);
+        ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvProjectId, pathModule.basename(source), '', 'system', JSON.stringify({ source, rows, sheets: parsed.sheets, activeSheet: parsed.sheets[0]?.name || '' }), timestamp, timestamp);
       db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvPlanId, csvProjectId, pathModule.basename(source), JSON.stringify({ source, rows }), timestamp, timestamp);
+        ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvPlanId, csvProjectId, pathModule.basename(source), JSON.stringify({ source, rows, sheets: parsed.sheets, activeSheet: parsed.sheets[0]?.name || '' }), timestamp, timestamp);
       db.prepare(`INSERT INTO app_settings(key, value, updated_at) VALUES ('deliveryCsvLastImported', ?, ?)
         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`).run(JSON.stringify({ source, modifiedAt: stat.mtime.toISOString(), rows: rows.length }), timestamp);
-      return { found: true, source, modifiedAt: stat.mtime.toISOString(), rows: rows.length };
+      return { found: true, source, modifiedAt: stat.mtime.toISOString(), rows: rows.length, sheets: parsed.sheets.map(sheet => ({ name: sheet.name, rows: sheet.rows.length })) };
     })().finally(() => { csvSyncPromise = null; });
     return csvSyncPromise;
   };
@@ -215,8 +239,23 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   });
 
   ipcMain.handle('ruba:projects-list', (_event, query = '') => {
-    const like = `%${String(query).trim()}%`;
-    return db.prepare(`SELECT * FROM projects WHERE id <> ? AND (name LIKE ? OR customer LIKE ? OR order_number LIKE ?) ORDER BY updated_at DESC`).all(csvProjectId, like, like, like).map(row => ({ ...row, payload: parsePayload(row.payload_json) }));
+    const filters = typeof query === 'string' ? { search: query } : (query || {});
+    const like = `%${String(filters.search || '').trim()}%`;
+    const customerLike = `%${String(filters.customer || '').trim()}%`;
+    const status = String(filters.status || '').trim();
+    const archived = filters.archived === true ? 1 : filters.archived === false ? 0 : null;
+    const fromDate = String(filters.fromDate || '').trim();
+    const toDate = String(filters.toDate || '').trim();
+    const rows = db.prepare(`SELECT * FROM projects
+      WHERE id <> ?
+        AND (name LIKE ? OR customer LIKE ? OR order_number LIKE ? OR po_number LIKE ? OR payload_json LIKE ?)
+        AND (? = '' OR customer LIKE ?)
+        AND (? = '' OR status = ?)
+        AND (? IS NULL OR (? = 1 AND archived_at IS NOT NULL) OR (? = 0 AND archived_at IS NULL))
+        AND (? = '' OR updated_at >= ?)
+        AND (? = '' OR updated_at <= ?)
+      ORDER BY updated_at DESC`).all(csvProjectId, like, like, like, like, like, customerLike, customerLike, status, status, archived, archived, archived, fromDate, fromDate, toDate, toDate);
+    return rows.map(row => ({ ...row, archived: Boolean(row.archived_at), payload: parsePayload(row.payload_json) }));
   });
   ipcMain.handle('ruba:project-get', (_event, projectId) => {
     const row = db.prepare('SELECT * FROM projects WHERE id = ?').get(String(projectId));
@@ -225,13 +264,40 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   ipcMain.handle('ruba:project-save', (_event, project = {}) => {
     const timestamp = now();
     const projectId = project.id || id('project');
-    db.prepare(`INSERT INTO projects(id, name, customer, order_number, po_number, status, payload_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM projects WHERE id = ?), ?), ?)
+    const previous = project.id ? db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId) : null;
+    if (previous) {
+      const nextVersion = (db.prepare('SELECT COALESCE(MAX(version_number), 0) AS value FROM project_versions WHERE project_id = ?').get(projectId).value || 0) + 1;
+      db.prepare(`INSERT INTO project_versions(id, project_id, version_number, name, customer, order_number, po_number, status, payload_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id('project_version'), projectId, nextVersion, previous.name, previous.customer || '', previous.order_number || '', previous.po_number || '', previous.status || 'draft', previous.payload_json || '{}', timestamp);
+    }
+    db.prepare(`INSERT INTO projects(id, name, customer, order_number, po_number, status, payload_json, created_at, updated_at, archived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM projects WHERE id = ?), ?), ?, ?)
       ON CONFLICT(id) DO UPDATE SET name=excluded.name, customer=excluded.customer, order_number=excluded.order_number,
-      po_number=excluded.po_number, status=excluded.status, payload_json=excluded.payload_json, updated_at=excluded.updated_at`)
-      .run(projectId, project.name || 'Travail sans nom', project.customer || '', project.orderNumber || '', project.poNumber || '', project.status || 'draft', JSON.stringify(project.payload || {}), projectId, timestamp, timestamp);
+      po_number=excluded.po_number, status=excluded.status, payload_json=excluded.payload_json, archived_at=COALESCE(excluded.archived_at, projects.archived_at), updated_at=excluded.updated_at`)
+      .run(projectId, project.name || 'Travail sans nom', project.customer || '', project.orderNumber || '', project.poNumber || '', project.status || 'draft', JSON.stringify(project.payload || {}), projectId, timestamp, timestamp, project.archivedAt || null);
     log.run('project', projectId, project.id ? 'update' : 'create', JSON.stringify(project), timestamp);
     return db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  });
+  ipcMain.handle('ruba:project-archive', (_event, projectId) => {
+    const timestamp = now();
+    db.prepare('UPDATE projects SET archived_at = ?, status = ?, updated_at = ? WHERE id = ?').run(timestamp, 'archived', timestamp, String(projectId));
+    log.run('project', String(projectId), 'archive', '{}', timestamp);
+    return true;
+  });
+  ipcMain.handle('ruba:project-restore', (_event, projectId) => {
+    const timestamp = now();
+    db.prepare('UPDATE projects SET archived_at = NULL, status = ?, updated_at = ? WHERE id = ?').run('draft', timestamp, String(projectId));
+    log.run('project', String(projectId), 'restore', '{}', timestamp);
+    return true;
+  });
+  ipcMain.handle('ruba:project-versions-list', (_event, projectId) => db.prepare('SELECT * FROM project_versions WHERE project_id = ? ORDER BY version_number DESC').all(String(projectId)).map(row => ({ ...row, payload: parsePayload(row.payload_json) })));
+  ipcMain.handle('ruba:project-version-restore', (_event, versionId) => {
+    const version = db.prepare('SELECT * FROM project_versions WHERE id = ?').get(String(versionId));
+    if (!version) return null;
+    const timestamp = now();
+    db.prepare('UPDATE projects SET name = ?, customer = ?, order_number = ?, po_number = ?, status = ?, payload_json = ?, archived_at = NULL, updated_at = ? WHERE id = ?').run(version.name, version.customer || '', version.order_number || '', version.po_number || '', version.status || 'draft', version.payload_json || '{}', timestamp, version.project_id);
+    log.run('project', version.project_id, 'version_restore', JSON.stringify({ versionId, versionNumber: version.version_number }), timestamp);
+    return db.prepare('SELECT * FROM projects WHERE id = ?').get(version.project_id);
   });
   ipcMain.handle('ruba:project-delete', (_event, projectId) => {
     db.prepare('DELETE FROM projects WHERE id = ?').run(String(projectId));
@@ -335,7 +401,8 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
       length: Number(row.l) || 0,
       width: Number(row.w) || 0,
       height: Number(row.h) || 0,
-      cbm: Number(row.cbm) || 0
+      cbm: Number(row.cbm) || 0,
+      poQty: Number(row.poQty) || 0
     })).filter((item) => item.po || item.length || item.width || item.height);
     return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest'), dimensions };
   });
