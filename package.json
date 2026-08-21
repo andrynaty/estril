@@ -1,7 +1,7 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Application desktop Ruba pour la préparation des packing lists.",
   "author": "Ruba",
   "type": "module",
@@ -35,13 +35,16 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "xlsx": "^0.18.5"
   },
   "build": {
     "appId": "com.ruba.packinglist",
     "productName": "Ruba Packing List",
     "artifactName": "Ruba-Packing-List-${version}-${arch}.${ext}",
     "asar": true,
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -51,6 +54,10 @@
       {
         "from": "Delivery plan.csv",
         "to": "Delivery plan.csv"
+      },
+      {
+        "from": "Delivery plan.xlsx",
+        "to": "Delivery plan.xlsx"
       }
     ],
     "directories": {

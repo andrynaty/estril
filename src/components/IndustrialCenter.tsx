@@ -71,8 +71,37 @@ export default function IndustrialCenter({ onBack, onLoadProject, projectPayload
   useEffect(() => { setTab(initialTab); }, [initialTab]);
   useEffect(() => {
     if (!isDesktop() || !window.rubaDesktop?.getDeliveryCsvStatus) return;
-    window.rubaDesktop.getDeliveryCsvStatus().then(setCsvStatus).catch(() => setCsvStatus({ found: false }));
+    let cancelled = false;
+    const refreshCsvStatus = async () => {
+      try {
+        const result = await window.rubaDesktop?.syncDeliveryCsv?.();
+        if (!cancelled && result) setCsvStatus(result);
+      } catch {
+        try { const result = await window.rubaDesktop?.getDeliveryCsvStatus?.(); if (!cancelled && result) setCsvStatus(result); } catch {}
+      }
+    };
+    void refreshCsvStatus();
+    const timer = window.setInterval(refreshCsvStatus, 2500);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, []);
+  useEffect(() => {
+    if (!csvStatus.found || !isDesktop() || !window.rubaDesktop?.listDeliveryPlans) return;
+    let cancelled = false;
+    window.rubaDesktop.listDeliveryPlans('delivery_csv_source').then((nextPlans) => {
+      if (cancelled) return;
+      const latest = (nextPlans || [])[0];
+      if (!latest) return;
+      const payload = typeof latest.payload_json === 'string' ? JSON.parse(latest.payload_json || '{}') : (latest.payload || {});
+      setSelectedProjectId('delivery_csv_source');
+      setPlans(nextPlans || []);
+      setPlanId(latest.id);
+      setPlanName(latest.plan_name || 'Delivery plan source');
+      setRows(Array.isArray(payload.rows) ? payload.rows.map(normalizeRow) : []);
+      setFilters({});
+      setSelectedRows([]);
+    }).catch(() => { if (!cancelled) setMessage('Le Delivery Plan a été trouvé mais ses lignes ne peuvent pas être affichées.'); });
+    return () => { cancelled = true; };
+  }, [csvStatus.found, csvStatus.modifiedAt]);
   useEffect(() => {
     let cancelled = false;
     if (!selectedProjectId || !isDesktop() || !window.rubaDesktop?.listDeliveryPlans) {
@@ -103,7 +132,7 @@ export default function IndustrialCenter({ onBack, onLoadProject, projectPayload
   const applyZoom = (value: number) => { const next = Math.max(80, Math.min(125, value)); setZoom(next); localStorage.setItem('ruba_ui_zoom', String(next)); };
   const saveAccent = (value: string) => { setAccent(value); localStorage.setItem('ruba_accent', value); document.documentElement.style.setProperty('--ruba-accent', value); };
   const createProject = async () => { if (!isDesktop() || !projectName.trim()) return; const saved = await window.rubaDesktop!.saveProject({ name: projectName.trim(), customer, status: 'draft', payload: projectPayload || {} }); setProjectName(''); setCustomer(''); setSelectedProjectId(saved.id); setMessage('Travail enregistré dans SQLite.'); await refresh(); };
-  const syncCsv = async () => { if (!isDesktop() || !window.rubaDesktop?.syncDeliveryCsv) return; try { const result = await window.rubaDesktop.syncDeliveryCsv(); setCsvStatus(result); setMessage(result.found ? `Delivery plan.csv synchronisé : ${result.rows || 0} ligne(s).` : 'Delivery plan.csv introuvable dans les emplacements configurés.'); } catch { setMessage('La synchronisation de Delivery plan.csv a échoué.'); } };
+  const syncCsv = async () => { if (!isDesktop() || !window.rubaDesktop?.syncDeliveryCsv) return; try { const result = await window.rubaDesktop.syncDeliveryCsv(); setCsvStatus(result); if (result.found) { setSelectedProjectId('delivery_csv_source'); setMessage(`${result.source?.toLowerCase().endsWith('.xlsx') ? 'Delivery plan.xlsx' : 'Delivery plan.csv'} synchronisé et affiché : ${result.rows || 0} ligne(s).`); } else setMessage('Aucun fichier Delivery Plan trouvé dans les emplacements configurés.'); } catch { setMessage('La synchronisation du Delivery Plan a échoué.'); } };
   const chooseRoot = async () => { if (!isDesktop()) return; const next = await window.rubaDesktop!.chooseStorageRoot(); if (next) { setStorageRoot(next); setMessage('Dossier de stockage modifié.'); } };
   const capture = async () => { if (!isDesktop()) return; const result = await window.rubaDesktop!.captureWindow(); if (!result.canceled) setMessage(`Capture enregistrée : ${result.filePath}`); };
   const updateRow = (id: string, key: string, value: string) => setRows(previous => previous.map(row => { if (row.id !== id) return row; const next = { ...row, [key]: numericKeys.has(key) ? Number(value || 0) : value } as DeliveryRow; next.cbm = Number(((Number(next.l) || 0) * (Number(next.h) || 0) * (Number(next.w) || 0)) / 1000000).toFixed(6) as unknown as number; return next; }));

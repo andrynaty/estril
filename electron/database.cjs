@@ -1,4 +1,5 @@
 const Database = require('better-sqlite3');
+const XLSX = require('xlsx');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -124,26 +125,38 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     }
     values.push(value.trim()); return values;
   };
-  const parseDeliveryCsv = (content) => {
-    const lines = String(content || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
-    if (!lines.length) return [];
-    const delimiter = (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length ? ';' : ',';
-    const keys = parseCsvLine(lines[0], delimiter).map(header => csvAliases[normalizeCsvHeader(header)] || '');
-    return lines.slice(1).map(line => parseCsvLine(line, delimiter)).filter(values => values.some(Boolean)).map(values => {
+  const normalizeDeliveryMatrix = (matrix) => {
+    if (!Array.isArray(matrix) || !matrix.length) return [];
+    const headers = matrix[0].map(header => normalizeCsvHeader(header));
+    const keys = headers.map(header => csvAliases[header] || '');
+    return matrix.slice(1).filter(values => values.some(value => String(value ?? '').trim())).map(values => {
       const row = {};
       keys.forEach((key, index) => { if (key) row[key] = values[index] ?? ''; });
       const numeric = ['poQty', 'pcsPerCtn', 'numberOfCarton', 'l', 'h', 'w', 'cbm', 'grossWeight'];
       numeric.forEach(key => { if (row[key] !== undefined && row[key] !== '') row[key] = Number(String(row[key]).replace(',', '.')) || 0; });
-      row.id = row.id || id('delivery_csv');
+      row.id = row.id || id('delivery_import');
       row.cbm = Number(((Number(row.l) || 0) * (Number(row.h) || 0) * (Number(row.w) || 0)) / 1000000).toFixed(6);
       return row;
     });
+  };
+  const parseDeliveryCsv = (content) => {
+    const lines = String(content || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+    if (!lines.length) return [];
+    const delimiter = (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length ? ';' : ',';
+    return normalizeDeliveryMatrix(lines.map(line => parseCsvLine(line, delimiter)));
+  };
+  const parseDeliveryWorkbook = (source) => {
+    const workbook = XLSX.readFile(source, { raw: false, cellDates: false });
+    const firstSheet = workbook.SheetNames[0];
+    return firstSheet ? normalizeDeliveryMatrix(XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { header: 1, defval: '', raw: false })) : [];
   };
   const csvCandidates = () => {
     let executableDirectory = ''; let resourcesDirectory = '';
     try { executableDirectory = pathModule.dirname(app.getPath('exe')); } catch {}
     try { resourcesDirectory = process.resourcesPath || ''; } catch {}
-    return Array.from(new Set([pathModule.join(executableDirectory, 'Delivery plan.csv'), pathModule.join(resourcesDirectory, 'Delivery plan.csv'), pathModule.join(app.getPath('userData'), 'Delivery plan.csv'), pathModule.join(storageRoot(), 'Delivery plan.csv')].filter(Boolean)));
+    const directories = [executableDirectory, resourcesDirectory, app.getPath('userData'), storageRoot()].filter(Boolean);
+    const fileNames = ['Delivery plan.xlsx', 'Delivery Plan.xlsx', 'Delivery plan.xls', 'Delivery Plan.xls', 'Delivery plan.csv', 'Delivery Plan.csv'];
+    return Array.from(new Set(directories.flatMap(directory => fileNames.map(fileName => pathModule.join(directory, fileName)))));
   };
   let csvSyncPromise = null;
   const syncDeliveryCsv = () => {
@@ -151,13 +164,13 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     csvSyncPromise = (async () => {
       const source = csvCandidates().find(candidate => fs.existsSync(candidate));
       if (!source) return { found: false, candidates: csvCandidates() };
-      const [content, stat] = await Promise.all([fsPromises.readFile(source, 'utf8'), fsPromises.stat(source)]);
-      const rows = parseDeliveryCsv(content);
+      const stat = await fsPromises.stat(source);
+      const rows = /\.xlsx?$/i.test(source) ? parseDeliveryWorkbook(source) : parseDeliveryCsv(await fsPromises.readFile(source, 'utf8'));
       const timestamp = now();
       db.prepare(`INSERT INTO projects(id, name, customer, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvProjectId, 'Delivery plan.csv', '', 'system', JSON.stringify({ source, rows }), timestamp, timestamp);
+        ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvProjectId, pathModule.basename(source), '', 'system', JSON.stringify({ source, rows }), timestamp, timestamp);
       db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvPlanId, csvProjectId, 'Delivery plan.csv', JSON.stringify({ source, rows }), timestamp, timestamp);
+        ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvPlanId, csvProjectId, pathModule.basename(source), JSON.stringify({ source, rows }), timestamp, timestamp);
       db.prepare(`INSERT INTO app_settings(key, value, updated_at) VALUES ('deliveryCsvLastImported', ?, ?)
         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`).run(JSON.stringify({ source, modifiedAt: stat.mtime.toISOString(), rows: rows.length }), timestamp);
       return { found: true, source, modifiedAt: stat.mtime.toISOString(), rows: rows.length };
