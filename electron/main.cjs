@@ -1,6 +1,11 @@
 const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+
+// Les données applicatives doivent rester hors du dossier temporaire du mode portable
+// et hors du dossier d’installation, qui peut être protégé par Windows.
+const persistentUserDataPath = path.join(app.getPath('appData'), 'Ruba Packing List');
+app.setPath('userData', persistentUserDataPath);
 let registerDatabaseIpc;
 let registerTemplatesDatabaseIpc;
 let dbForStorage = null;
