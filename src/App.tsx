@@ -284,8 +284,11 @@ export default function App() {
   const [custQuery, setCustQuery] = useState('');
   const [custSuggestions, setCustSuggestions] = useState<string[]>([]);
   const [showCustDropdown, setShowCustDropdown] = useState(false);
-  const [deliveryReferenceOptions, setDeliveryReferenceOptions] = useState<{ customers: string[]; pos: string[]; colors: string[]; destinations: string[] }>({ customers: [], pos: [], colors: [], destinations: [] });
+  const [deliveryReferenceOptions, setDeliveryReferenceOptions] = useState<{ customers: string[]; pos: string[]; colors: string[]; destinations: string[]; dimensions: Array<{ orderNumber: string; po: string; customer: string; color: string; destination: string; length: number; width: number; height: number; cbm: number }> }>({ customers: [], pos: [], colors: [], destinations: [], dimensions: [] });
   const [deliveryAutoValues, setDeliveryAutoValues] = useState({ customer: '', destination: '' });
+  const [deliveryAutoDimensions, setDeliveryAutoDimensions] = useState<{ length: number; width: number; height: number; cbm: number } | null>(null);
+  const [deliveryLookupAlert, setDeliveryLookupAlert] = useState('');
+  const deliveryAppliedDimensionKey = useRef('');
 
   // Modals state triggers
   const [boxModalCtx, setBoxModalCtx] = useState<{
@@ -686,24 +689,62 @@ export default function App() {
 
   useEffect(() => {
     const orderNumber = String(meta.order || '').trim();
+    const emptyOptions = { customers: [], pos: [], colors: [], destinations: [], dimensions: [] };
     if (!window.rubaDesktop?.getDeliveryReferenceOptions || !orderNumber) {
-      setDeliveryReferenceOptions({ customers: [], pos: [], colors: [], destinations: [] });
+      setDeliveryReferenceOptions(emptyOptions);
+      setDeliveryAutoDimensions(null);
+      setDeliveryLookupAlert('');
       return;
     }
     let cancelled = false;
-    window.rubaDesktop.getDeliveryReferenceOptions(orderNumber).then((options) => {
-      if (cancelled) return;
-      setDeliveryReferenceOptions({ customers: options.customers || [], pos: options.pos || [], colors: options.colors || [], destinations: options.destinations || [] });
-      setMeta((previous) => {
-        const next = { ...previous };
-        if (options.customers?.length === 1 && (!previous.customer || previous.customer === deliveryAutoValues.customer)) next.customer = options.customers[0];
-        if (options.destinations?.length === 1 && (!previous.destination || previous.destination === deliveryAutoValues.destination)) next.destination = options.destinations[0];
-        return next;
-      });
-      setDeliveryAutoValues({ customer: options.customers?.length === 1 ? options.customers[0] : '', destination: options.destinations?.length === 1 ? options.destinations[0] : '' });
-    }).catch(() => { if (!cancelled) setDeliveryReferenceOptions({ customers: [], pos: [], colors: [], destinations: [] }); });
-    return () => { cancelled = true; };
-  }, [meta.order]);
+    const loadDeliveryReference = async () => {
+      try {
+        // The backend watches the CSV, while this lightweight refresh makes changes
+        // visible in Références without requiring an application restart.
+        await window.rubaDesktop.syncDeliveryCsv?.();
+        const options = await window.rubaDesktop.getDeliveryReferenceOptions(orderNumber);
+        if (cancelled) return;
+        const dimensions = options.dimensions || [];
+        setDeliveryReferenceOptions({ customers: options.customers || [], pos: options.pos || [], colors: options.colors || [], destinations: options.destinations || [], dimensions });
+        setMeta((previous) => {
+          const next = { ...previous };
+          if (options.customers?.length === 1 && (!previous.customer || previous.customer === deliveryAutoValues.customer)) next.customer = options.customers[0];
+          if (options.destinations?.length === 1 && (!previous.destination || previous.destination === deliveryAutoValues.destination)) next.destination = options.destinations[0];
+          return next;
+        });
+        setDeliveryAutoValues({ customer: options.customers?.length === 1 ? options.customers[0] : '', destination: options.destinations?.length === 1 ? options.destinations[0] : '' });
+        const selectedPo = String(meta.po || '').trim().toLowerCase();
+        const selectedDimension = selectedPo ? dimensions.find((item) => item.po.toLowerCase() === selectedPo) : null;
+        if (selectedDimension) {
+          const hasCompleteDimensions = selectedDimension.length > 0 && selectedDimension.width > 0 && selectedDimension.height > 0;
+          setDeliveryAutoDimensions(hasCompleteDimensions ? selectedDimension : null);
+          if (hasCompleteDimensions) {
+            const dimensionKey = `${orderNumber}|${selectedDimension.po}|${selectedDimension.length}|${selectedDimension.width}|${selectedDimension.height}`;
+            if (deliveryAppliedDimensionKey.current !== dimensionKey) {
+              applyDimensionToAllColors(selectedDimension.length, selectedDimension.width, selectedDimension.height);
+              deliveryAppliedDimensionKey.current = dimensionKey;
+            }
+            setDeliveryLookupAlert('');
+          } else {
+            setDeliveryLookupAlert(`Le PO « ${meta.po} » existe, mais ses dimensions L/W/H sont incomplètes dans le Delivery Plan.`);
+          }
+        } else {
+          setDeliveryAutoDimensions(null);
+          deliveryAppliedDimensionKey.current = '';
+          setDeliveryLookupAlert(options.rows?.length ? (meta.po ? `Le PO « ${meta.po} » n’existe pas pour la commande « ${orderNumber} » dans le Delivery Plan.` : 'Sélectionnez un PO pour récupérer automatiquement les dimensions du carton.') : `La commande « ${orderNumber} » n’existe pas dans le Delivery Plan.`);
+        }
+      } catch {
+        if (!cancelled) {
+          setDeliveryReferenceOptions(emptyOptions);
+          setDeliveryAutoDimensions(null);
+          setDeliveryLookupAlert(`Impossible de lire le Delivery Plan pour la commande « ${orderNumber} ». Vérifiez le fichier CSV.`);
+        }
+      }
+    };
+    void loadDeliveryReference();
+    const refreshTimer = window.setInterval(() => { void loadDeliveryReference(); }, 2500);
+    return () => { cancelled = true; window.clearInterval(refreshTimer); };
+  }, [meta.order, meta.po]);
 
   const handleLoadProject = async (project: any) => {
     const payload = project?.payload || {};
@@ -4120,6 +4161,11 @@ export default function App() {
                     placeholder="ex: 08788-00"
                   />
                   {deliveryReferenceOptions.pos.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">PO disponibles:</span>{deliveryReferenceOptions.pos.slice(0, 8).map(poOption => <button key={poOption} type="button" onClick={() => handleMetaChange('po', poOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{poOption}</button>)}</div>}
+                  {deliveryAutoDimensions && <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-[10px] text-indigo-900">
+                    <div className="mb-1 font-bold uppercase tracking-wide">Dimensions carton récupérées du Delivery Plan</div>
+                    <div className="grid grid-cols-4 gap-1 font-mono"><span>L: <b>{deliveryAutoDimensions.length}</b> cm</span><span>W: <b>{deliveryAutoDimensions.width}</b> cm</span><span>H: <b>{deliveryAutoDimensions.height}</b> cm</span><span>CBM: <b>{deliveryAutoDimensions.cbm.toFixed(6)}</b></span></div>
+                  </div>}
+                  {deliveryLookupAlert && <div className={`mt-2 rounded-lg border px-2 py-1.5 text-[10px] font-semibold ${deliveryAutoDimensions ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-800'}`} role="alert"><AlertTriangle className="mr-1 inline h-3 w-3" />{deliveryLookupAlert}</div>}
                 </div>
 
                 <div className="flex flex-col gap-1">

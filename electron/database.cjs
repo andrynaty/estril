@@ -313,7 +313,18 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
       return !target || order === target || order.includes(target);
     });
     const unique = (key) => Array.from(new Set(rows.map((row) => String(row[key] ?? '').trim()).filter(Boolean)));
-    return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest') };
+    const dimensions = rows.map((row) => ({
+      orderNumber: String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim(),
+      po: String(row.customerPo ?? '').trim(),
+      customer: String(row.customerName ?? '').trim(),
+      color: String(row.color ?? '').trim(),
+      destination: String(row.dest ?? '').trim(),
+      length: Number(row.l) || 0,
+      width: Number(row.w) || 0,
+      height: Number(row.h) || 0,
+      cbm: Number(row.cbm) || 0
+    })).filter((item) => item.po || item.length || item.width || item.height);
+    return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest'), dimensions };
   });
   ipcMain.handle('ruba:delivery-plan-save', (_event, plan = {}) => {
     const timestamp = now(); const planId = plan.id || id('plan');
