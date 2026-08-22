@@ -497,6 +497,14 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     })).filter((item) => item.po || item.length || item.width || item.height);
     return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest'), dimensions };
   });
+  ipcMain.handle('ruba:delivery-breakdown', (_event, request = {}) => {
+    const orderNumber = String(request.orderNumber || '').trim();
+    const customer = String(request.customer || '').trim();
+    const po = String(request.po || '').trim();
+    if (!orderNumber) return [];
+    const rows = db.prepare(`SELECT color, SUM(po_qty) AS poQty FROM delivery_plan_rows WHERE lower(trim(order_number)) = lower(?) AND (? = '' OR lower(trim(customer_name)) = lower(?)) AND (? = '' OR lower(trim(customer_po)) = lower(?)) AND trim(color) <> '' GROUP BY lower(trim(color)), color ORDER BY color`).all(orderNumber, customer, customer, po, po);
+    return rows.map(row => ({ color: String(row.color || '').trim(), poQty: Number(row.poQty || 0) }));
+  });
   ipcMain.handle('ruba:delivery-plan-save', (_event, plan = {}) => {
     const timestamp = now(); const planId = plan.id || id('plan');
     const rows = Array.isArray(plan.payload?.rows) ? plan.payload.rows : [];
