@@ -165,7 +165,7 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
       const insert = db.prepare(`INSERT OR IGNORE INTO delivery_plan_rows(id, delivery_plan_id, sheet_name, row_order, row_hash, order_number, customer_po, customer_name, color, destination, po_qty, row_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
       allSheets.forEach(sheet => (sheet.rows || []).forEach((row, index) => {
         const normalized = { ...row };
-        const hash = rowHash(normalized);
+        const hash = rowHash(Object.fromEntries(Object.entries(normalized).filter(([key]) => key !== 'id')));
         insert.run(id('delivery_row'), planId, String(sheet.name || ''), index, hash, String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim(), String(row.customerPo ?? '').trim(), String(row.customerName ?? '').trim(), String(row.color ?? '').trim(), String(row.dest ?? row.destination ?? '').trim(), Number(row.poQty || 0), JSON.stringify(normalized), timestamp, timestamp);
       }));
     });
@@ -202,10 +202,24 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     });
   };
   const parseDeliveryCsv = (content) => {
-    const lines = String(content || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(line => line.trim());
+    const text = String(content || '').replace(/^\uFEFF/, '');
+    const lines = [];
+    let current = ''; let quoted = false;
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      if (char === '"' && text[index + 1] === '"') { current += '""'; index += 1; continue; }
+      if (char === '"') { quoted = !quoted; current += char; continue; }
+      if ((char === '\n' || char === '\r') && !quoted) { if (current.trim()) lines.push(current); current = ''; if (char === '\r' && text[index + 1] === '\n') index += 1; continue; }
+      current += char;
+    }
+    if (current.trim()) lines.push(current);
     if (!lines.length) return [];
-    const delimiter = (lines[0].match(/;/g) || []).length > (lines[0].match(/,/g) || []).length ? ';' : ',';
-    return normalizeDeliveryMatrix(lines.map(line => parseCsvLine(line, delimiter)));
+    const delimiters = [';', ',', '\t'];
+    const delimiter = delimiters.map(candidate => ({ candidate, count: parseCsvLine(lines[0], candidate).length })).sort((a, b) => b.count - a.count)[0].candidate;
+    const matrix = lines.map(line => parseCsvLine(line, delimiter));
+    const recognizedHeaders = matrix[0].map(header => csvAliases[normalizeCsvHeader(header)] || '').filter(Boolean).length;
+    if (recognizedHeaders === 0) throw new Error('En-têtes CSV non reconnues. Utilisez les en-têtes du Delivery Plan.');
+    return normalizeDeliveryMatrix(matrix);
   };
   const parseDeliveryWorkbook = (source) => {
     const workbook = XLSX.readFile(source, { raw: false, cellDates: false });
@@ -229,8 +243,16 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     csvSyncPromise = (async () => {
       const source = csvCandidates().find(candidate => fs.existsSync(candidate));
       if (!source) return { found: false, candidates: csvCandidates() };
-      const stat = await fsPromises.stat(source);
-      const csvRows = parseDeliveryCsv(fs.readFileSync(source, 'utf8'));
+      let stat; let csvText = ''; let stable = false;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const before = await fsPromises.stat(source);
+        csvText = await fsPromises.readFile(source, 'utf8');
+        const after = await fsPromises.stat(source);
+        if (before.size === after.size && before.mtimeMs === after.mtimeMs) { stat = after; stable = true; break; }
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+      if (!stable || !stat) throw new Error('Le fichier Delivery plan.csv est encore en cours d’écriture.');
+      const csvRows = parseDeliveryCsv(csvText);
       const parsed = { rows: csvRows, sheets: [{ name: 'CSV', rows: csvRows }] };
       const rows = parsed.rows;
       const timestamp = now();
@@ -269,7 +291,10 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
   });
 
   ipcMain.handle('ruba:storage-root', () => storageRoot());
-  ipcMain.handle('ruba:delivery-csv-sync', async () => syncDeliveryCsv());
+  ipcMain.handle('ruba:delivery-csv-sync', async () => {
+    try { return await syncDeliveryCsv(); }
+    catch (error) { return { found: false, error: error instanceof Error ? error.message : String(error), candidates: csvCandidates() }; }
+  });
   ipcMain.handle('ruba:delivery-csv-status', () => setting.get('deliveryCsvLastImported')?.value ? parsePayload(setting.get('deliveryCsvLastImported').value) : { found: false, candidates: csvCandidates() });
 
   ipcMain.handle('ruba:storage-root-choose', async () => {

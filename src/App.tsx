@@ -3494,8 +3494,8 @@ export default function App() {
         darkMode ? 'bg-[#111827] border-white/5 shadow-black/40' : 'bg-white border-slate-200 shadow-slate-200/10'
       } backdrop-blur-md`}>
         {/* Sleek Top Bar containing GENERATE, Reset, Excel, PDF, SQL Export, SQL Import, Mode toggle */}
-        <div className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-4 flex-wrap">
+        <div className="w-full max-w-full px-3 lg:px-6 xl:px-10 mx-auto py-2 flex items-center justify-between gap-3 flex-nowrap overflow-x-auto">
+            <div className="hidden">
             {/* Minimalist Blue Logo */}
             <div className="logo font-serif text-xl sm:text-2xl font-bold tracking-tight select-none cursor-pointer text-[#1a2332] dark:text-[#f1f5f9]">
               Packing Strat.
@@ -3550,7 +3550,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className={`flex items-center gap-2 flex-wrap p-2.5 rounded-xl border shadow-sm transition-colors ${
+          <div className={`flex items-center gap-2 flex-nowrap overflow-x-auto p-2 rounded-xl border shadow-sm transition-colors shrink-0 w-full ${
             darkMode ? 'bg-slate-800/80 border-white/10 text-white' : 'bg-slate-50 text-slate-800 border-slate-200'
           }`}>
             {/* CTA Generer styled elegantly as a modern primary action button */}
@@ -3750,12 +3750,10 @@ export default function App() {
         </div>
       </div>
 
-      <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} groupedOrders={groupedOrders} darkMode={darkMode} />
-
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm print:hidden">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="mb-2 flex items-center justify-start rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm print:hidden overflow-x-auto whitespace-nowrap">
+          <div className="flex flex-nowrap items-center gap-1.5 min-w-max">
             {[
               ['packing', 'Colisage opérationnel'],
               ['history', 'Historique'],
@@ -3769,6 +3767,7 @@ export default function App() {
           </div>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
         </div>
+        <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} groupedOrders={groupedOrders} darkMode={darkMode} />
         {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeMainRibbon === 'exports' ? <ExportedFilesRibbon /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} onLoadProject={handleLoadProject} projectPayload={{ meta, db, colors, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, hasGenerated, results, activeInputTab }} /></IndustrialErrorBoundary> : <>
 
         {/* Sleek Mobile Horizontal Ribbon Navigation */}
