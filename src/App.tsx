@@ -295,6 +295,7 @@ export default function App() {
   const [compatibleOrders, setCompatibleOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }>>([]);
   const [orderMatches, setOrderMatches] = useState<Array<{ orderNumber: string; customer: string; rowCount: number }>>([]);
   const [selectedOrderMatches, setSelectedOrderMatches] = useState<string[]>([]);
+  const [orderSearchValue, setOrderSearchValue] = useState('');
   const [orderSizeAllocations, setOrderSizeAllocations] = useState<Record<string, Record<string, number>>>({});
   const deliveryAppliedDimensionKey = useRef('');
 
@@ -697,6 +698,7 @@ export default function App() {
 
   useEffect(() => {
     const orderNumber = String(meta.order || '').trim();
+    if (selectedOrderMatches.length > 1) return;
     const emptyOptions = { customers: [], pos: [], colors: [], destinations: [], dimensions: [] };
     if (!window.rubaDesktop?.getDeliveryReferenceOptions || !orderNumber) {
       setDeliveryReferenceOptions(emptyOptions);
@@ -762,8 +764,7 @@ export default function App() {
     };
     void loadDeliveryReference();
     return () => { cancelled = true; };
-  }, [meta.order, meta.customer, meta.po]);
-
+    }, [meta.order, meta.customer, meta.po, selectedOrderMatches]);
   useEffect(() => {
     if (selectedOrderMatches.length < 2 || !window.rubaDesktop?.getDeliveryReferenceOptions) return;
     let cancelled = false;
@@ -774,39 +775,47 @@ export default function App() {
       const commonColors = intersect(optionSets.map(options => options.colors || []));
       const selectedPo = String(meta.po || '').trim().toLowerCase();
       const rows = optionSets.flatMap(options => options.rows || []).filter((row: any) => !selectedPo || String(row.customerPo || '').trim().toLowerCase() === selectedPo);
+      const colorMap = new Map<string, { color: string; po: string; poQty: number; customer: string; destination: string }>();
+      rows.forEach((row: any) => { const color = String(row.color || '').trim(); const po = String(row.customerPo || '').trim(); if (!color) return; const key = `${color.toLowerCase()}|${po.toLowerCase()}`; const previous = colorMap.get(key); colorMap.set(key, { color, po, poQty: Number(previous?.poQty || 0) + Number(row.poQty || 0), customer: String(row.customerName || ''), destination: String(row.dest || row.destination || '') }); });
       setDeliveryReferenceOptions(previous => ({ ...previous, pos: commonPos, colors: commonColors, rows }));
+      setDeliveryColorOptions(Array.from(colorMap.values()));
       if (selectedPo && commonPos.length && !commonPos.some(po => po.toLowerCase() === selectedPo)) handleMetaChange('po', '');
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [selectedOrderMatches, meta.po]);
 
   useEffect(() => {
-    const rawOrder = String(meta.order || '').trim();
-    const prefix = rawOrder.match(/^\\d+/)?.[0] || rawOrder;
+    const rawOrder = String(orderSearchValue || meta.order || '').trim();
+    const prefix = rawOrder.match(/^\d+/)?.[0] || rawOrder;
     if (!window.rubaDesktop?.getDeliveryOrderMatches || !prefix) { setOrderMatches([]); return; }
     let cancelled = false;
     window.rubaDesktop.getDeliveryOrderMatches({ prefix }).then(rows => { if (!cancelled) setOrderMatches(rows || []); }).catch(() => { if (!cancelled) setOrderMatches([]); });
     return () => { cancelled = true; };
-  }, [meta.order]);
-
+    }, [meta.order, orderSearchValue]);
   useEffect(() => {
-    const order = String(meta.order || '').trim();
+    const order = String(selectedOrderMatches[0] || meta.order || '').trim();
     const customer = String(meta.customer || '').trim();
     const po = String(meta.po || '').trim();
     if (!window.rubaDesktop?.getDeliveryCompatibleOrders || !customer || !po) { setCompatibleOrders([]); return; }
     let cancelled = false;
     window.rubaDesktop.getDeliveryCompatibleOrders({ orderNumber: order, customer, po }).then(rows => { if (!cancelled) setCompatibleOrders(rows || []); }).catch(() => { if (!cancelled) setCompatibleOrders([]); });
     return () => { cancelled = true; };
-  }, [meta.order, meta.customer, meta.po]);
-
+    }, [meta.order, meta.customer, meta.po, selectedOrderMatches]);
+  const formatSelectedOrderDisplay = (orders: string[]) => {
+    if (!orders.length) return orderSearchValue;
+    if (orders.length === 1) return orders[0];
+    const first = orders[0];
+    const suffixes = orders.slice(1).map(order => order.replace(/^\d+/, '')).filter(Boolean);
+    return suffixes.length ? `${first}-${suffixes.join('-')}` : orders.join('-');
+  };
   const toggleOrderMatch = (orderNumber: string) => {
     const normalized = String(orderNumber || '').trim();
     if (!normalized) return;
     setSelectedOrderMatches(previous => {
       const exists = previous.some(order => order.toLowerCase() === normalized.toLowerCase());
       const next = exists ? previous.filter(order => order.toLowerCase() !== normalized.toLowerCase()) : [...previous, normalized];
-      const primary = next[0] || '';
-      if (primary) handleMetaChange('order', primary);
+      const displayedOrder = formatSelectedOrderDisplay(next);
+      setMeta(previousMeta => ({ ...previousMeta, order: displayedOrder }));
       return next;
     });
   };
@@ -936,6 +945,8 @@ export default function App() {
   const handleMetaChange = (key: keyof OrderMeta, value: string) => {
     const nextMeta = { ...meta, [key]: value };
     if (key === 'order') {
+      setOrderSearchValue(value);
+      setSelectedOrderMatches([]);
       nextMeta.customer = ''; nextMeta.po = ''; nextMeta.destination = '';
       setDeliverySelectedColors([]); setDeliveryAutoDimensions(null); setDeliveryLookupAlert('');
     } else if (key === 'customer') {
