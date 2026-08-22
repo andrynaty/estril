@@ -63,6 +63,10 @@ declare global {
     registerFile: (file: any) => Promise<any>;
     deleteFile: (id: string) => Promise<boolean>;
     listDeliveryPlans: (projectId: string) => Promise<any[]>;
+    listDeliveryRows: (options?: { planId?: string; sheetName?: string; search?: string; page?: number; pageSize?: number }) => Promise<{ rows: any[]; total: number; page: number; pageSize: number }>;
+    deleteDeliveryRows: (options: { ids: string[] }) => Promise<number>;
+    clearDeliveryRows: (planId?: string) => Promise<number>;
+    exportDeliveryRowsCsv: (options?: { planId?: string }) => Promise<{ path: string; rows: number }>;
     getDeliveryReferenceOptions: (orderNumber?: string) => Promise<{ rows: any[]; customers: string[]; pos: string[]; colors: string[]; destinations: string[]; dimensions: Array<{ orderNumber: string; po: string; customer: string; color: string; destination: string; length: number; width: number; height: number; cbm: number; poQty: number }> }>;
     saveDeliveryPlan: (plan: any) => Promise<any>;
     replaceBreakdown: (payload: any) => Promise<any[]>;
