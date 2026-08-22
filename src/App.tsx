@@ -854,6 +854,7 @@ export default function App() {
       if (Array.isArray(payload.colors)) setColors(payload.colors);
       if (Array.isArray(payload.groupedOrders)) setGroupedOrders(payload.groupedOrders);
       if (Array.isArray(payload.selectedOrderMatches)) setSelectedOrderMatches(payload.selectedOrderMatches);
+      if (payload.orderSizeAllocations && typeof payload.orderSizeAllocations === 'object') setOrderSizeAllocations(payload.orderSizeAllocations);
       if (payload.globalPackingMode) setGlobalPackingMode(payload.globalPackingMode);
       if (payload.maxSizesPerBox) setMaxSizesPerBox(payload.maxSizesPerBox);
       if (payload.forceSingleCarton !== undefined) setForceSingleCarton(Boolean(payload.forceSingleCarton));
@@ -2281,6 +2282,7 @@ export default function App() {
     setResults([]);
     setGroupedOrders([]);
     setSelectedOrderMatches([]);
+    setOrderSizeAllocations({});
     resetColorsToDefault();
     setActiveInputTab('meta');
     setActiveMainRibbon('packing');
@@ -2324,7 +2326,8 @@ export default function App() {
         forceSubCapSolidInMixed,
         colors: JSON.parse(JSON.stringify(colors)), // deep copy
         groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
-        selectedOrderMatches: [...selectedOrderMatches]
+        selectedOrderMatches: [...selectedOrderMatches],
+        orderSizeAllocations: JSON.parse(JSON.stringify(orderSizeAllocations))
       };
 
       setActivePackingListId(listId);
@@ -2356,6 +2359,7 @@ export default function App() {
             auditorName,
             groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
             selectedOrderMatches: [...selectedOrderMatches],
+            orderSizeAllocations: JSON.parse(JSON.stringify(orderSizeAllocations)),
           },
         });
       }
@@ -2384,6 +2388,7 @@ export default function App() {
       setColors(JSON.parse(JSON.stringify(loaded.colors))); // deep copy
       setGroupedOrders(Array.isArray(loaded.groupedOrders) ? JSON.parse(JSON.stringify(loaded.groupedOrders)) : []);
       setSelectedOrderMatches(Array.isArray(loaded.selectedOrderMatches) ? loaded.selectedOrderMatches : [String(loaded.meta?.order || '').trim()].filter(Boolean));
+      setOrderSizeAllocations(loaded.orderSizeAllocations && typeof loaded.orderSizeAllocations === 'object' ? loaded.orderSizeAllocations : {});
       setHasGenerated(false);
       setResults([]);
       triggerToast(`🔌 Fiche "${item.name}" chargée. Modifiez-la puis utilisez « Sauvegarder la fiche » pour mettre à jour le même ID.`, 'success');
