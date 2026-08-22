@@ -106,6 +106,14 @@ export interface ColorResult {
   };
 }
 
+export interface GroupedOrderReference {
+  order: string;
+  customer: string;
+  po: string;
+  colors: Array<{ color: string; poQty: number; destination?: string }>;
+  addedAt: string;
+}
+
 export interface LocalSaveListItem {
   id: string;
   name: string;
@@ -116,4 +124,5 @@ export interface LocalSaveListItem {
   forceSingleCarton: boolean;
   forceSubCapSolidInMixed?: boolean;
   colors: ColorConfig[];
+  groupedOrders?: GroupedOrderReference[];
 }

@@ -291,6 +291,8 @@ export default function App() {
   const [deliveryAutoValues, setDeliveryAutoValues] = useState({ customer: '', destination: '' });
   const [deliveryAutoDimensions, setDeliveryAutoDimensions] = useState<{ length: number; width: number; height: number; cbm: number } | null>(null);
   const [deliveryLookupAlert, setDeliveryLookupAlert] = useState('');
+  const [groupedOrders, setGroupedOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }>; addedAt: string }>>([]);
+  const [compatibleOrders, setCompatibleOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }>>([]);
   const deliveryAppliedDimensionKey = useRef('');
 
   // Modals state triggers
@@ -759,12 +761,31 @@ export default function App() {
     return () => { cancelled = true; };
   }, [meta.order, meta.customer, meta.po]);
 
+  useEffect(() => {
+    const order = String(meta.order || '').trim();
+    const customer = String(meta.customer || '').trim();
+    const po = String(meta.po || '').trim();
+    if (!window.rubaDesktop?.getDeliveryCompatibleOrders || !customer || !po) { setCompatibleOrders([]); return; }
+    let cancelled = false;
+    window.rubaDesktop.getDeliveryCompatibleOrders({ orderNumber: order, customer, po }).then(rows => { if (!cancelled) setCompatibleOrders(rows || []); }).catch(() => { if (!cancelled) setCompatibleOrders([]); });
+    return () => { cancelled = true; };
+  }, [meta.order, meta.customer, meta.po]);
+
+  const addCompatibleOrder = (candidate: { order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }) => {
+    if (groupedOrders.some(item => item.order.toLowerCase() === candidate.order.toLowerCase())) return;
+    setGroupedOrders(previous => [...previous, { ...candidate, addedAt: new Date().toISOString() }]);
+    triggerToast(`Commande ${candidate.order} ajoutée au regroupement de la Packing List.`, 'success');
+  };
+
+  const removeGroupedOrder = (order: string) => setGroupedOrders(previous => previous.filter(item => item.order.toLowerCase() !== order.toLowerCase()));
+
   const handleLoadProject = async (project: any) => {
     const payload = project?.payload || {};
     try {
       if (payload.meta && typeof payload.meta === 'object') setMeta({ ...meta, ...payload.meta });
       if (payload.db && typeof payload.db === 'object') setDb({ ...db, ...payload.db });
       if (Array.isArray(payload.colors)) setColors(payload.colors);
+      if (Array.isArray(payload.groupedOrders)) setGroupedOrders(payload.groupedOrders);
       if (payload.globalPackingMode) setGlobalPackingMode(payload.globalPackingMode);
       if (payload.maxSizesPerBox) setMaxSizesPerBox(payload.maxSizesPerBox);
       if (payload.forceSingleCarton !== undefined) setForceSingleCarton(Boolean(payload.forceSingleCarton));
@@ -2190,6 +2211,7 @@ export default function App() {
     setMaxSizesPerBox(3);
     setHasGenerated(false);
     setResults([]);
+    setGroupedOrders([]);
     resetColorsToDefault();
     setActiveInputTab('meta');
     setActiveMainRibbon('packing');
@@ -2231,7 +2253,8 @@ export default function App() {
         maxSizesPerBox,
         forceSingleCarton,
         forceSubCapSolidInMixed,
-        colors: JSON.parse(JSON.stringify(colors)) // deep copy
+        colors: JSON.parse(JSON.stringify(colors)), // deep copy
+        groupedOrders: JSON.parse(JSON.stringify(groupedOrders))
       };
 
       setActivePackingListId(listId);
@@ -2261,6 +2284,7 @@ export default function App() {
             discrepancyReasons,
             auditNotes,
             auditorName,
+            groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
           },
         });
       }
@@ -2287,6 +2311,7 @@ export default function App() {
       setForceSingleCarton(loaded.forceSingleCarton);
       setForceSubCapSolidInMixed(Boolean(loaded.forceSubCapSolidInMixed));
       setColors(JSON.parse(JSON.stringify(loaded.colors))); // deep copy
+      setGroupedOrders(Array.isArray(loaded.groupedOrders) ? JSON.parse(JSON.stringify(loaded.groupedOrders)) : []);
       setHasGenerated(false);
       setResults([]);
       triggerToast(`🔌 Fiche "${item.name}" chargée. Modifiez-la puis utilisez « Sauvegarder la fiche » pour mettre à jour le même ID.`, 'success');
@@ -3648,7 +3673,7 @@ export default function App() {
         </div>
       </div>
 
-      <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} darkMode={darkMode} />
+      <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} groupedOrders={groupedOrders} darkMode={darkMode} />
 
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
@@ -4226,6 +4251,15 @@ export default function App() {
                   />
                 </div>
               </div>
+
+              {(compatibleOrders.length > 0 || groupedOrders.length > 0) && <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-slate-800 md:col-span-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-indigo-800">Packing List multi-commandes</p><p className="mt-0.5 text-[10px] text-indigo-700">Même Customer + même PO : chaque Order # et chaque couleur restent traçables séparément.</p></div>
+                  <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black text-indigo-700">{groupedOrders.length + 1} commande(s)</span>
+                </div>
+                {compatibleOrders.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{compatibleOrders.filter(candidate => !groupedOrders.some(item => item.order.toLowerCase() === candidate.order.toLowerCase())).map(candidate => <button key={candidate.order} type="button" onClick={() => addCompatibleOrder(candidate)} className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-indigo-800 hover:bg-indigo-100">+ Ajouter {candidate.order} · {candidate.colors.length} couleur(s)</button>)}</div>}
+                {groupedOrders.length > 0 && <div className="mt-3 overflow-x-auto rounded-lg border border-indigo-200 bg-white"><table className="w-full min-w-[560px] text-left text-[10px]"><thead className="bg-indigo-700 text-white"><tr><th className="px-2 py-1.5">Order #</th><th className="px-2 py-1.5">Customer</th><th className="px-2 py-1.5">PO</th><th className="px-2 py-1.5">Couleurs / PO QTY</th><th className="px-2 py-1.5 text-right">Action</th></tr></thead><tbody>{groupedOrders.map(item => <tr key={item.order} className="border-t border-indigo-100"><td className="px-2 py-1.5 font-mono font-black">{item.order}</td><td className="px-2 py-1.5">{item.customer}</td><td className="px-2 py-1.5 font-mono">{item.po}</td><td className="px-2 py-1.5">{item.colors.map(color => `${color.color} (${Number(color.poQty || 0).toLocaleString('fr-FR')})`).join(' · ')}</td><td className="px-2 py-1.5 text-right"><button type="button" onClick={() => removeGroupedOrder(item.order)} className="rounded-md border border-red-200 px-2 py-1 font-bold text-red-700 hover:bg-red-50">Retirer</button></td></tr>)}</tbody></table></div>}
+              </div>}
             </div>
 
             {/* Sub-section: Order Details */}

@@ -497,6 +497,25 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     })).filter((item) => item.po || item.length || item.width || item.height);
     return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest'), dimensions };
   });
+  ipcMain.handle('ruba:delivery-compatible-orders', (_event, request = {}) => {
+    const orderNumber = String(request.orderNumber || '').trim();
+    const customer = String(request.customer || '').trim();
+    const po = String(request.po || '').trim();
+    if (!customer || !po) return [];
+    const rows = db.prepare(`SELECT order_number AS orderNumber, customer_name AS customer, customer_po AS po, color, destination, SUM(po_qty) AS poQty
+      FROM delivery_plan_rows
+      WHERE lower(trim(customer_name)) = lower(?) AND lower(trim(customer_po)) = lower(?) AND trim(order_number) <> '' AND lower(trim(order_number)) <> lower(?) AND trim(color) <> ''
+      GROUP BY lower(trim(order_number)), lower(trim(color)), color, destination
+      ORDER BY order_number, color`).all(customer, po, orderNumber);
+    const grouped = new Map();
+    for (const row of rows) {
+      const key = String(row.orderNumber || '').trim().toLowerCase();
+      const current = grouped.get(key) || { order: String(row.orderNumber || '').trim(), customer: String(row.customer || '').trim(), po: String(row.po || '').trim(), colors: [] };
+      current.colors.push({ color: String(row.color || '').trim(), poQty: Number(row.poQty || 0), destination: String(row.destination || '').trim() });
+      grouped.set(key, current);
+    }
+    return Array.from(grouped.values());
+  });
   ipcMain.handle('ruba:delivery-breakdown', (_event, request = {}) => {
     const orderNumber = String(request.orderNumber || '').trim();
     const customer = String(request.customer || '').trim();

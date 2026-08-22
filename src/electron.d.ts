@@ -69,6 +69,7 @@ declare global {
     exportDeliveryRowsCsv: (options?: { planId?: string }) => Promise<{ path: string; rows: number }>;
     getDeliveryReferenceOptions: (request?: string | { orderNumber?: string; customer?: string; po?: string }) => Promise<{ rows: any[]; customers: string[]; pos: string[]; colors: string[]; destinations: string[]; dimensions: Array<{ orderNumber: string; po: string; customer: string; color: string; destination: string; length: number; width: number; height: number; cbm: number; poQty: number }> }>;
     getDeliveryBreakdown: (request: { orderNumber?: string; customer?: string; po?: string }) => Promise<Array<{ color: string; poQty: number }>>;
+    getDeliveryCompatibleOrders: (request: { orderNumber?: string; customer?: string; po?: string }) => Promise<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }>>;
     saveDeliveryPlan: (plan: any) => Promise<any>;
     replaceBreakdown: (payload: any) => Promise<any[]>;
     listAuditEvents: (limit?: number) => Promise<any[]>;

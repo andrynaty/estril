@@ -7,10 +7,11 @@ type Props = {
   meta: any;
   colors: any[];
   deliveryColorOptions?: ColorOption[];
+  groupedOrders?: Array<{ order: string }>;
   darkMode?: boolean;
 };
 
-export default function GlobalProjectSummary({ meta, colors, deliveryColorOptions = [], darkMode = false }: Props) {
+export default function GlobalProjectSummary({ meta, colors, deliveryColorOptions = [], groupedOrders = [], darkMode = false }: Props) {
   const [expanded, setExpanded] = useState(true);
   const rows = useMemo(() => {
     const map = new Map<string, { color: string; poQty: number; plQty: number }>();
@@ -40,7 +41,7 @@ export default function GlobalProjectSummary({ meta, colors, deliveryColorOption
 
   return <div className={`sticky top-0 z-40 border-b shadow-md ${darkMode ? 'border-white/10 bg-[#111827]/[.97] text-white' : 'border-slate-200 bg-white/[.98] text-slate-900'} backdrop-blur`}>
     <div className="mx-auto flex max-w-[1800px] items-center gap-3 px-4 py-2.5">
-      <div className="flex min-w-0 flex-1 items-center gap-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white"><ClipboardList size={16}/></div><div className="min-w-0"><p className="truncate text-[9px] font-black uppercase tracking-[.16em] text-indigo-700">Projet actif</p><div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] font-bold"><span>Order # <b className="font-mono">{meta?.order || '—'}</b></span><span>PO <b className="font-mono">{meta?.po || '—'}</b></span><span className="max-w-[220px] truncate">{meta?.customer || 'Client non sélectionné'}</span></div></div></div>
+      <div className="flex min-w-0 flex-1 items-center gap-3"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white"><ClipboardList size={16}/></div><div className="min-w-0"><p className="truncate text-[9px] font-black uppercase tracking-[.16em] text-indigo-700">Projet actif</p><div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[11px] font-bold"><span>Order # <b className="font-mono">{meta?.order || '—'}</b></span><span>PO <b className="font-mono">{meta?.po || '—'}</b></span><span className="max-w-[220px] truncate">{meta?.customer || 'Client non sélectionné'}</span>{groupedOrders.length > 0 && <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-800">{groupedOrders.length + 1} commandes</span>}</div></div></div>
       <div className="hidden items-center gap-2 border-l border-slate-200 pl-3 md:flex"><span className="text-[9px] font-black uppercase text-slate-500">PL</span><b className="font-mono text-xs">{format(totals.plQty)} pcs</b><span className="text-[9px] font-black uppercase text-slate-500">PO</span><b className="font-mono text-xs">{format(totals.poQty)} pcs</b><span className={`font-mono text-xs font-black ${tone}`}>{variance > 0 ? '+' : ''}{variance.toFixed(1)}%</span></div>
       <button type="button" onClick={() => setExpanded(value => !value)} className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[10px] font-black text-indigo-700"><BarChart3 size={14}/><span>{rows.length} couleur(s)</span>{expanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</button>
     </div>
