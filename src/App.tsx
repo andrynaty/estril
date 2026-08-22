@@ -293,6 +293,9 @@ export default function App() {
   const [deliveryLookupAlert, setDeliveryLookupAlert] = useState('');
   const [groupedOrders, setGroupedOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }>; addedAt: string }>>([]);
   const [compatibleOrders, setCompatibleOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }>>([]);
+  const [orderMatches, setOrderMatches] = useState<Array<{ orderNumber: string; customer: string; rowCount: number }>>([]);
+  const [selectedOrderMatches, setSelectedOrderMatches] = useState<string[]>([]);
+  const [orderSizeAllocations, setOrderSizeAllocations] = useState<Record<string, Record<string, number>>>({});
   const deliveryAppliedDimensionKey = useRef('');
 
   // Modals state triggers
@@ -762,6 +765,31 @@ export default function App() {
   }, [meta.order, meta.customer, meta.po]);
 
   useEffect(() => {
+    if (selectedOrderMatches.length < 2 || !window.rubaDesktop?.getDeliveryReferenceOptions) return;
+    let cancelled = false;
+    Promise.all(selectedOrderMatches.map(orderNumber => window.rubaDesktop!.getDeliveryReferenceOptions({ orderNumber }))).then(optionSets => {
+      if (cancelled || !optionSets.length) return;
+      const intersect = (values: string[][]) => values.reduce((common, current) => common.filter(value => current.some(item => item.toLowerCase() === value.toLowerCase())), values[0] || []);
+      const commonPos = intersect(optionSets.map(options => options.pos || []));
+      const commonColors = intersect(optionSets.map(options => options.colors || []));
+      const selectedPo = String(meta.po || '').trim().toLowerCase();
+      const rows = optionSets.flatMap(options => options.rows || []).filter((row: any) => !selectedPo || String(row.customerPo || '').trim().toLowerCase() === selectedPo);
+      setDeliveryReferenceOptions(previous => ({ ...previous, pos: commonPos, colors: commonColors, rows }));
+      if (selectedPo && commonPos.length && !commonPos.some(po => po.toLowerCase() === selectedPo)) handleMetaChange('po', '');
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [selectedOrderMatches, meta.po]);
+
+  useEffect(() => {
+    const rawOrder = String(meta.order || '').trim();
+    const prefix = rawOrder.match(/^\\d+/)?.[0] || rawOrder;
+    if (!window.rubaDesktop?.getDeliveryOrderMatches || !prefix) { setOrderMatches([]); return; }
+    let cancelled = false;
+    window.rubaDesktop.getDeliveryOrderMatches({ prefix }).then(rows => { if (!cancelled) setOrderMatches(rows || []); }).catch(() => { if (!cancelled) setOrderMatches([]); });
+    return () => { cancelled = true; };
+  }, [meta.order]);
+
+  useEffect(() => {
     const order = String(meta.order || '').trim();
     const customer = String(meta.customer || '').trim();
     const po = String(meta.po || '').trim();
@@ -771,6 +799,18 @@ export default function App() {
     return () => { cancelled = true; };
   }, [meta.order, meta.customer, meta.po]);
 
+  const toggleOrderMatch = (orderNumber: string) => {
+    const normalized = String(orderNumber || '').trim();
+    if (!normalized) return;
+    setSelectedOrderMatches(previous => {
+      const exists = previous.some(order => order.toLowerCase() === normalized.toLowerCase());
+      const next = exists ? previous.filter(order => order.toLowerCase() !== normalized.toLowerCase()) : [...previous, normalized];
+      const primary = next[0] || '';
+      if (primary) handleMetaChange('order', primary);
+      return next;
+    });
+  };
+
   const addCompatibleOrder = (candidate: { order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }) => {
     if (groupedOrders.some(item => item.order.toLowerCase() === candidate.order.toLowerCase())) return;
     setGroupedOrders(previous => [...previous, { ...candidate, addedAt: new Date().toISOString() }]);
@@ -779,6 +819,33 @@ export default function App() {
 
   const removeGroupedOrder = (order: string) => setGroupedOrders(previous => previous.filter(item => item.order.toLowerCase() !== order.toLowerCase()));
 
+  const allocationKey = (order: string, color: string) => `${order.trim().toLowerCase()}::${color.trim().toLowerCase()}`;
+  const readOrderAllocation = (order: string, colorConfig: ColorConfig) => {
+    const key = allocationKey(order, colorConfig.nom);
+    const stored = orderSizeAllocations[key];
+    if (stored) return colorConfig.tailles.reduce<Record<string, number>>((acc, size) => ({ ...acc, [size]: Number(stored[size] || 0) }), {});
+    if (String(meta.order || '').trim().toLowerCase() === order.trim().toLowerCase()) return colorConfig.tailles.reduce<Record<string, number>>((acc, size) => ({ ...acc, [size]: Number(colorConfig.sizes[size]?.qtyTot || 0) }), {});
+    return colorConfig.tailles.reduce<Record<string, number>>((acc, size) => ({ ...acc, [size]: 0 }), {});
+  };
+  const updateOrderAllocation = (order: string, colorConfig: ColorConfig, size: string, value: string) => {
+    const key = allocationKey(order, colorConfig.nom);
+    setOrderSizeAllocations(previous => {
+      const next = { ...previous, [key]: { ...(previous[key] || readOrderAllocation(order, colorConfig)), [size]: Math.max(0, Number(value) || 0) } };
+      const orders = selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean);
+      if (orders.length > 1) {
+        setColors(currentColors => currentColors.map((color, index) => {
+          if (index !== activeColorIdx) return color;
+          const totals = color.tailles.reduce<Record<string, number>>((acc, currentSize) => ({ ...acc, [currentSize]: orders.reduce((sum, currentOrder) => sum + Number((next[allocationKey(currentOrder, color.nom)] || readOrderAllocation(currentOrder, color))[currentSize] || 0), 0) }), {});
+          const sizes = { ...color.sizes };
+          color.tailles.forEach(currentSize => { sizes[currentSize] = { ...sizes[currentSize], qtyTot: totals[currentSize] || 0 }; });
+          return reconcileCustomRemainders({ ...color, sizes });
+        }));
+      }
+      return next;
+    });
+    setHasGenerated(false);
+  };
+
   const handleLoadProject = async (project: any) => {
     const payload = project?.payload || {};
     try {
@@ -786,6 +853,7 @@ export default function App() {
       if (payload.db && typeof payload.db === 'object') setDb({ ...db, ...payload.db });
       if (Array.isArray(payload.colors)) setColors(payload.colors);
       if (Array.isArray(payload.groupedOrders)) setGroupedOrders(payload.groupedOrders);
+      if (Array.isArray(payload.selectedOrderMatches)) setSelectedOrderMatches(payload.selectedOrderMatches);
       if (payload.globalPackingMode) setGlobalPackingMode(payload.globalPackingMode);
       if (payload.maxSizesPerBox) setMaxSizesPerBox(payload.maxSizesPerBox);
       if (payload.forceSingleCarton !== undefined) setForceSingleCarton(Boolean(payload.forceSingleCarton));
@@ -2212,6 +2280,7 @@ export default function App() {
     setHasGenerated(false);
     setResults([]);
     setGroupedOrders([]);
+    setSelectedOrderMatches([]);
     resetColorsToDefault();
     setActiveInputTab('meta');
     setActiveMainRibbon('packing');
@@ -2254,7 +2323,8 @@ export default function App() {
         forceSingleCarton,
         forceSubCapSolidInMixed,
         colors: JSON.parse(JSON.stringify(colors)), // deep copy
-        groupedOrders: JSON.parse(JSON.stringify(groupedOrders))
+        groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
+        selectedOrderMatches: [...selectedOrderMatches]
       };
 
       setActivePackingListId(listId);
@@ -2285,6 +2355,7 @@ export default function App() {
             auditNotes,
             auditorName,
             groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
+            selectedOrderMatches: [...selectedOrderMatches],
           },
         });
       }
@@ -2312,6 +2383,7 @@ export default function App() {
       setForceSubCapSolidInMixed(Boolean(loaded.forceSubCapSolidInMixed));
       setColors(JSON.parse(JSON.stringify(loaded.colors))); // deep copy
       setGroupedOrders(Array.isArray(loaded.groupedOrders) ? JSON.parse(JSON.stringify(loaded.groupedOrders)) : []);
+      setSelectedOrderMatches(Array.isArray(loaded.selectedOrderMatches) ? loaded.selectedOrderMatches : [String(loaded.meta?.order || '').trim()].filter(Boolean));
       setHasGenerated(false);
       setResults([]);
       triggerToast(`🔌 Fiche "${item.name}" chargée. Modifiez-la puis utilisez « Sauvegarder la fiche » pour mettre à jour le même ID.`, 'success');
@@ -4189,8 +4261,9 @@ export default function App() {
                     value={meta.order}
                     onChange={(e) => handleMetaChange('order', e.target.value)}
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
-                    placeholder="ex: 2630001AA"
+                    placeholder="ex: 2630001AA ou 2654356"
                   />
+                  {orderMatches.length > 0 && <div className={`mt-1 rounded-lg border p-2 ${darkMode ? 'border-white/10 bg-[#15151A]' : 'border-indigo-200 bg-indigo-50/60'}`}><div className="mb-1 text-[9px] font-black uppercase tracking-wide text-indigo-700">Commandes correspondantes — sélection multiple</div><div className="max-h-28 space-y-1 overflow-y-auto">{orderMatches.map(match => <label key={match.orderNumber} className="flex cursor-pointer items-center justify-between gap-2 rounded px-1.5 py-1 text-[10px] hover:bg-white"><span className="flex items-center gap-2"><input type="checkbox" checked={selectedOrderMatches.some(order => order.toLowerCase() === match.orderNumber.toLowerCase())} onChange={() => toggleOrderMatch(match.orderNumber)} /><b className="font-mono">{match.orderNumber}</b><span className="text-slate-500">{match.customer || 'Client non renseigné'}</span></span><span className="text-[9px] text-slate-500">{match.rowCount} ligne(s)</span></label>)}</div></div>}
                 </div>
 
                 <div className="flex flex-col gap-1 relative">
@@ -5122,13 +5195,27 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className={`divide-y font-mono ${darkMode ? 'divide-white/10' : 'divide-slate-200'}`}>
+                      {selectedOrderMatches.length > 1 && selectedOrderMatches.map((orderNumber) => {
+                        const allocation = readOrderAllocation(orderNumber, colors[activeColorIdx]);
+                        const allocationTotal = colors[activeColorIdx].tailles.reduce((sum, size) => sum + Number(allocation[size] || 0), 0);
+                        return <tr key={`order-allocation-${orderNumber}`} className={darkMode ? 'bg-indigo-950/20' : 'bg-indigo-50/40'}>
+                          <td className={`py-2 px-4 text-left font-sans font-semibold border-r ${darkMode ? 'border-white/10 text-indigo-200' : 'border-slate-200 text-indigo-900'}`}>
+                            <div className="flex flex-col"><span>Order # {orderNumber}</span><span className="text-[10px] font-normal italic text-slate-500">Répartition par commande</span></div>
+                          </td>
+                          {colors[activeColorIdx].tailles.map((size) => <td key={size} className={`p-1 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>
+                            <input type="number" min="0" value={allocation[size] || ''} onChange={(event) => updateOrderAllocation(orderNumber, colors[activeColorIdx], size, event.target.value)} className={`w-full rounded-md border px-2 py-1.5 text-center font-mono text-xs font-bold outline-none ${darkMode ? 'border-indigo-400/30 bg-[#15151A] text-white' : 'border-indigo-200 bg-white text-slate-900'}`} placeholder="0" />
+                          </td>)}
+                          <td className={`p-1 font-mono text-center font-black ${darkMode ? 'text-indigo-200' : 'text-indigo-800'}`}>{allocationTotal}</td>
+                        </tr>;
+                      })}
+
                       {/* Row 1: QTY Totale */}
                       <tr className={darkMode ? '' : 'hover:bg-slate-50/50'}>
                         <td className={`py-2 px-4 text-left font-sans font-semibold border-r ${
                           darkMode ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-slate-100/30 text-slate-755'
                         }`}>
                           <div className="flex flex-col">
-                            <span>Quantité Totale à Emballer</span>
+                            <span>Quantité Totale à Emballer {selectedOrderMatches.length > 1 ? '(calculée)' : ''}</span>
                             <span className="text-[10px] text-slate-500 font-normal italic font-mono">Presse-papiers Excel tolléré</span>
                           </div>
                         </td>
@@ -5150,6 +5237,7 @@ export default function App() {
                                 type="number"
                                 min="0"
                                 value={colors[activeColorIdx].sizes[sz]?.qtyTot || ''}
+                                readOnly={selectedOrderMatches.length > 1}
                                 onChange={(e) => handleUpdateSizeCell(sz, 'qtyTot', e.target.value)}
                                 onPaste={(e) => handlePasteGrid2D(e, sz, 'qtyTot')}
                                 className={`w-full text-center py-1.5 font-bold rounded-md bg-transparent border focus:outline-none transition-all ${
@@ -6919,7 +7007,8 @@ export default function App() {
                               style={{ backgroundColor: '#3988e7', color: '#fffbfb', borderColor: '#2c7cd1' }}
                             >
                               <div className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: res.color }} />
-                              PACKING LIST — COULEUR : {res.nom}
+                              <span>PACKING LIST — COULEUR : {res.nom}</span>
+                              <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">Order(s) : {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join(' · ')} · PO : {meta.po || '—'}</span>
                             </div>
 
                             <div className="pb-3 text-xs">
@@ -9913,7 +10002,8 @@ export default function App() {
                     style={{ backgroundColor: '#3988e7', color: '#fffbfb', borderColor: '#2c7cd1' }}
                   >
                     <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: res.color }} />
-                    PACKING LIST — COULEUR : {res.nom}
+                    <span>PACKING LIST — COULEUR : {res.nom}</span>
+                    <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">Order(s) : {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join(' · ')} · PO : {meta.po || '—'}</span>
                   </div>
 
                   {/* Print metadata row */}
@@ -10263,6 +10353,16 @@ export default function App() {
                     </tbody>
                   </table>
                 </div>
+
+                {printSections.bk && selectedOrderMatches.length > 1 && <div className="mt-6 space-y-3 print-bk-table break-inside-avoid">
+                  <div className="rounded-lg border border-indigo-300 bg-indigo-100 px-4 py-2 font-mono text-xs font-bold text-indigo-900">📌 BREAKDOWN PAR COMMANDE / COULEUR</div>
+                  <div className={`overflow-x-auto rounded-lg border ${darkMode ? 'border-slate-800' : 'border-slate-200 bg-white'}`}>
+                    <table className="w-full text-xs text-center border-collapse"><thead><tr className="font-mono font-bold text-[11px] border-b text-white" style={{ backgroundColor: '#4057a8' }}><th className="py-2 px-3 text-left">Commande</th><th className="py-2 px-3 text-left">Color</th>{summaryUniqueSizes.map(size => <th key={size}>{size}</th>)}<th>Total Pcs</th></tr></thead><tbody className={`divide-y font-mono ${darkMode ? 'divide-slate-800 text-slate-200' : 'divide-slate-200 text-slate-800'}`}>
+                      {selectedOrderMatches.flatMap(orderNumber => results.map(res => { const sourceColor = colors.find(color => color.nom.toLowerCase() === res.nom.toLowerCase()) || colors[res.colorIndex ?? 0]; const allocation = sourceColor ? readOrderAllocation(orderNumber, sourceColor) : {}; const total = summaryUniqueSizes.reduce((sum, size) => sum + Number(allocation[size] || 0), 0); return <tr key={`${orderNumber}-${res.nom}`} className="divide-x"><td className="py-2 px-3 text-left font-bold">{orderNumber}</td><td className="py-2 px-3 text-left font-bold">{res.nom}</td>{summaryUniqueSizes.map(size => <td key={size}>{allocation[size] || ''}</td>)}<td className="font-black">{total || ''}</td></tr>; }))}
+                      <tr className="border-t-2 bg-indigo-50 font-extrabold text-indigo-900"><td colSpan={2} className="py-2 px-3 text-left">SOUS-TOTAL</td>{summaryUniqueSizes.map(size => <td key={size}>{selectedOrderMatches.reduce((sum, orderNumber) => sum + results.reduce((inner, res) => { const sourceColor = colors.find(color => color.nom.toLowerCase() === res.nom.toLowerCase()) || colors[res.colorIndex ?? 0]; return inner + Number((sourceColor ? readOrderAllocation(orderNumber, sourceColor) : {})[size] || 0); }, 0), 0)}</td>)}<td>{selectedOrderMatches.reduce((sum, orderNumber) => sum + results.reduce((inner, res) => { const sourceColor = colors.find(color => color.nom.toLowerCase() === res.nom.toLowerCase()) || colors[res.colorIndex ?? 0]; const allocation = sourceColor ? readOrderAllocation(orderNumber, sourceColor) : {}; return inner + summaryUniqueSizes.reduce((total, size) => total + Number(allocation[size] || 0), 0); }, 0), 0)}</td></tr>
+                    </tbody></table>
+                  </div>
+                </div>}
 
                 {/* Color/Size matrices */}
                 {printSections.bk && (

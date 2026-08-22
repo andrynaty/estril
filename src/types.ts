@@ -125,4 +125,5 @@ export interface LocalSaveListItem {
   forceSubCapSolidInMixed?: boolean;
   colors: ColorConfig[];
   groupedOrders?: GroupedOrderReference[];
+  selectedOrderMatches?: string[];
 }

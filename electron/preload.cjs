@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('rubaDesktop', {
   clearDeliveryRows: (planId) => ipcRenderer.invoke('ruba:delivery-rows-clear', planId),
   exportDeliveryRowsCsv: (options) => ipcRenderer.invoke('ruba:delivery-rows-export-csv', options),
   getDeliveryReferenceOptions: (request) => ipcRenderer.invoke('ruba:delivery-reference-options', request),
+  getDeliveryOrderMatches: (request) => ipcRenderer.invoke('ruba:delivery-order-matches', request),
   getDeliveryBreakdown: (request) => ipcRenderer.invoke('ruba:delivery-breakdown', request),
   getDeliveryCompatibleOrders: (request) => ipcRenderer.invoke('ruba:delivery-compatible-orders', request),
   saveDeliveryPlan: (plan) => ipcRenderer.invoke('ruba:delivery-plan-save', plan),

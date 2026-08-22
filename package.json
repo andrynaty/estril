@@ -1,7 +1,7 @@
 {
   "name": "react-example",
   "private": true,
-  "version": "2.3.1",
+  "version": "2.4.0",
   "description": "Application desktop Ruba pour la préparation des packing lists.",
   "author": "Ruba",
   "type": "module",

@@ -497,6 +497,15 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     })).filter((item) => item.po || item.length || item.width || item.height);
     return { rows, customers: unique('customerName'), pos: unique('customerPo'), colors: unique('color'), destinations: unique('dest'), dimensions };
   });
+  ipcMain.handle('ruba:delivery-order-matches', (_event, request = '') => {
+    const prefix = String(typeof request === 'string' ? request : request?.prefix || '').trim();
+    if (!prefix) return [];
+    return db.prepare(`SELECT order_number AS orderNumber, MAX(customer_name) AS customer, COUNT(*) AS rowCount
+      FROM delivery_plan_rows
+      WHERE lower(trim(order_number)) LIKE lower(?) || '%' AND trim(order_number) <> ''
+      GROUP BY lower(trim(order_number))
+      ORDER BY order_number`).all(prefix);
+  });
   ipcMain.handle('ruba:delivery-compatible-orders', (_event, request = {}) => {
     const orderNumber = String(request.orderNumber || '').trim();
     const customer = String(request.customer || '').trim();
