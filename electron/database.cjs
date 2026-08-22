@@ -502,11 +502,22 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     const customer = String(request.customer || '').trim();
     const po = String(request.po || '').trim();
     if (!customer || !po) return [];
-    const rows = db.prepare(`SELECT order_number AS orderNumber, customer_name AS customer, customer_po AS po, color, destination, SUM(po_qty) AS poQty
-      FROM delivery_plan_rows
-      WHERE lower(trim(customer_name)) = lower(?) AND lower(trim(customer_po)) = lower(?) AND trim(order_number) <> '' AND lower(trim(order_number)) <> lower(?) AND trim(color) <> ''
-      GROUP BY lower(trim(order_number)), lower(trim(color)), color, destination
-      ORDER BY order_number, color`).all(customer, po, orderNumber);
+    const rows = db.prepare(`SELECT candidate.order_number AS orderNumber, candidate.customer_name AS customer, candidate.customer_po AS po, candidate.color, candidate.destination, SUM(candidate.po_qty) AS poQty
+      FROM delivery_plan_rows AS candidate
+      WHERE lower(trim(candidate.customer_name)) = lower(?)
+        AND lower(trim(candidate.customer_po)) = lower(?)
+        AND trim(candidate.order_number) <> ''
+        AND lower(trim(candidate.order_number)) <> lower(?)
+        AND trim(candidate.color) <> ''
+        AND EXISTS (
+          SELECT 1 FROM delivery_plan_rows AS active
+          WHERE lower(trim(active.order_number)) = lower(?)
+            AND lower(trim(active.customer_name)) = lower(?)
+            AND lower(trim(active.customer_po)) = lower(?)
+            AND lower(trim(active.color)) = lower(trim(candidate.color))
+        )
+      GROUP BY lower(trim(candidate.order_number)), lower(trim(candidate.color)), candidate.color, candidate.destination
+      ORDER BY candidate.order_number, candidate.color`).all(customer, po, orderNumber, orderNumber, customer, po);
     const grouped = new Map();
     for (const row of rows) {
       const key = String(row.orderNumber || '').trim().toLowerCase();

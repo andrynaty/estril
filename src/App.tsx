@@ -4254,7 +4254,7 @@ export default function App() {
 
               {(compatibleOrders.length > 0 || groupedOrders.length > 0) && <div className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-slate-800 md:col-span-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-indigo-800">Packing List multi-commandes</p><p className="mt-0.5 text-[10px] text-indigo-700">Même Customer + même PO : chaque Order # et chaque couleur restent traçables séparément.</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-indigo-800">Packing List multi-commandes</p><p className="mt-0.5 text-[10px] text-indigo-700">Même Customer + même PO + couleur commune : chaque Order # conserve sa propre PO QTY.</p></div>
                   <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black text-indigo-700">{groupedOrders.length + 1} commande(s)</span>
                 </div>
                 {compatibleOrders.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{compatibleOrders.filter(candidate => !groupedOrders.some(item => item.order.toLowerCase() === candidate.order.toLowerCase())).map(candidate => <button key={candidate.order} type="button" onClick={() => addCompatibleOrder(candidate)} className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-indigo-800 hover:bg-indigo-100">+ Ajouter {candidate.order} · {candidate.colors.length} couleur(s)</button>)}</div>}
