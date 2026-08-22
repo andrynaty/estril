@@ -702,8 +702,7 @@ export default function App() {
     let cancelled = false;
     const loadDeliveryReference = async () => {
       try {
-        await window.rubaDesktop.syncDeliveryCsv?.();
-        const options = await window.rubaDesktop.getDeliveryReferenceOptions(orderNumber);
+        const options = await window.rubaDesktop.getDeliveryReferenceOptions({ orderNumber, customer: String(meta.customer || '').trim(), po: String(meta.po || '').trim() });
         if (cancelled) return;
         const dimensions = options.dimensions || [];
         setDeliveryReferenceOptions({ customers: options.customers || [], pos: options.pos || [], colors: options.colors || [], destinations: options.destinations || [], dimensions });
@@ -717,10 +716,15 @@ export default function App() {
           colorMap.set(key, { color, po, poQty: Number(previous?.poQty || 0) + Number(row.poQty || 0), customer: String(row.customerName || ''), destination: String(row.dest || '') });
         });
         setDeliveryColorOptions(Array.from(colorMap.values()));
+        if (!String(meta.customer || '').trim() && (options.customers || []).length) {
+          setDeliveryAutoDimensions(null); setDeliveryLookupAlert('Sélectionnez d’abord un client pour afficher uniquement ses PO.'); return;
+        }
+        if (String(meta.customer || '').trim() && !String(meta.po || '').trim() && (options.pos || []).length) {
+          setDeliveryAutoDimensions(null); setDeliveryLookupAlert('Sélectionnez d’abord un PO pour afficher ses couleurs et sa destination.'); return;
+        }
         setMeta((previous) => {
           const next = { ...previous };
-          if (options.customers?.length === 1 && (!previous.customer || previous.customer === deliveryAutoValues.customer)) next.customer = options.customers[0];
-          if (options.destinations?.length === 1 && (!previous.destination || previous.destination === deliveryAutoValues.destination)) next.destination = options.destinations[0];
+          if (String(previous.po || '').trim() && options.destinations?.length === 1 && (!previous.destination || previous.destination === deliveryAutoValues.destination)) next.destination = options.destinations[0];
           return next;
         });
         setDeliveryAutoValues({ customer: options.customers?.length === 1 ? options.customers[0] : '', destination: options.destinations?.length === 1 ? options.destinations[0] : '' });
@@ -751,9 +755,8 @@ export default function App() {
       }
     };
     void loadDeliveryReference();
-    const refreshTimer = window.setInterval(() => { void loadDeliveryReference(); }, 2500);
-    return () => { cancelled = true; window.clearInterval(refreshTimer); };
-  }, [meta.order, meta.po]);
+    return () => { cancelled = true; };
+  }, [meta.order, meta.customer, meta.po]);
 
   const handleLoadProject = async (project: any) => {
     const payload = project?.payload || {};
@@ -841,6 +844,15 @@ export default function App() {
   // Input bindings
   const handleMetaChange = (key: keyof OrderMeta, value: string) => {
     const nextMeta = { ...meta, [key]: value };
+    if (key === 'order') {
+      nextMeta.customer = ''; nextMeta.po = ''; nextMeta.destination = '';
+      setDeliverySelectedColors([]); setDeliveryAutoDimensions(null); setDeliveryLookupAlert('');
+    } else if (key === 'customer') {
+      nextMeta.po = ''; nextMeta.destination = '';
+      setDeliverySelectedColors([]); setDeliveryAutoDimensions(null);
+    } else if (key === 'po') {
+      nextMeta.destination = ''; setDeliverySelectedColors([]); setDeliveryAutoDimensions(null);
+    }
 
     // Set auto customer template configs when chosen
     if (key === 'customer') {
@@ -4163,6 +4175,7 @@ export default function App() {
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
                     placeholder="ex: Johnnie-O"
                     autoComplete="off"
+                    readOnly={Boolean(String(meta.order || '').trim() && deliveryReferenceOptions.customers.length)}
                   />
 
                   {/* Autocomplete suggestions */}
@@ -4192,8 +4205,9 @@ export default function App() {
                     onChange={(e) => handleMetaChange('po', e.target.value)}
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
                     placeholder="ex: 08788-00"
+                    readOnly={Boolean(String(meta.customer || '').trim() && deliveryReferenceOptions.pos.length)}
                   />
-                  {deliveryReferenceOptions.pos.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">PO disponibles:</span>{deliveryReferenceOptions.pos.slice(0, 8).map(poOption => <button key={poOption} type="button" onClick={() => handleMetaChange('po', poOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{poOption}</button>)}</div>}
+                  {String(meta.customer || '').trim() && deliveryReferenceOptions.pos.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">PO disponibles pour ce client:</span>{deliveryReferenceOptions.pos.slice(0, 8).map(poOption => <button key={poOption} type="button" onClick={() => handleMetaChange('po', poOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{poOption}</button>)}</div>}
                   {deliveryAutoDimensions && <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-[10px] text-indigo-900"><div className="mb-1 font-bold uppercase tracking-wide">Dimensions carton récupérées du Delivery Plan</div><div className="grid grid-cols-4 gap-1 font-mono"><span>L: <b>{deliveryAutoDimensions.length}</b> cm</span><span>W: <b>{deliveryAutoDimensions.width}</b> cm</span><span>H: <b>{deliveryAutoDimensions.height}</b> cm</span><span>CBM: <b>{deliveryAutoDimensions.cbm.toFixed(6)}</b></span></div></div>}
                   {deliveryLookupAlert && <div className={`mt-2 rounded-lg border px-2 py-1.5 text-[10px] font-semibold ${deliveryAutoDimensions ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-800'}`} role="alert"><AlertTriangle className="mr-1 inline h-3 w-3" />{deliveryLookupAlert}</div>}
                 </div>
@@ -4283,6 +4297,7 @@ export default function App() {
                     onChange={(e) => handleMetaChange('destination', e.target.value)}
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles(true)}`}
                     placeholder="ex: New York"
+                    readOnly={Boolean(String(meta.po || '').trim() && deliveryReferenceOptions.destinations.length)}
                   />
                   {deliveryReferenceOptions.destinations.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">Destinations:</span>{deliveryReferenceOptions.destinations.slice(0, 5).map(destinationOption => <button key={destinationOption} type="button" onClick={() => handleMetaChange('destination', destinationOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{destinationOption}</button>)}</div>}
                 </div>
@@ -4300,7 +4315,7 @@ export default function App() {
 
                 <div className="flex flex-col gap-1 md:col-span-2">
                   <label className="text-[10px] font-mono text-slate-500 uppercase">Couleur(s) du projet — Delivery Plan</label>
-                  {deliveryColorOptions.length > 0 ? <div className={`rounded-lg border p-2 ${darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-blue-200 bg-blue-50/50'}`}><div className="mb-2 flex flex-wrap gap-2">{deliveryColorOptions.map(option => { const key = `${option.color}|${option.po}`; const selected = deliverySelectedColors.includes(key); return <button key={key} type="button" onClick={() => handleToggleDeliveryColor(option)} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition-all ${selected ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-blue-200 bg-white text-blue-800 hover:bg-blue-100'}`}><span>{selected ? '✓' : '＋'}</span><span>{option.color}</span><span className={selected ? 'text-blue-100' : 'text-slate-500'}>{Number(option.poQty || 0).toLocaleString('fr-FR')} pcs</span></button>; })}</div><div className="flex flex-wrap items-center justify-between gap-2 border-t border-blue-200/60 pt-2 text-[10px] font-bold"><span className="text-blue-800">{deliverySelectedColors.length} couleur(s) sélectionnée(s)</span><span className="text-emerald-700">Total PO QTY : {deliveryColorOptions.filter(option => deliverySelectedColors.includes(`${option.color}|${option.po}`)).reduce((sum, option) => sum + Number(option.poQty || 0), 0).toLocaleString('fr-FR')} pcs</span></div></div> : <input type="text" value={colors.map(c => c.nom).filter(Boolean).join(', ')} disabled className={`w-full text-xs font-mono rounded-lg border px-3 py-2 font-medium opacity-70 ${darkMode ? 'bg-[#0F0F12] border-white/10 text-white' : 'bg-slate-100 border-slate-350 text-[#ff5000]'}`} />}
+                  {String(meta.po || '').trim() && deliveryColorOptions.length > 0 ? <div className={`rounded-lg border p-2 ${darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-blue-200 bg-blue-50/50'}`}><div className="mb-2 flex flex-wrap gap-2">{deliveryColorOptions.map(option => { const key = `${option.color}|${option.po}`; const selected = deliverySelectedColors.includes(key); return <button key={key} type="button" onClick={() => handleToggleDeliveryColor(option)} className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition-all ${selected ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-blue-200 bg-white text-blue-800 hover:bg-blue-100'}`}><span>{selected ? '✓' : '＋'}</span><span>{option.color}</span><span className={selected ? 'text-blue-100' : 'text-slate-500'}>{Number(option.poQty || 0).toLocaleString('fr-FR')} pcs</span></button>; })}</div><div className="flex flex-wrap items-center justify-between gap-2 border-t border-blue-200/60 pt-2 text-[10px] font-bold"><span className="text-blue-800">{deliverySelectedColors.length} couleur(s) sélectionnée(s)</span><span className="text-emerald-700">Total PO QTY : {deliveryColorOptions.filter(option => deliverySelectedColors.includes(`${option.color}|${option.po}`)).reduce((sum, option) => sum + Number(option.poQty || 0), 0).toLocaleString('fr-FR')} pcs</span></div></div> : <input type="text" value={colors.map(c => c.nom).filter(Boolean).join(', ')} disabled className={`w-full text-xs font-mono rounded-lg border px-3 py-2 font-medium opacity-70 ${darkMode ? 'bg-[#0F0F12] border-white/10 text-white' : 'bg-slate-100 border-slate-350 text-[#ff5000]'}`} />}
                 </div>
 
                 <div className="flex flex-col gap-1">

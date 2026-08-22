@@ -466,13 +466,20 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     await fsPromises.writeFile(target, csv, 'utf8');
     return { path: target, rows: rows.length };
   });
-  ipcMain.handle('ruba:delivery-reference-options', (_event, orderNumber = '') => {
-    const target = String(orderNumber || '').trim();
-    const like = `%${target}%`;
-    const storedRows = db.prepare(`SELECT row_json FROM delivery_plan_rows WHERE order_number LIKE ? ORDER BY updated_at DESC`).all(like);
+  ipcMain.handle('ruba:delivery-reference-options', (_event, request = '') => {
+    const input = typeof request === 'string' ? { orderNumber: request } : (request || {});
+    const target = String(input.orderNumber || '').trim();
+    const customer = String(input.customer || '').trim();
+    const po = String(input.po || '').trim();
+    if (!target) return { rows: [], customers: [], pos: [], colors: [], destinations: [], dimensions: [] };
+    const storedRows = db.prepare(`SELECT row_json FROM delivery_plan_rows WHERE lower(trim(order_number)) = lower(?) ORDER BY updated_at DESC, id`).all(target);
     const rows = storedRows.map(row => parsePayload(row.row_json)).filter(row => {
-      const order = String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim().toLowerCase();
-      return !target || order === target || order.includes(target);
+      const order = String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim();
+      const rowCustomer = String(row.customerName ?? '').trim();
+      const rowPo = String(row.customerPo ?? '').trim();
+      return order.toLowerCase() === target.toLowerCase()
+        && (!customer || rowCustomer.toLowerCase() === customer.toLowerCase())
+        && (!po || rowPo.toLowerCase() === po.toLowerCase());
     });
     const unique = (key) => Array.from(new Set(rows.map((row) => String(row[key] ?? '').trim()).filter(Boolean)));
     const dimensions = rows.map((row) => ({
