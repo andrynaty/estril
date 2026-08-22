@@ -67,6 +67,7 @@ import MajBsdModal from './components/MajBsdModal';
 import TemplateManagerModal from './components/TemplateManagerModal';
 import ScreenshotTool from './components/ScreenshotTool';
 import IndustrialCenter from './components/IndustrialCenter';
+import GlobalProjectSummary from './components/GlobalProjectSummary';
 import IndustrialErrorBoundary from './components/IndustrialErrorBoundary';
 import PackingHistoryRibbon from './components/PackingHistoryRibbon';
 import ExportedFilesRibbon from './components/ExportedFilesRibbon';
@@ -3646,6 +3647,8 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} darkMode={darkMode} />
 
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
