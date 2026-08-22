@@ -750,7 +750,7 @@ export default function App() {
         if (!cancelled) {
           setDeliveryReferenceOptions(emptyOptions);
           setDeliveryAutoDimensions(null);
-          setDeliveryLookupAlert(`Impossible de lire le Delivery Plan pour la commande « ${orderNumber} ». Vérifiez le fichier CSV/XLSX.`);
+          setDeliveryLookupAlert(`Impossible de lire le Delivery Plan pour la commande « ${orderNumber} ». Vérifiez le fichier Delivery plan.csv.`);
         }
       }
     };

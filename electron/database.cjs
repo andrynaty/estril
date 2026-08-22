@@ -220,7 +220,7 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     try { executableDirectory = pathModule.dirname(app.getPath('exe')); } catch {}
     try { resourcesDirectory = process.resourcesPath || ''; } catch {}
     const directories = [executableDirectory, resourcesDirectory, app.getPath('userData'), storageRoot()].filter(Boolean);
-    const fileNames = ['Delivery plan.xlsx', 'Delivery Plan.xlsx', 'Delivery plan.xls', 'Delivery Plan.xls', 'Delivery plan.csv', 'Delivery Plan.csv'];
+    const fileNames = ['Delivery plan.csv', 'Delivery Plan.csv'];
     return Array.from(new Set(directories.flatMap(directory => fileNames.map(fileName => pathModule.join(directory, fileName)))));
   };
   let csvSyncPromise = null;
@@ -230,7 +230,8 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
       const source = csvCandidates().find(candidate => fs.existsSync(candidate));
       if (!source) return { found: false, candidates: csvCandidates() };
       const stat = await fsPromises.stat(source);
-      const parsed = /\.xlsx?$/i.test(source) ? parseDeliveryWorkbook(source) : (() => { const csvRows = parseDeliveryCsv(fs.readFileSync(source, 'utf8')); return { rows: csvRows, sheets: [{ name: 'CSV', rows: csvRows }] }; })();
+      const csvRows = parseDeliveryCsv(fs.readFileSync(source, 'utf8'));
+      const parsed = { rows: csvRows, sheets: [{ name: 'CSV', rows: csvRows }] };
       const rows = parsed.rows;
       const timestamp = now();
       replaceDeliveryRows(csvPlanId, parsed.sheets, rows, timestamp);
