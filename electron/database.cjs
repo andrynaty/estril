@@ -493,6 +493,7 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     const timestamp = now(); const planId = plan.id || id('plan');
     const rows = Array.isArray(plan.payload?.rows) ? plan.payload.rows : [];
     const save = db.transaction(() => {
+      db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`).run(planId, plan.projectId || null, plan.planName || 'Delivery Plan', JSON.stringify({ paged: Boolean(plan.payload?.paged) }), timestamp, timestamp);
       if (plan.payload?.paged) {
         const updateRow = db.prepare(`UPDATE delivery_plan_rows SET row_json = ?, row_hash = ?, order_number = ?, customer_po = ?, customer_name = ?, color = ?, destination = ?, po_qty = ?, updated_at = ? WHERE id = ? AND delivery_plan_id = ?`);
         const insertRow = db.prepare(`INSERT OR IGNORE INTO delivery_plan_rows(id, delivery_plan_id, sheet_name, row_order, row_hash, order_number, customer_po, customer_name, color, destination, po_qty, row_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
