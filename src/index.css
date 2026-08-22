@@ -2289,7 +2289,10 @@ html, body, #root, .dark, .dark body, .dark #root { background: #f3faf5 !importa
   --ruba-violet-soft: #f3e8ff;
   --ruba-navy: #172554;
   --ruba-border: #ddd6fe;
-  --ruba-page: #f8fafc;
+  --ruba-page: #e8ecf3;
+  --ruba-surface: #dde3ec;
+  --ruba-lavender: #e8e1f5;
+  --ruba-text: #172554;
 }
 
 html, body, #root {
@@ -2300,8 +2303,15 @@ html, body, #root {
 
 #root {
   background: var(--ruba-page) !important;
-  color: #172033 !important;
+  color: var(--ruba-text) !important;
 }
+#root > div {
+  background: linear-gradient(145deg, #e8ecf3 0%, #dde3ec 54%, #e8e1f5 100%) !important;
+}
+#root [class*="bg-white"] { background-color: #f3f5f8 !important; }
+#root [class*="bg-slate-50"] { background-color: var(--ruba-surface) !important; }
+#root [class*="bg-indigo-50"], #root [class*="bg-purple-50"] { background-color: var(--ruba-lavender) !important; }
+#root [class*="text-slate-900"], #root [class*="text-slate-800"] { color: var(--ruba-text) !important; }
 
 #root main {
   overflow-y: auto !important;
