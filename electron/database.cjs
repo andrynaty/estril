@@ -256,12 +256,13 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
       const parsed = { rows: csvRows, sheets: [{ name: 'CSV', rows: csvRows }] };
       const rows = parsed.rows;
       const timestamp = now();
-      replaceDeliveryRows(csvPlanId, parsed.sheets, rows, timestamp);
       const sheetMeta = (parsed.sheets || []).map(sheet => ({ name: sheet.name, rows: sheet.rows.length }));
+      // Respect SQLite foreign keys: create the project and plan parents first.
       db.prepare(`INSERT INTO projects(id, name, customer, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvProjectId, pathModule.basename(source), '', 'system', JSON.stringify({ source, sheetMeta, activeSheet: parsed.sheets[0]?.name || '' }), timestamp, timestamp);
       db.prepare(`INSERT INTO delivery_plans(id, project_id, plan_name, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id, plan_name=excluded.plan_name, payload_json=excluded.payload_json, updated_at=excluded.updated_at`).run(csvPlanId, csvProjectId, pathModule.basename(source), JSON.stringify({ source, sheetMeta, activeSheet: parsed.sheets[0]?.name || '' }), timestamp, timestamp);
+      replaceDeliveryRows(csvPlanId, parsed.sheets, rows, timestamp);
       db.prepare(`INSERT INTO app_settings(key, value, updated_at) VALUES ('deliveryCsvLastImported', ?, ?)
         ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`).run(JSON.stringify({ source, modifiedAt: stat.mtime.toISOString(), rows: rows.length }), timestamp);
       return { found: true, source, modifiedAt: stat.mtime.toISOString(), rows: rows.length, sheets: sheetMeta };
