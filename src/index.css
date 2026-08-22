@@ -2279,3 +2279,91 @@ html, body, #root, .dark, .dark body, .dark #root { background: #f3faf5 !importa
   #root [id^="tab-content-"] .rounded-xl, #root [id^="tab-content-"] .rounded-2xl { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
   #root [id^="tab-content-"] .rounded-xl:hover, #root [id^="tab-content-"] .rounded-2xl:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(22,107,70,.12) !important; }
 }
+
+/* ==========================================
+   RUBA V2.7 RESPONSIVE PROFESSIONAL LAYER
+   ========================================== */
+:root {
+  --ruba-violet: #6d28d9;
+  --ruba-violet-dark: #4c1d95;
+  --ruba-violet-soft: #f3e8ff;
+  --ruba-navy: #172554;
+  --ruba-border: #ddd6fe;
+  --ruba-page: #f8fafc;
+}
+
+html, body, #root {
+  min-height: 100%;
+  overflow-y: scroll !important;
+  overflow-x: hidden;
+}
+
+#root {
+  background: var(--ruba-page) !important;
+  color: #172033 !important;
+}
+
+#root main {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+#root main > .sticky:first-child {
+  border-color: var(--ruba-border) !important;
+  box-shadow: 0 4px 14px rgba(76, 29, 149, .10) !important;
+}
+
+#root [data-context-card="active"] { display: none !important; }
+
+#root main > div.flex-1 > div[class*="lg:flex"] > div,
+#root main > div.flex-1 > div[class*="lg:hidden"] > div {
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] button,
+#root main > div.flex-1 > div[class*="lg:hidden"] button {
+  flex: 0 0 auto !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] button:first-child,
+#root main > div.flex-1 > div[class*="lg:flex"] button.bg-teal-700,
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-slate-800"],
+#root main > div.flex-1 > div[class*="lg:flex"] button[class*="bg-blue"] {
+  background: var(--ruba-violet) !important;
+  border-color: var(--ruba-violet) !important;
+  color: #fff !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] button:hover {
+  background: var(--ruba-violet-soft) !important;
+  color: var(--ruba-violet-dark) !important;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"] {
+  scrollbar-width: thin;
+  scrollbar-color: #c4b5fd transparent;
+}
+
+#root main > div.flex-1 > div[class*="lg:flex"],
+#root main > div.flex-1 > div[class*="lg:hidden"] {
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin;
+}
+
+#root [id^="tab-content-"] {
+  overflow-y: visible !important;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 1023px) {
+  #root main { padding-left: 8px !important; padding-right: 8px !important; }
+  #root main > .sticky:first-child { top: 0 !important; }
+}
+
+@media print {
+  html, body, #root { overflow: visible !important; }
+}

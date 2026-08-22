@@ -290,6 +290,8 @@ export default function App() {
   const [deliverySelectedColors, setDeliverySelectedColors] = useState<string[]>([]);
   const [deliveryAutoValues, setDeliveryAutoValues] = useState({ customer: '', destination: '' });
   const [deliveryAutoDimensions, setDeliveryAutoDimensions] = useState<{ length: number; width: number; height: number; cbm: number } | null>(null);
+  const [deliveryDimensionChoices, setDeliveryDimensionChoices] = useState<Array<{ key: string; length: number; width: number; height: number; cbm: number }>>([]);
+  const [selectedDeliveryDimensionKey, setSelectedDeliveryDimensionKey] = useState('');
   const [deliveryLookupAlert, setDeliveryLookupAlert] = useState('');
   const [groupedOrders, setGroupedOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }>; addedAt: string }>>([]);
   const [compatibleOrders, setCompatibleOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }>>([]);
@@ -713,6 +715,10 @@ export default function App() {
         const options = await window.rubaDesktop.getDeliveryReferenceOptions({ orderNumber, customer: String(meta.customer || '').trim(), po: String(meta.po || '').trim() });
         if (cancelled) return;
         const dimensions = options.dimensions || [];
+        const dimensionMap = new Map<string, { key: string; length: number; width: number; height: number; cbm: number }>();
+        dimensions.forEach((item: any) => { const length = Number(item.length || 0); const width = Number(item.width || 0); const height = Number(item.height || 0); if (length <= 0 || width <= 0 || height <= 0) return; const key = `${length}x${width}x${height}`; if (!dimensionMap.has(key)) dimensionMap.set(key, { key, length, width, height, cbm: Number(item.cbm || (length * width * height) / 1000000) }); });
+        const dimensionChoices = Array.from(dimensionMap.values());
+        setDeliveryDimensionChoices(dimensionChoices);
         setDeliveryReferenceOptions({ customers: options.customers || [], pos: options.pos || [], colors: options.colors || [], destinations: options.destinations || [], dimensions });
         const colorMap = new Map<string, { color: string; po: string; poQty: number; customer: string; destination: string }>();
         (options.rows || []).forEach((row: any) => {
@@ -737,9 +743,10 @@ export default function App() {
         });
         setDeliveryAutoValues({ customer: options.customers?.length === 1 ? options.customers[0] : '', destination: options.destinations?.length === 1 ? options.destinations[0] : '' });
         const selectedPo = String(meta.po || '').trim().toLowerCase();
-        const selectedDimension = selectedPo ? dimensions.find((item) => item.po.toLowerCase() === selectedPo) : null;
+        const selectedDimension = selectedPo ? dimensions.find((item) => item.po.toLowerCase() === selectedPo && Number(item.length || 0) > 0 && Number(item.width || 0) > 0 && Number(item.height || 0) > 0) : null;
         if (selectedDimension) {
           const complete = selectedDimension.length > 0 && selectedDimension.width > 0 && selectedDimension.height > 0;
+          if (complete) setSelectedDeliveryDimensionKey(`${Number(selectedDimension.length)}x${Number(selectedDimension.width)}x${Number(selectedDimension.height)}`);
           setDeliveryAutoDimensions(complete ? selectedDimension : null);
           if (complete) {
             const dimensionKey = `${orderNumber}|${selectedDimension.po}|${selectedDimension.length}|${selectedDimension.width}|${selectedDimension.height}`;
@@ -777,6 +784,9 @@ export default function App() {
       const rows = optionSets.flatMap(options => options.rows || []).filter((row: any) => !selectedPo || String(row.customerPo || '').trim().toLowerCase() === selectedPo);
       const colorMap = new Map<string, { color: string; po: string; poQty: number; customer: string; destination: string }>();
       rows.forEach((row: any) => { const color = String(row.color || '').trim(); const po = String(row.customerPo || '').trim(); if (!color) return; const key = `${color.toLowerCase()}|${po.toLowerCase()}`; const previous = colorMap.get(key); colorMap.set(key, { color, po, poQty: Number(previous?.poQty || 0) + Number(row.poQty || 0), customer: String(row.customerName || ''), destination: String(row.dest || row.destination || '') }); });
+      const dimensionMap = new Map<string, { key: string; length: number; width: number; height: number; cbm: number }>();
+      (optionSets[0]?.dimensions || []).forEach((item: any) => { const length = Number(item.length || 0); const width = Number(item.width || 0); const height = Number(item.height || 0); if (length <= 0 || width <= 0 || height <= 0) return; const key = `${length}x${width}x${height}`; const presentInAll = optionSets.every(options => (options.dimensions || []).some((other: any) => `${Number(other.length || 0)}x${Number(other.width || 0)}x${Number(other.height || 0)}` === key)); if (presentInAll && !dimensionMap.has(key)) dimensionMap.set(key, { key, length, width, height, cbm: Number(item.cbm || (length * width * height) / 1000000) }); });
+      setDeliveryDimensionChoices(Array.from(dimensionMap.values()));
       setDeliveryReferenceOptions(previous => ({ ...previous, pos: commonPos, colors: commonColors, rows }));
       setDeliveryColorOptions(Array.from(colorMap.values()));
       if (selectedPo && commonPos.length && !commonPos.some(po => po.toLowerCase() === selectedPo)) handleMetaChange('po', '');
@@ -2014,6 +2024,56 @@ export default function App() {
       updateFilenameAndTotal(meta, nextColors);
     }
     triggerToast('⚡ Données collées depuis le presse-papiers !', 'success');
+  };
+
+  const handlePasteOrderAllocation = (e: React.ClipboardEvent<HTMLInputElement>, order: string, colorConfig: ColorConfig, startingSize: string) => {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData('text');
+    if (!pastedText.trim()) return;
+    const lines = pastedText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const sizes = colorConfig.tailles;
+    const startSizeIndex = sizes.indexOf(startingSize);
+    if (startSizeIndex < 0) return;
+    const orders = selectedOrderMatches.length ? selectedOrderMatches : [order];
+    const startOrderIndex = Math.max(0, orders.findIndex(item => item.toLowerCase() === order.toLowerCase()));
+    const nextAllocations = { ...orderSizeAllocations };
+    lines.forEach((line, lineOffset) => {
+      const targetOrder = lines.length > 1 ? orders[startOrderIndex + lineOffset] : order;
+      if (!targetOrder) return;
+      let cells = line.split('\t');
+      if (cells.length > sizes.length && !/^[-+]?\d+(?:[.,]\d+)?$/.test(cells[0].trim())) cells = cells.slice(1);
+      if (cells.length === 1) cells = line.split(/[;,\s]+/);
+      const key = allocationKey(targetOrder, colorConfig.nom);
+      const allocation = { ...(nextAllocations[key] || readOrderAllocation(targetOrder, colorConfig)) };
+      cells.forEach((rawValue, columnOffset) => {
+        const targetSize = sizes[startSizeIndex + columnOffset];
+        if (!targetSize) return;
+        const value = Number(String(rawValue).trim().replace(',', '.'));
+        if (Number.isFinite(value)) allocation[targetSize] = Math.max(0, value);
+      });
+      nextAllocations[key] = allocation;
+    });
+    setOrderSizeAllocations(nextAllocations);
+    if (orders.length > 1) {
+      setColors(currentColors => currentColors.map((color, index) => {
+        if (index !== activeColorIdx) return color;
+        const sizesNext = { ...color.sizes };
+        color.tailles.forEach(size => {
+          const total = orders.reduce((sum, currentOrder) => sum + Number((nextAllocations[allocationKey(currentOrder, color.nom)] || readOrderAllocation(currentOrder, color))[size] || 0), 0);
+          sizesNext[size] = { ...sizesNext[size], qtyTot: total };
+        });
+        return reconcileCustomRemainders({ ...color, sizes: sizesNext });
+      }));
+    }
+    setHasGenerated(false);
+    triggerToast(`📋 ${lines.length} ligne(s) collée(s) depuis Excel pour la répartition des commandes.`, 'success');
+  };
+
+  const handleSelectDeliveryDimension = (choice: { key: string; length: number; width: number; height: number; cbm: number }) => {
+    setSelectedDeliveryDimensionKey(choice.key);
+    setDeliveryAutoDimensions(choice);
+    applyDimensionToAllColors(choice.length, choice.width, choice.height);
+    setDeliveryLookupAlert('');
   };
 
   // Model automatic loaders
@@ -3763,6 +3823,7 @@ export default function App() {
 
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
+        <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} groupedOrders={groupedOrders} darkMode={darkMode} />
         <div className="mb-2 flex items-center justify-start rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm print:hidden overflow-x-auto whitespace-nowrap">
           <div className="flex flex-nowrap items-center gap-1.5 min-w-max">
             {[
@@ -3778,7 +3839,6 @@ export default function App() {
           </div>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-400 sm:block">Ruba Operations</span>
         </div>
-        <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} groupedOrders={groupedOrders} darkMode={darkMode} />
         {activeMainRibbon === 'history' ? <PackingHistoryRibbon lists={packingHistory} onRefresh={() => { refreshPackingHistory(); }} onLoad={async (item) => { await handleLoadSavedList(item as any); openMainRibbon('packing'); }} onDelete={(item) => handleDeleteSavedList(item.id, item.name)} onDeleteAll={handleDeleteAllPackingLists} /> : activeMainRibbon === 'exports' ? <ExportedFilesRibbon /> : activeWorkspace === 'industrial' ? <IndustrialErrorBoundary><IndustrialCenter initialTab={industrialTab as any} showTabs={false} onBack={() => openMainRibbon('packing')} onLoadProject={handleLoadProject} projectPayload={{ meta, db, colors, globalPackingMode, maxSizesPerBox, forceSingleCarton, forceSubCapSolidInMixed, hasGenerated, results, activeInputTab }} /></IndustrialErrorBoundary> : <>
 
         {/* Sleek Mobile Horizontal Ribbon Navigation */}
@@ -4324,7 +4384,7 @@ export default function App() {
                     readOnly={Boolean(String(meta.customer || '').trim() && deliveryReferenceOptions.pos.length)}
                   />
                   {String(meta.customer || '').trim() && deliveryReferenceOptions.pos.length > 0 && <div className="mt-1 flex flex-wrap gap-1"><span className="text-[9px] font-bold text-blue-700">PO disponibles pour ce client:</span>{deliveryReferenceOptions.pos.slice(0, 8).map(poOption => <button key={poOption} type="button" onClick={() => handleMetaChange('po', poOption)} className="rounded bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-800 hover:bg-blue-100">{poOption}</button>)}</div>}
-                  {deliveryAutoDimensions && <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-2 text-[10px] text-indigo-900"><div className="mb-1 font-bold uppercase tracking-wide">Dimensions carton récupérées du Delivery Plan</div><div className="grid grid-cols-4 gap-1 font-mono"><span>L: <b>{deliveryAutoDimensions.length}</b> cm</span><span>W: <b>{deliveryAutoDimensions.width}</b> cm</span><span>H: <b>{deliveryAutoDimensions.height}</b> cm</span><span>CBM: <b>{deliveryAutoDimensions.cbm.toFixed(6)}</b></span></div></div>}
+                  {deliveryDimensionChoices.length > 0 && <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-2 text-[10px] text-violet-950"><div className="mb-1 font-bold uppercase tracking-wide">Dimensions carton disponibles — choisissez une option</div><div className="flex flex-wrap gap-1.5">{deliveryDimensionChoices.map(choice => <button key={choice.key} type="button" onClick={() => handleSelectDeliveryDimension(choice)} className={`rounded-md border px-2 py-1 font-mono font-bold ${selectedDeliveryDimensionKey === choice.key ? 'border-violet-700 bg-violet-700 text-white' : 'border-violet-200 bg-white text-violet-900 hover:bg-violet-100'}`}>{choice.length} × {choice.width} × {choice.height} cm</button>)}</div>{deliveryAutoDimensions && <div className="mt-1 font-mono font-bold">Dimension utilisée : {deliveryAutoDimensions.length} × {deliveryAutoDimensions.width} × {deliveryAutoDimensions.height} cm · CBM {deliveryAutoDimensions.cbm.toFixed(6)}</div>}</div>}
                   {deliveryLookupAlert && <div className={`mt-2 rounded-lg border px-2 py-1.5 text-[10px] font-semibold ${deliveryAutoDimensions ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-800'}`} role="alert"><AlertTriangle className="mr-1 inline h-3 w-3" />{deliveryLookupAlert}</div>}
                 </div>
 
@@ -5218,7 +5278,7 @@ export default function App() {
                             <div className="flex flex-col"><span>Order # {orderNumber}</span><span className="text-[10px] font-normal italic text-slate-500">Répartition par commande</span></div>
                           </td>
                           {colors[activeColorIdx].tailles.map((size) => <td key={size} className={`p-1 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>
-                            <input type="number" min="0" value={allocation[size] || ''} onChange={(event) => updateOrderAllocation(orderNumber, colors[activeColorIdx], size, event.target.value)} className={`w-full rounded-md border px-2 py-1.5 text-center font-mono text-xs font-bold outline-none ${darkMode ? 'border-indigo-400/30 bg-[#15151A] text-white' : 'border-indigo-200 bg-white text-slate-900'}`} placeholder="0" />
+                            <input type="number" min="0" value={allocation[size] || ''} onChange={(event) => updateOrderAllocation(orderNumber, colors[activeColorIdx], size, event.target.value)} onPaste={(event) => handlePasteOrderAllocation(event, orderNumber, colors[activeColorIdx], size)} className={`w-full rounded-md border px-2 py-1.5 text-center font-mono text-xs font-bold outline-none ${darkMode ? 'border-indigo-400/30 bg-[#15151A] text-white' : 'border-indigo-200 bg-white text-slate-900'}`} placeholder="0" />
                           </td>)}
                           <td className={`p-1 font-mono text-center font-black ${darkMode ? 'text-indigo-200' : 'text-indigo-800'}`}>{allocationTotal}</td>
                         </tr>;
@@ -7022,8 +7082,8 @@ export default function App() {
                               style={{ backgroundColor: '#3988e7', color: '#fffbfb', borderColor: '#2c7cd1' }}
                             >
                               <div className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: res.color }} />
-                              <span>PACKING LIST — COULEUR : {res.nom}</span>
-                              <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">Order(s) : {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join(' · ')} · PO : {meta.po || '—'}</span>
+                              <span>PL ORDER {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join('-') || '—'} | PO# {meta.po || '—'} | COULEUR : {res.nom} ({Number(res.totals?.p || 0).toLocaleString('fr-FR')} PCS)</span>
+                              <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">DIM : {deliveryAutoDimensions ? `${deliveryAutoDimensions.length}×${deliveryAutoDimensions.width}×${deliveryAutoDimensions.height} cm` : '—'}</span>
                             </div>
 
                             <div className="pb-3 text-xs">
@@ -10017,8 +10077,8 @@ export default function App() {
                     style={{ backgroundColor: '#3988e7', color: '#fffbfb', borderColor: '#2c7cd1' }}
                   >
                     <div className="w-3 h-3 rounded-full border border-black/10" style={{ backgroundColor: res.color }} />
-                    <span>PACKING LIST — COULEUR : {res.nom}</span>
-                    <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">Order(s) : {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join(' · ')} · PO : {meta.po || '—'}</span>
+                    <span>PL ORDER {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join('-') || '—'} | PO# {meta.po || '—'} | COULEUR : {res.nom} ({Number(res.totals?.p || 0).toLocaleString('fr-FR')} PCS)</span>
+                    <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">DIM : {deliveryAutoDimensions ? `${deliveryAutoDimensions.length}×${deliveryAutoDimensions.width}×${deliveryAutoDimensions.height} cm` : '—'}</span>
                   </div>
 
                   {/* Print metadata row */}
