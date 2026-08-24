@@ -62,6 +62,7 @@ import {
 } from 'lucide-react';
 
 import WelcomeScreen from './components/WelcomeScreen';
+import HomeScreen from './components/HomeScreen';
 import BoxModal from './components/BoxModal';
 import MajBsdModal from './components/MajBsdModal';
 import TemplateManagerModal from './components/TemplateManagerModal';
@@ -136,6 +137,7 @@ const CUSTS = [
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [showHome, setShowHome] = useState<boolean>(false);
   // Ruba uses one consistent light theme across the whole workspace.
   const [darkMode] = useState<boolean>(false);
 
@@ -380,6 +382,13 @@ export default function App() {
   const [sidebarActivePage, setSidebarActivePage] = useState<'saisie' | 'suivi'>('saisie');
   const [activeWorkspace, setActiveWorkspace] = useState<'packing' | 'industrial'>('packing');
   const [activeMainRibbon, setActiveMainRibbon] = useState<'packing' | 'projects' | 'history' | 'exports' | 'dashboard' | 'files' | 'settings' | 'delivery'>('packing');
+  const handleAuthenticated = () => { setIsAuthenticated(true); setShowHome(true); };
+  const handleHomeNavigate = (ribbon: 'packing' | 'projects' | 'history' | 'exports' | 'dashboard' | 'files' | 'settings' | 'delivery') => {
+    setShowHome(false);
+    setActiveMainRibbon(ribbon);
+    setActiveWorkspace(ribbon === 'packing' ? 'packing' : 'industrial');
+    if (ribbon === 'packing') setActiveInputTab('meta');
+  };
   const [packingHistory, setPackingHistory] = useState<any[]>([]);
 
   // Controlled wrapper to set active inputs and automatically update the sidebar page grouping
@@ -2945,7 +2954,11 @@ export default function App() {
   };
 
   if (!isAuthenticated) {
-    return <WelcomeScreen onSuccess={() => setIsAuthenticated(true)} />;
+    return <WelcomeScreen onSuccess={handleAuthenticated} />;
+  }
+
+  if (showHome) {
+    return <HomeScreen onNavigate={handleHomeNavigate} />;
   }
 
   const getSidebarItemStyles = (tabName: string) => {
@@ -3823,7 +3836,7 @@ export default function App() {
 
       {/* Main Container workspace */}
       <main className="w-full max-w-full px-4 lg:px-8 xl:px-12 mx-auto print:px-0 pt-4 pb-4 lg:flex-1 lg:overflow-hidden flex flex-col min-h-0">
-        <GlobalProjectSummary meta={meta} colors={colors} deliveryColorOptions={deliveryColorOptions} groupedOrders={groupedOrders} darkMode={darkMode} />
+        <GlobalProjectSummary meta={meta} colors={deliveryColorOptions.length > 0 && deliverySelectedColors.length === 0 ? [] : colors} deliveryColorOptions={deliveryColorOptions.filter(option => deliverySelectedColors.includes(`${option.color}|${option.po}`))} groupedOrders={groupedOrders} darkMode={darkMode} />
         <div className="mb-2 flex items-center justify-start rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm print:hidden overflow-x-auto whitespace-nowrap">
           <div className="flex flex-nowrap items-center gap-1.5 min-w-max">
             {[
