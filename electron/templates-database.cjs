@@ -19,7 +19,8 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
       weight_kg REAL,
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      payload_json TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_template_models_category ON template_models(category);
   `);
@@ -30,9 +31,9 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
       db.exec(`CREATE TABLE template_models_v2 (
         id TEXT PRIMARY KEY, category TEXT NOT NULL, name TEXT NOT NULL,
         length_cm REAL, width_cm REAL, height_cm REAL, weight_kg REAL,
-        active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT
       )`);
-      db.exec('INSERT INTO template_models_v2 SELECT id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at FROM template_models');
+      db.exec('INSERT INTO template_models_v2(id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at, payload_json) SELECT id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at, NULL FROM template_models');
       db.exec('DROP TABLE template_models');
       db.exec('ALTER TABLE template_models_v2 RENAME TO template_models');
       db.exec('CREATE INDEX IF NOT EXISTS idx_template_models_category ON template_models(category)');
@@ -40,9 +41,10 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
     migrate();
   }
 
+  try { db.exec('ALTER TABLE template_models ADD COLUMN payload_json TEXT'); } catch {}
   const normalizeCategory = (value) => {
     const category = String(value || 'dimension').trim().toLowerCase();
-    if (!['dimension', 'weight_piece', 'weight_carton', 'customer'].includes(category)) throw new Error('Catégorie de gabarit invalide.');
+    if (!['dimension', 'weight_piece', 'weight_carton', 'customer', 'carton'].includes(category)) throw new Error('Catégorie de gabarit invalide.');
     return category;
   };
   const normalize = (template = {}) => {
@@ -56,6 +58,7 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
       heightCm: category === 'dimension' ? numberOrNull(template.heightCm ?? template.height_cm ?? template.h) : null,
       weightKg: category === 'weight_piece' || category === 'weight_carton' ? numberOrNull(template.weightKg ?? template.weight_kg ?? template.weight) : null,
       active: template.active === false || Number(template.active) === 0 ? 0 : 1,
+      payload: template.payload || (category === 'carton' ? { cap: numberOrNull(template.cap), weightPiece: numberOrNull(template.weightPiece), weightCarton: numberOrNull(template.weightCarton), lengthCm: numberOrNull(template.lengthCm), widthCm: numberOrNull(template.widthCm), heightCm: numberOrNull(template.heightCm) } : null),
     };
   };
   const present = (row) => row ? { ...row,
@@ -63,11 +66,12 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
     widthCm: row.width_cm == null ? null : Number(row.width_cm),
     heightCm: row.height_cm == null ? null : Number(row.height_cm),
     weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
+    payload: row.payload_json ? (() => { try { return JSON.parse(row.payload_json); } catch { return null; } })() : null,
   } : null;
 
   ipcMain.handle('ruba:templates-db-path', () => dbPath);
   ipcMain.handle('ruba:templates-list', (_event, category = '') => {
-    if (category && ['dimension', 'weight_piece', 'weight_carton', 'customer'].includes(String(category))) {
+    if (category && ['dimension', 'weight_piece', 'weight_carton', 'customer', 'carton'].includes(String(category))) {
       return db.prepare('SELECT * FROM template_models WHERE category = ? ORDER BY active DESC, name COLLATE NOCASE').all(String(category)).map(present);
     }
     return db.prepare('SELECT * FROM template_models ORDER BY category, active DESC, name COLLATE NOCASE').all().map(present);
@@ -75,13 +79,13 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
   ipcMain.handle('ruba:template-save', (_event, input = {}) => {
     const template = normalize(input);
     const timestamp = now();
-    db.prepare(`INSERT INTO template_models(id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM template_models WHERE id = ?), ?), ?)
+    db.prepare(`INSERT INTO template_models(id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at, payload_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT created_at FROM template_models WHERE id = ?), ?), ?, ?)
       ON CONFLICT(id) DO UPDATE SET category=excluded.category, name=excluded.name, length_cm=excluded.length_cm,
       width_cm=excluded.width_cm, height_cm=excluded.height_cm, weight_kg=excluded.weight_kg,
-      active=excluded.active, updated_at=excluded.updated_at`).run(
+      active=excluded.active, updated_at=excluded.updated_at, payload_json=excluded.payload_json`).run(
       template.id, template.category, template.name, template.lengthCm, template.widthCm,
-      template.heightCm, template.weightKg, template.active, template.id, timestamp, timestamp
+      template.heightCm, template.weightKg, template.active, template.id, timestamp, timestamp, template.payload ? JSON.stringify(template.payload) : null
     );
     return present(db.prepare('SELECT * FROM template_models WHERE id = ?').get(template.id));
   });
@@ -90,13 +94,13 @@ function registerTemplatesDatabaseIpc({ ipcMain, app, fsPromises }) {
     return true;
   });
   ipcMain.handle('ruba:templates-seed', (_event, templates = []) => {
-    const insert = db.prepare(`INSERT INTO template_models(id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    const insert = db.prepare(`INSERT INTO template_models(id, category, name, length_cm, width_cm, height_cm, weight_kg, active, created_at, updated_at, payload_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET category=excluded.category, name=excluded.name, length_cm=excluded.length_cm,
       width_cm=excluded.width_cm, height_cm=excluded.height_cm, weight_kg=excluded.weight_kg, active=excluded.active, updated_at=excluded.updated_at`);
     const transaction = db.transaction((items) => items.map((item) => {
       const template = normalize(item); const timestamp = now();
-      insert.run(template.id, template.category, template.name, template.lengthCm, template.widthCm, template.heightCm, template.weightKg, template.active, timestamp, timestamp);
+      insert.run(template.id, template.category, template.name, template.lengthCm, template.widthCm, template.heightCm, template.weightKg, template.active, timestamp, timestamp, template.payload ? JSON.stringify(template.payload) : null);
       return template.id;
     }));
     transaction(Array.isArray(templates) ? templates : []);

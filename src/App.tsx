@@ -65,6 +65,7 @@ import {
 import WelcomeScreen from './components/WelcomeScreen';
 import HomeScreen from './components/HomeScreen';
 import BoxModal from './components/BoxModal';
+import CompleteTemplateManager from './components/CompleteTemplateManager';
 import MajBsdModal from './components/MajBsdModal';
 import TemplateManagerModal from './components/TemplateManagerModal';
 import ScreenshotTool from './components/ScreenshotTool';
@@ -2087,6 +2088,18 @@ export default function App() {
   };
 
   // Model automatic loaders
+  const handleApplyCompleteTemplate = (template: { name: string; cap: number; weightPiece: number; weightCarton: number; lengthCm: number; widthCm: number; heightCm: number }) => {
+    const nextColors = colors.map((color, index) => {
+      if (index !== activeColorIdx) return color;
+      const nextSizes = { ...color.sizes };
+      color.tailles.forEach(size => { nextSizes[size] = { ...nextSizes[size], cap: template.cap, wPiece: template.weightPiece, wCarton: template.weightCarton, dimL: template.lengthCm, diml: template.widthCm, dimH: template.heightCm, cbmUnit: (template.lengthCm * template.widthCm * template.heightCm) / 1000000 }; });
+      return { ...color, sizes: nextSizes, selectedCompleteTemplateName: template.name };
+    });
+    setColors(nextColors);
+    setHasGenerated(false);
+    triggerToast(`📦 Gabarit appliqué à la commande actuelle : ${template.name}`, 'success');
+  };
+
   const handleApplyDimModel = (modelName: string) => {
     const matched = db.dim_models.find(m => m.name === modelName);
     if (!matched) return;
@@ -5204,6 +5217,8 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                <CompleteTemplateManager darkMode={darkMode} onApply={handleApplyCompleteTemplate} />
 
                 {/* Real-time cargo statistics estimates to see live calculations as you update numbers */}
                 {activeColorResult && (
