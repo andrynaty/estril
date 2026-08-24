@@ -58,7 +58,8 @@ import {
   Search,
   Percent,
   BarChart3,
-  ClipboardCheck
+  ClipboardCheck,
+  Home
 } from 'lucide-react';
 
 import WelcomeScreen from './components/WelcomeScreen';
@@ -3825,6 +3826,17 @@ export default function App() {
             </button>
 
             <div className="h-4 w-px bg-white/15 mx-1" />
+
+            <button
+              type="button"
+              onClick={() => setShowHome(true)}
+              className="sticky top-0 ml-1 flex items-center gap-1 rounded-lg border border-violet-300 bg-violet-700 px-3 py-1.5 text-[11px] font-black text-white shadow-md shadow-violet-900/25 transition hover:bg-violet-800 hover:ring-2 hover:ring-violet-300/50"
+              title="Retourner à l’Accueil — toujours disponible"
+              aria-label="Retourner à l’Accueil"
+            >
+              <Home className="w-3 h-3" />
+              <span>ACCUEIL</span>
+            </button>
 
             <div className="hidden" aria-hidden="true">
               <Sun className="w-3 h-3" />
