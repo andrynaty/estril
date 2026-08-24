@@ -140,7 +140,13 @@ function now() { return new Date().toISOString(); }
 function id(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`; }
 function parsePayload(value) { try { return JSON.parse(value || '{}'); } catch { return {}; } }
 function rowHash(row) {
-  const normalized = Object.fromEntries(Object.entries(row || {}).filter(([key]) => key !== 'id').sort(([a], [b]) => a.localeCompare(b)));
+  const normalizeValue = (value) => {
+    if (typeof value === 'string') return value.replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim();
+    if (Array.isArray(value)) return value.map(normalizeValue);
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'id').sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, normalizeValue(item)]));
+    return value;
+  };
+  const normalized = normalizeValue(row || {});
   return crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
 }
 
@@ -163,10 +169,15 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     const replace = db.transaction(() => {
       db.prepare('DELETE FROM delivery_plan_rows WHERE delivery_plan_id = ?').run(planId);
       const insert = db.prepare(`INSERT OR IGNORE INTO delivery_plan_rows(id, delivery_plan_id, sheet_name, row_order, row_hash, order_number, customer_po, customer_name, color, destination, po_qty, row_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      allSheets.forEach(sheet => (sheet.rows || []).forEach((row, index) => {
+      const seenHashes = new Set();
+      let keptOrder = 0;
+      allSheets.forEach(sheet => (sheet.rows || []).forEach((row) => {
         const normalized = { ...row };
         const hash = rowHash(Object.fromEntries(Object.entries(normalized).filter(([key]) => key !== 'id')));
-        insert.run(id('delivery_row'), planId, String(sheet.name || ''), index, hash, String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim(), String(row.customerPo ?? '').trim(), String(row.customerName ?? '').trim(), String(row.color ?? '').trim(), String(row.dest ?? row.destination ?? '').trim(), Number(row.poQty || 0), JSON.stringify(normalized), timestamp, timestamp);
+        if (seenHashes.has(hash)) return;
+        seenHashes.add(hash);
+        insert.run(id('delivery_row'), planId, String(sheet.name || ''), keptOrder, hash, String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim(), String(row.customerPo ?? '').trim(), String(row.customerName ?? '').trim(), String(row.color ?? '').trim(), String(row.dest ?? row.destination ?? '').trim(), Number(row.poQty || 0), JSON.stringify(normalized), timestamp, timestamp);
+        keptOrder += 1;
       }));
     });
     replace();
