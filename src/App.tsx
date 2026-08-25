@@ -300,6 +300,8 @@ export default function App() {
   const [compatibleOrders, setCompatibleOrders] = useState<Array<{ order: string; customer: string; po: string; colors: Array<{ color: string; poQty: number; destination?: string }> }>>([]);
   const [orderMatches, setOrderMatches] = useState<Array<{ orderNumber: string; customer: string; rowCount: number }>>([]);
   const [selectedOrderMatches, setSelectedOrderMatches] = useState<string[]>([]);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState<Array<{ order: string; customer: string; po: string; color: string; poQty: number; destination: string }>>([]);
+  const [selectedOrderPoQtyOverrides, setSelectedOrderPoQtyOverrides] = useState<Record<string, number>>({});
   const [orderSearchValue, setOrderSearchValue] = useState('');
   const [orderSizeAllocations, setOrderSizeAllocations] = useState<Record<string, Record<string, number>>>({});
   const deliveryAppliedDimensionKey = useRef('');
@@ -813,6 +815,20 @@ export default function App() {
     return () => { cancelled = true; };
     }, [meta.order, orderSearchValue]);
   useEffect(() => {
+    let cancelled = false;
+    if (!selectedOrderMatches.length || !window.rubaDesktop?.getDeliveryReferenceOptions) { setSelectedOrderDetails([]); return () => { cancelled = true; }; }
+    const selectedColor = String(deliverySelectedColors[0] || '').split('|')[0].trim().toLowerCase();
+    Promise.all(selectedOrderMatches.map(async order => {
+      const options = await window.rubaDesktop!.getDeliveryReferenceOptions({ orderNumber: order });
+      const rows = Array.isArray(options.rows) ? options.rows : [];
+      const preferred = rows.find((row: any) => (!meta.po || String(row.customerPo || '').toLowerCase() === String(meta.po).toLowerCase()) && (!selectedColor || String(row.color || '').toLowerCase() === selectedColor)) || rows[0] || {};
+      const color = String(preferred.color || '');
+      const overrideKey = `${order.trim().toLowerCase()}::${color.trim().toLowerCase()}`;
+      return { order, customer: String(preferred.customerName || ''), po: String(preferred.customerPo || ''), color, poQty: Number(selectedOrderPoQtyOverrides[overrideKey] ?? preferred.poQty ?? 0), destination: String(preferred.dest || preferred.destination || '') };
+    })).then(details => { if (!cancelled) setSelectedOrderDetails(details); }).catch(() => { if (!cancelled) setSelectedOrderDetails([]); });
+    return () => { cancelled = true; };
+  }, [selectedOrderMatches, meta.po, deliverySelectedColors, selectedOrderPoQtyOverrides]);
+  useEffect(() => {
     const order = String(selectedOrderMatches[0] || meta.order || '').trim();
     const customer = String(meta.customer || '').trim();
     const po = String(meta.po || '').trim();
@@ -828,6 +844,14 @@ export default function App() {
     const suffixes = orders.slice(1).map(order => order.replace(/^\d+/, '')).filter(Boolean);
     return suffixes.length ? `${first}-${suffixes.join('-')}` : orders.join('-');
   };
+  const updateSelectedOrderPoQty = (detail: { order: string; color: string }, value: string) => {
+    const qty = Math.max(0, Number(value) || 0);
+    const key = `${detail.order.trim().toLowerCase()}::${detail.color.trim().toLowerCase()}`;
+    setSelectedOrderPoQtyOverrides(previous => ({ ...previous, [key]: qty }));
+    setSelectedOrderDetails(previous => previous.map(item => item.order.toLowerCase() === detail.order.toLowerCase() && item.color.toLowerCase() === detail.color.toLowerCase() ? { ...item, poQty: qty } : item));
+    setHasGenerated(false);
+  };
+
   const toggleOrderMatch = (orderNumber: string) => {
     const normalized = String(orderNumber || '').trim();
     if (!normalized) return;
@@ -883,6 +907,7 @@ export default function App() {
       if (Array.isArray(payload.colors)) setColors(payload.colors);
       if (Array.isArray(payload.groupedOrders)) setGroupedOrders(payload.groupedOrders);
       if (Array.isArray(payload.selectedOrderMatches)) setSelectedOrderMatches(payload.selectedOrderMatches);
+      if (payload.selectedOrderPoQtyOverrides && typeof payload.selectedOrderPoQtyOverrides === 'object') setSelectedOrderPoQtyOverrides(payload.selectedOrderPoQtyOverrides);
       if (payload.orderSizeAllocations && typeof payload.orderSizeAllocations === 'object') setOrderSizeAllocations(payload.orderSizeAllocations);
       if (payload.globalPackingMode) setGlobalPackingMode(payload.globalPackingMode);
       if (payload.maxSizesPerBox) setMaxSizesPerBox(payload.maxSizesPerBox);
@@ -966,9 +991,10 @@ export default function App() {
     const nextMeta = { ...meta, [key]: value };
     if (key === 'order') {
       setOrderSearchValue(value);
-      setSelectedOrderMatches([]);
-      nextMeta.customer = ''; nextMeta.po = ''; nextMeta.destination = '';
-      setDeliverySelectedColors([]); setDeliveryAutoDimensions(null); setDeliveryLookupAlert('');
+      if (!selectedOrderMatches.length) {
+        nextMeta.customer = ''; nextMeta.po = ''; nextMeta.destination = '';
+        setDeliverySelectedColors([]); setDeliveryAutoDimensions(null); setDeliveryLookupAlert('');
+      }
     } else if (key === 'customer') {
       nextMeta.po = ''; nextMeta.destination = '';
       setDeliverySelectedColors([]); setDeliveryAutoDimensions(null);
@@ -2408,6 +2434,7 @@ export default function App() {
         colors: JSON.parse(JSON.stringify(colors)), // deep copy
         groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
         selectedOrderMatches: [...selectedOrderMatches],
+        selectedOrderPoQtyOverrides: JSON.parse(JSON.stringify(selectedOrderPoQtyOverrides)),
         orderSizeAllocations: JSON.parse(JSON.stringify(orderSizeAllocations))
       };
 
@@ -2440,6 +2467,7 @@ export default function App() {
             auditorName,
             groupedOrders: JSON.parse(JSON.stringify(groupedOrders)),
             selectedOrderMatches: [...selectedOrderMatches],
+            selectedOrderPoQtyOverrides: JSON.parse(JSON.stringify(selectedOrderPoQtyOverrides)),
             orderSizeAllocations: JSON.parse(JSON.stringify(orderSizeAllocations)),
           },
         });
@@ -2469,6 +2497,7 @@ export default function App() {
       setColors(JSON.parse(JSON.stringify(loaded.colors))); // deep copy
       setGroupedOrders(Array.isArray(loaded.groupedOrders) ? JSON.parse(JSON.stringify(loaded.groupedOrders)) : []);
       setSelectedOrderMatches(Array.isArray(loaded.selectedOrderMatches) ? loaded.selectedOrderMatches : [String(loaded.meta?.order || '').trim()].filter(Boolean));
+      if (loaded.selectedOrderPoQtyOverrides && typeof loaded.selectedOrderPoQtyOverrides === 'object') setSelectedOrderPoQtyOverrides(loaded.selectedOrderPoQtyOverrides);
       setOrderSizeAllocations(loaded.orderSizeAllocations && typeof loaded.orderSizeAllocations === 'object' ? loaded.orderSizeAllocations : {});
       setHasGenerated(false);
       setResults([]);
@@ -4363,7 +4392,8 @@ export default function App() {
                     className={`w-full text-xs font-mono rounded-lg border px-3 py-2 focus:outline-none transition-all ${getInputStyles()}`}
                     placeholder="ex: 2630001AA ou 2654356"
                   />
-                  {orderMatches.length > 0 && <div className={`mt-1 rounded-lg border p-2 ${darkMode ? 'border-white/10 bg-[#15151A]' : 'border-indigo-200 bg-indigo-50/60'}`}><div className="mb-1 text-[9px] font-black uppercase tracking-wide text-indigo-700">Commandes correspondantes — sélection multiple</div><div className="max-h-28 space-y-1 overflow-y-auto">{orderMatches.map(match => <label key={match.orderNumber} className="flex cursor-pointer items-center justify-between gap-2 rounded px-1.5 py-1 text-[10px] hover:bg-white"><span className="flex items-center gap-2"><input type="checkbox" checked={selectedOrderMatches.some(order => order.toLowerCase() === match.orderNumber.toLowerCase())} onChange={() => toggleOrderMatch(match.orderNumber)} /><b className="font-mono">{match.orderNumber}</b><span className="text-slate-500">{match.customer || 'Client non renseigné'}</span></span><span className="text-[9px] text-slate-500">{match.rowCount} ligne(s)</span></label>)}</div></div>}
+                  {orderMatches.length > 0 && <div className={`mt-1 rounded-lg border p-2 ${darkMode ? 'border-white/10 bg-[#15151A]' : 'border-indigo-200 bg-indigo-50/60'}`}><div className="mb-1 text-[9px] font-black uppercase tracking-wide text-indigo-700">Résultats de la recherche actuelle</div><div className="max-h-28 space-y-1 overflow-y-auto">{orderMatches.map(match => <label key={match.orderNumber} className="flex cursor-pointer items-center justify-between gap-2 rounded px-1.5 py-1 text-[10px] hover:bg-white"><span className="flex items-center gap-2"><input type="checkbox" checked={selectedOrderMatches.some(order => order.toLowerCase() === match.orderNumber.toLowerCase())} onChange={() => toggleOrderMatch(match.orderNumber)} /><b className="font-mono">{match.orderNumber}</b><span className="text-slate-500">{match.customer || 'Client non renseigné'}</span></span><span className="text-[9px] text-slate-500">{match.rowCount} ligne(s)</span></label>)}</div></div>}
+                      {selectedOrderDetails.length > 0 && <div className={`mt-2 rounded-lg border p-2 ${darkMode ? 'border-violet-300/20 bg-violet-950/20' : 'border-violet-200 bg-violet-50/70'}`}><div className="flex flex-wrap items-center justify-between gap-2"><div className="text-[9px] font-black uppercase tracking-wide text-violet-800">Commandes sélectionnées pour la création ({selectedOrderDetails.length})</div><button type="button" onClick={() => { setSelectedOrderMatches([]); setSelectedOrderDetails([]); setOrderSearchValue(''); setMeta(previous => ({ ...previous, order: '', customer: '', po: '', destination: '' })); }} className="rounded border border-rose-200 px-2 py-1 text-[9px] font-bold text-rose-700">Vider la sélection</button></div><div className="mt-2 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-[9px]"><thead className="bg-violet-700 text-white"><tr><th className="px-2 py-1.5">Order #</th><th className="px-2 py-1.5">Client</th><th className="px-2 py-1.5">PO</th><th className="px-2 py-1.5">Couleur</th><th className="px-2 py-1.5 text-right">PO QTY</th><th className="px-2 py-1.5">Action</th></tr></thead><tbody>{selectedOrderDetails.map(detail => <tr key={detail.order} className="border-t border-violet-100"><td className="px-2 py-1.5 font-mono font-bold">{detail.order}</td><td className="px-2 py-1.5">{detail.customer || '—'}</td><td className="px-2 py-1.5 font-mono">{detail.po || '—'}</td><td className="px-2 py-1.5">{detail.color || '—'}</td><td className="px-2 py-1.5 text-right font-bold"><input type="number" min="0" value={detail.poQty} onChange={event => updateSelectedOrderPoQty(detail, event.target.value)} className="w-24 rounded border border-violet-200 bg-white px-2 py-1 text-right text-[9px] font-bold text-violet-900" /></td><td className="px-2 py-1.5"><button type="button" onClick={() => toggleOrderMatch(detail.order)} className="rounded border border-rose-200 px-1.5 py-0.5 font-bold text-rose-700">Retirer</button></td></tr>)}</tbody><tfoot><tr className="border-t-2 border-violet-300 font-black"><td colSpan={4} className="px-2 py-1.5">Total du groupe</td><td className="px-2 py-1.5 text-right">{selectedOrderDetails.reduce((sum, item) => sum + item.poQty, 0).toLocaleString('fr-FR')}</td><td /></tr></tfoot></table></div></div>}
                 </div>
 
                 <div className="flex flex-col gap-1 relative">

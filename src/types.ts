@@ -126,5 +126,6 @@ export interface LocalSaveListItem {
   colors: ColorConfig[];
   groupedOrders?: GroupedOrderReference[];
   selectedOrderMatches?: string[];
+  selectedOrderPoQtyOverrides?: Record<string, number>;
   orderSizeAllocations?: Record<string, Record<string, number>>;
 }
