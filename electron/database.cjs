@@ -544,10 +544,22 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     const po = String(input.po || '').trim();
     if (!target) return { rows: [], customers: [], pos: [], colors: [], destinations: [], dimensions: [] };
     const storedRows = db.prepare(`SELECT row_json FROM delivery_plan_rows WHERE lower(trim(order_number)) = lower(?) ORDER BY updated_at DESC, id`).all(target);
-    const rows = storedRows.map(row => parsePayload(row.row_json)).filter(row => {
-      const order = String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim();
-      const rowCustomer = String(row.customerName ?? '').trim();
-      const rowPo = String(row.customerPo ?? '').trim();
+    const rows = storedRows.map(row => {
+      const raw = parsePayload(row.row_json) || {};
+      return {
+        ...raw,
+        orderNumber: String(raw.customerCode ?? raw.orderNumber ?? raw.order ?? target).trim(),
+        customerName: String(raw.customerName ?? raw.customer ?? raw.client ?? '').trim(),
+        customerPo: String(raw.customerPo ?? raw.po ?? raw.poNumber ?? '').trim(),
+        color: String(raw.color ?? raw.colour ?? '').trim(),
+        dest: String(raw.dest ?? raw.destination ?? '').trim(),
+        destination: String(raw.dest ?? raw.destination ?? '').trim(),
+        poQty: Number(raw.poQty ?? raw.poQTY ?? raw['PO QTY'] ?? raw['PO Qty'] ?? 0) || 0,
+      };
+    }).filter(row => {
+      const order = String(row.orderNumber || '').trim();
+      const rowCustomer = String(row.customerName || '').trim();
+      const rowPo = String(row.customerPo || '').trim();
       return order.toLowerCase() === target.toLowerCase()
         && (!customer || rowCustomer.toLowerCase() === customer.toLowerCase())
         && (!po || rowPo.toLowerCase() === po.toLowerCase());

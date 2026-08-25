@@ -2414,13 +2414,15 @@ export default function App() {
         hour: '2-digit',
         minute: '2-digit'
       });
-      const autoLabel = [
-        meta.order ? `Order #${meta.order}` : '',
-        meta.customer ? `${meta.customer}` : '',
-        meta.style ? `${meta.style}` : ''
-      ].filter(Boolean).join(' - ') || 'Fiche sans nom';
+      const ordersForName = (selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean)).map(order => String(order).trim()).filter(Boolean);
+      const detailValues = ordersForName.map(order => selectedOrderDetails.find(detail => detail.order.toLowerCase() === order.toLowerCase())).filter(Boolean) as Array<{ customer: string; po: string; color: string }>;
+      const uniqueValue = (values: string[], fallback: string) => { const normalized = Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean))); return normalized.length === 1 ? normalized[0] : (normalized.length > 1 ? 'MULTI' : fallback); };
+      const customerLabel = uniqueValue(detailValues.map(detail => detail.customer), String(meta.customer || 'CUSTOMER'));
+      const poLabel = uniqueValue(detailValues.map(detail => detail.po), String(meta.po || 'PO'));
+      const colorLabel = uniqueValue(detailValues.map(detail => detail.color), String(colors[0]?.nom || 'COULEUR'));
+      const autoLabel = `${ordersForName.join('-') || 'FICHE'} ${customerLabel} ${poLabel} - ${colorLabel}`;
 
-      const finalName = customName.trim() || `${autoLabel} (${timestamp})`;
+      const finalName = customName.trim() || autoLabel;
       const listId = activePackingListId || ('packing_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
       const newListItem: LocalSaveListItem = {
         id: listId,
@@ -2555,13 +2557,15 @@ export default function App() {
         hour: '2-digit',
         minute: '2-digit'
       });
-      const autoLabel = [
-        meta.order ? `Order #${meta.order}` : '',
-        meta.customer ? `${meta.customer}` : '',
-        meta.style ? `${meta.style}` : ''
-      ].filter(Boolean).join(' - ') || 'Fiche sans nom';
+      const ordersForName = (selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean)).map(order => String(order).trim()).filter(Boolean);
+      const detailValues = ordersForName.map(order => selectedOrderDetails.find(detail => detail.order.toLowerCase() === order.toLowerCase())).filter(Boolean) as Array<{ customer: string; po: string; color: string }>;
+      const uniqueValue = (values: string[], fallback: string) => { const normalized = Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean))); return normalized.length === 1 ? normalized[0] : (normalized.length > 1 ? 'MULTI' : fallback); };
+      const customerLabel = uniqueValue(detailValues.map(detail => detail.customer), String(meta.customer || 'CUSTOMER'));
+      const poLabel = uniqueValue(detailValues.map(detail => detail.po), String(meta.po || 'PO'));
+      const colorLabel = uniqueValue(detailValues.map(detail => detail.color), String(colors[0]?.nom || 'COULEUR'));
+      const autoLabel = `${ordersForName.join('-') || 'FICHE'} ${customerLabel} ${poLabel} - ${colorLabel}`;
 
-      const finalName = customName.trim() || `${autoLabel} (${timestamp})`;
+      const finalName = customName.trim() || autoLabel;
       
       const docRef = await addDoc(collection(firestoreDb, 'packingLists'), {
         name: finalName,
