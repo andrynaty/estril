@@ -64,6 +64,7 @@ declare global {
     deleteFile: (id: string) => Promise<boolean>;
     listDeliveryPlans: (projectId: string) => Promise<any[]>;
     listDeliveryRows: (options?: { planId?: string; sheetName?: string; search?: string; page?: number; pageSize?: number }) => Promise<{ rows: any[]; total: number; page: number; pageSize: number }>;
+    updateDeliveryRows: (options: { planId?: string; rows: any[]; deleteIds?: string[]; clearAll?: boolean }) => Promise<{ ok: boolean; count?: number; error?: string }>;
     deleteDeliveryRows: (options: { ids: string[] }) => Promise<number>;
     clearDeliveryRows: (planId?: string) => Promise<number>;
     exportDeliveryRowsCsv: (options?: { planId?: string }) => Promise<{ path: string; rows: number }>;

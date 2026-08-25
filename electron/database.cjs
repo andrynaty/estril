@@ -485,6 +485,39 @@ function registerDatabaseIpc({ ipcMain, app, dialog, fsPromises, pathModule }) {
     const rows = db.prepare(`SELECT id, sheet_name, row_order, row_json FROM delivery_plan_rows WHERE ${where} ORDER BY sheet_name, row_order LIMIT ? OFFSET ?`).all(planId, search, search, search, search, search, search, search, sheet, sheet, pageSize, page * pageSize).map(row => ({ ...parsePayload(row.row_json), id: row.id, sheetName: row.sheet_name }));
     return { rows, total: count, page, pageSize };
   });
+  ipcMain.handle('ruba:delivery-rows-update', (_event, options = {}) => {
+    const planId = String(options.planId || csvPlanId);
+    const rows = Array.isArray(options.rows) ? options.rows : [];
+    const deleteIds = Array.isArray(options.deleteIds) ? options.deleteIds.map(String).filter(Boolean) : [];
+    const timestamp = now();
+    try {
+      const result = db.transaction(() => {
+        if (options.clearAll) {
+          db.prepare('DELETE FROM delivery_plan_rows WHERE delivery_plan_id = ?').run(planId);
+        } else if (deleteIds.length) {
+          const placeholders = deleteIds.map(() => '?').join(',');
+          db.prepare(`DELETE FROM delivery_plan_rows WHERE delivery_plan_id = ? AND id IN (${placeholders})`).run(planId, ...deleteIds);
+        }
+        const existingHash = db.prepare('SELECT id FROM delivery_plan_rows WHERE delivery_plan_id = ? AND row_hash = ? AND id <> ? LIMIT 1');
+        const update = db.prepare(`UPDATE delivery_plan_rows SET sheet_name = ?, row_order = ?, row_hash = ?, order_number = ?, customer_po = ?, customer_name = ?, color = ?, destination = ?, po_qty = ?, row_json = ?, updated_at = ? WHERE id = ? AND delivery_plan_id = ?`);
+        const seen = new Set();
+        for (const input of rows) {
+          const row = { ...(input || {}) };
+          const rowId = String(row.id || '');
+          if (!rowId || deleteIds.includes(rowId)) continue;
+          const hash = rowHash(Object.fromEntries(Object.entries(row).filter(([key]) => key !== 'id')));
+          if (seen.has(hash) || existingHash.get(planId, hash, rowId)) throw new Error('DUPLICATE_DELIVERY_ROW');
+          seen.add(hash);
+          update.run(String(row.sheetName || row.sheet_name || ''), Number(row.rowOrder ?? row.row_order ?? 0), hash, String(row.customerCode ?? row.orderNumber ?? row.order ?? '').trim(), String(row.customerPo ?? '').trim(), String(row.customerName ?? '').trim(), String(row.color ?? '').trim(), String(row.dest ?? row.destination ?? '').trim(), Number(row.poQty || 0), JSON.stringify(row), timestamp, rowId, planId);
+        }
+        return db.prepare('SELECT COUNT(*) AS count FROM delivery_plan_rows WHERE delivery_plan_id = ?').get(planId).count;
+      })();
+      log.run('delivery_plan', planId, 'update_rows', JSON.stringify({ updated: rows.length, deleted: deleteIds.length }), timestamp);
+      return { ok: true, count: result };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
   ipcMain.handle('ruba:delivery-rows-delete', (_event, options = {}) => {
     const ids = Array.isArray(options.ids) ? options.ids.map(String).filter(Boolean) : [];
     if (!ids.length) return 0;

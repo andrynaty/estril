@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('rubaDesktop', {
   deleteFile: (id) => ipcRenderer.invoke('ruba:file-delete', id),
   listDeliveryPlans: (projectId) => ipcRenderer.invoke('ruba:delivery-plans-list', projectId),
   listDeliveryRows: (options) => ipcRenderer.invoke('ruba:delivery-rows-list', options),
+  updateDeliveryRows: (options) => ipcRenderer.invoke('ruba:delivery-rows-update', options),
   deleteDeliveryRows: (options) => ipcRenderer.invoke('ruba:delivery-rows-delete', options),
   clearDeliveryRows: (planId) => ipcRenderer.invoke('ruba:delivery-rows-clear', planId),
   exportDeliveryRowsCsv: (options) => ipcRenderer.invoke('ruba:delivery-rows-export-csv', options),
