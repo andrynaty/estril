@@ -829,6 +829,19 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedOrderMatches, meta.po, deliverySelectedColors, selectedOrderPoQtyOverrides]);
   useEffect(() => {
+    if (!selectedOrderDetails.length) return;
+    const unique = (values: string[]) => Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean)));
+    const customers = unique(selectedOrderDetails.map(detail => detail.customer));
+    const pos = unique(selectedOrderDetails.map(detail => detail.po));
+    const destinations = unique(selectedOrderDetails.map(detail => detail.destination));
+    setMeta(previous => ({
+      ...previous,
+      customer: customers.length === 1 ? customers[0] : (customers.length > 1 ? '' : previous.customer),
+      po: pos.length === 1 ? pos[0] : (pos.length > 1 ? '' : previous.po),
+      destination: destinations.length === 1 ? destinations[0] : (destinations.length > 1 ? '' : previous.destination),
+    }));
+  }, [selectedOrderDetails]);
+  useEffect(() => {
     const order = String(selectedOrderMatches[0] || meta.order || '').trim();
     const customer = String(meta.customer || '').trim();
     const po = String(meta.po || '').trim();
@@ -837,13 +850,7 @@ export default function App() {
     window.rubaDesktop.getDeliveryCompatibleOrders({ orderNumber: order, customer, po }).then(rows => { if (!cancelled) setCompatibleOrders(rows || []); }).catch(() => { if (!cancelled) setCompatibleOrders([]); });
     return () => { cancelled = true; };
     }, [meta.order, meta.customer, meta.po, selectedOrderMatches]);
-  const formatSelectedOrderDisplay = (orders: string[]) => {
-    if (!orders.length) return orderSearchValue;
-    if (orders.length === 1) return orders[0];
-    const first = orders[0];
-    const suffixes = orders.slice(1).map(order => order.replace(/^\d+/, '')).filter(Boolean);
-    return suffixes.length ? `${first}-${suffixes.join('-')}` : orders.join('-');
-  };
+  const formatSelectedOrderDisplay = (orders: string[]) => orders.length ? orders.join('-') : orderSearchValue;
   const updateSelectedOrderPoQty = (detail: { order: string; color: string }, value: string) => {
     const qty = Math.max(0, Number(value) || 0);
     const key = `${detail.order.trim().toLowerCase()}::${detail.color.trim().toLowerCase()}`;
@@ -2414,7 +2421,7 @@ export default function App() {
         hour: '2-digit',
         minute: '2-digit'
       });
-      const ordersForName = (selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean)).map(order => String(order).trim()).filter(Boolean);
+      const ordersForName = (selectedOrderDetails.length ? selectedOrderDetails.map(detail => detail.order) : (selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean))).map(order => String(order).trim()).filter(Boolean);
       const detailValues = ordersForName.map(order => selectedOrderDetails.find(detail => detail.order.toLowerCase() === order.toLowerCase())).filter(Boolean) as Array<{ customer: string; po: string; color: string }>;
       const uniqueValue = (values: string[], fallback: string) => { const normalized = Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean))); return normalized.length === 1 ? normalized[0] : (normalized.length > 1 ? 'MULTI' : fallback); };
       const customerLabel = uniqueValue(detailValues.map(detail => detail.customer), String(meta.customer || 'CUSTOMER'));
@@ -2557,7 +2564,7 @@ export default function App() {
         hour: '2-digit',
         minute: '2-digit'
       });
-      const ordersForName = (selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean)).map(order => String(order).trim()).filter(Boolean);
+      const ordersForName = (selectedOrderDetails.length ? selectedOrderDetails.map(detail => detail.order) : (selectedOrderMatches.length ? selectedOrderMatches : [String(meta.order || '').trim()].filter(Boolean))).map(order => String(order).trim()).filter(Boolean);
       const detailValues = ordersForName.map(order => selectedOrderDetails.find(detail => detail.order.toLowerCase() === order.toLowerCase())).filter(Boolean) as Array<{ customer: string; po: string; color: string }>;
       const uniqueValue = (values: string[], fallback: string) => { const normalized = Array.from(new Set(values.map(value => String(value || '').trim()).filter(Boolean))); return normalized.length === 1 ? normalized[0] : (normalized.length > 1 ? 'MULTI' : fallback); };
       const customerLabel = uniqueValue(detailValues.map(detail => detail.customer), String(meta.customer || 'CUSTOMER'));
