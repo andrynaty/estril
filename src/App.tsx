@@ -672,6 +672,40 @@ export default function App() {
     setActiveCloudDocId(null);
   };
 
+  // Recharger la base centrale des Gabarits après chaque création, modification ou suppression.
+  const reloadTemplatesFromSqlite = async () => {
+    if (!window.rubaDesktop?.listTemplates) return;
+    let rows = await window.rubaDesktop.listTemplates();
+    if (rows.length === 0 && window.rubaDesktop.seedTemplates) {
+      rows = await window.rubaDesktop.seedTemplates([
+        ...DEFAULT_DATABASE.dim_models.map(model => ({ id: `dimension_${model.name}`, category: 'dimension', name: model.name, lengthCm: model.L, widthCm: model.l, heightCm: model.h })),
+        ...DEFAULT_DATABASE.weight_piece_models.map(model => ({ id: `weight_piece_${model.name}`, category: 'weight_piece', name: model.name, weightKg: model.wPiece })),
+        ...DEFAULT_DATABASE.weight_carton_models.map(model => ({ id: `weight_carton_${model.name}`, category: 'weight_carton', name: model.name, weightKg: model.wCarton }))
+      ]);
+    }
+    const activeRows = rows.filter(row => Number(row.active) !== 0);
+    const nextDb: ModelsDatabase = {
+      dim_models: activeRows.filter(row => row.category === 'dimension').map(row => ({ name: row.name, L: Number(row.length_cm ?? row.lengthCm), l: Number(row.width_cm ?? row.widthCm), h: Number(row.height_cm ?? row.heightCm) })),
+      weight_piece_models: activeRows.filter(row => row.category === 'weight_piece').map(row => ({ name: row.name, wPiece: Number(row.weight_kg ?? row.weightKg) })),
+      weight_carton_models: activeRows.filter(row => row.category === 'weight_carton').map(row => ({ name: row.name, wCarton: Number(row.weight_kg ?? row.weightKg) }))
+    };
+    setDb(nextDb);
+    localStorage.setItem('packing_list_pro_db', JSON.stringify(nextDb));
+    setColors((currentColors) => currentColors.map((color) => {
+      const pieceModel = color.selectedPieceWeightModelName ? nextDb.weight_piece_models.find((model) => model.name === color.selectedPieceWeightModelName) : undefined;
+      const cartonModel = color.selectedCartonWeightModelName ? nextDb.weight_carton_models.find((model) => model.name === color.selectedCartonWeightModelName) : undefined;
+      const dimModel = color.selectedDimModelName ? nextDb.dim_models.find((model) => model.name === color.selectedDimModelName) : undefined;
+      if (!pieceModel && !cartonModel && !dimModel) return color;
+      const nextSizes = Object.fromEntries(Object.entries(color.sizes).map(([size, spec]) => [size, {
+        ...spec,
+        ...(pieceModel ? { wPiece: pieceModel.wPiece } : {}),
+        ...(cartonModel ? { wCarton: cartonModel.wCarton } : {}),
+        ...(dimModel ? { dimL: dimModel.L, diml: dimModel.l, dimH: dimModel.h, cbmUnit: (dimModel.L * dimModel.l * dimModel.h) / 1000000 } : {})
+      }]));
+      return { ...color, sizes: nextSizes };
+    }));
+  };
+
   // Save database modifications
   const handleSaveDatabase = async (newDb: ModelsDatabase) => {
     setDb(newDb);
@@ -686,28 +720,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!window.rubaDesktop?.listTemplates) return;
-    const loadTemplatesFromSqlite = async () => {
-      let rows = await window.rubaDesktop!.listTemplates();
-      if (rows.length === 0 && window.rubaDesktop!.seedTemplates) {
-        rows = await window.rubaDesktop!.seedTemplates([
-          ...DEFAULT_DATABASE.dim_models.map(model => ({ id: `dimension_${model.name}`, category: 'dimension', name: model.name, lengthCm: model.L, widthCm: model.l, heightCm: model.h })),
-          ...DEFAULT_DATABASE.weight_piece_models.map(model => ({ id: `weight_piece_${model.name}`, category: 'weight_piece', name: model.name, weightKg: model.wPiece })),
-          ...DEFAULT_DATABASE.weight_carton_models.map(model => ({ id: `weight_carton_${model.name}`, category: 'weight_carton', name: model.name, weightKg: model.wCarton }))
-        ]);
-      }
-      const activeRows = rows.filter(row => Number(row.active) !== 0);
-      const nextDb: ModelsDatabase = {
-        dim_models: activeRows.filter(row => row.category === 'dimension').map(row => ({ name: row.name, L: Number(row.length_cm), l: Number(row.width_cm), h: Number(row.height_cm) })),
-        weight_piece_models: activeRows.filter(row => row.category === 'weight_piece').map(row => ({ name: row.name, wPiece: Number(row.weight_kg) })),
-        weight_carton_models: activeRows.filter(row => row.category === 'weight_carton').map(row => ({ name: row.name, wCarton: Number(row.weight_kg) }))
-      };
-      if (nextDb.dim_models.length || nextDb.weight_piece_models.length || nextDb.weight_carton_models.length) {
-        setDb(nextDb);
-        localStorage.setItem('packing_list_pro_db', JSON.stringify(nextDb));
-      }
-    };
-    loadTemplatesFromSqlite().catch(error => console.error('Template SQLite load failed', error));
+    reloadTemplatesFromSqlite().catch(error => console.error('Template SQLite load failed', error));
   }, []);
 
   useEffect(() => {
@@ -3270,7 +3283,7 @@ export default function App() {
         </div>
       )}
 
-      {isMajBsdOpen && (window.rubaDesktop?.listTemplates ? <TemplateManagerModal isOpen={isMajBsdOpen} onClose={() => setIsMajBsdOpen(false)} darkMode={darkMode} /> : <MajBsdModal isOpen={isMajBsdOpen} database={db} onClose={() => setIsMajBsdOpen(false)} onSaveDatabase={handleSaveDatabase} darkMode={darkMode} />)}
+      {isMajBsdOpen && (window.rubaDesktop?.listTemplates ? <TemplateManagerModal isOpen={isMajBsdOpen} onClose={() => setIsMajBsdOpen(false)} onTemplatesChanged={reloadTemplatesFromSqlite} darkMode={darkMode} /> : <MajBsdModal isOpen={isMajBsdOpen} database={db} onClose={() => setIsMajBsdOpen(false)} onSaveDatabase={handleSaveDatabase} darkMode={darkMode} />)}
 
       {/* Smart Raw Text / Excel Import Modal */}
       {isSmartImportOpen && (
@@ -4901,7 +4914,10 @@ export default function App() {
                     transition={{ duration: 0.15 }}
                   >
                     {/* SPREADSHEET COLORS EDITOR */}
-                    <div className={`rounded-2xl border p-6 ${darkMode ? 'bg-[#0F0F12] border-white/10 shadow-lg shadow-black/20 text-white' : 'bg-white border-slate-200 shadow-sm'} space-y-5 transition-all duration-300`}>
+                    <div
+                      className={`rounded-2xl border p-6 ${darkMode ? 'border-white/10 shadow-lg shadow-black/20 text-white' : 'border-slate-200 shadow-sm'} space-y-5 transition-all duration-300`}
+                      style={{ backgroundColor: darkMode ? BG_COLORS_DARK[activeColorIdx % BG_COLORS_DARK.length] : BG_COLORS_LIGHT[activeColorIdx % BG_COLORS_LIGHT.length], borderColor: PALETTE[activeColorIdx % PALETTE.length] }}
+                    >
                       
                       {/* Elegant Document Manifest look */}
                       <div className="flex items-center justify-between border-b pb-4 border-dashed border-slate-200 dark:border-slate-800/80 flex-wrap gap-3">
@@ -4929,6 +4945,9 @@ export default function App() {
                         }`}>
                           <div className="flex flex-wrap gap-1.5">
                             {colors.map((c, idx) => {
+                              const tabSkus = Array.from(new Set(c.tailles.map(t => String(c.sizes[t]?.sku || '').trim()).filter(Boolean))).join(' / ');
+                              const tabOrders = (selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join(' · ');
+                              const tabContext = [tabOrders, meta.po].filter(Boolean).join(' | ');
                               // Cdiscount dynamic color search matching logic
                               const query = searchQuery.toLowerCase().trim();
                               const isMatch = !query || 
@@ -4941,9 +4960,15 @@ export default function App() {
                               return (
                                 <button
                                   key={idx}
+                                  title={[`Couleur ${idx + 1} : ${c.nom || `COULEUR ${idx + 1}`}`, tabContext && `Order / PO : ${tabContext}`, tabSkus && `SKU : ${tabSkus}`].filter(Boolean).join(' — ')}
                                   onClick={() => {
                                     setActiveColorIdx(idx);
                                   }}
+                                  style={activeColorIdx === idx ? {
+                                    borderColor: PALETTE[idx % PALETTE.length],
+                                    color: darkMode ? '#0f172a' : PALETTE[idx % PALETTE.length],
+                                    backgroundColor: darkMode ? '#ffffff' : `${PALETTE[idx % PALETTE.length]}18`
+                                  } : undefined}
                                   className={`px-3.5 py-2 rounded-lg text-xs font-sans font-bold transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] ${
                                     activeColorIdx === idx
                                       ? darkMode
@@ -4954,8 +4979,13 @@ export default function App() {
                                         : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-950 hover:border-slate-350 shadow-xs'
                                   }`}
                                 >
-                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PALETTE[idx % PALETTE.length] }} />
-                                  <span className="truncate max-w-[115px]">{c.nom || `COULEUR ${idx + 1}`}</span>
+                                  <div className="w-2.5 h-2.5 shrink-0 rounded-full" style={{ backgroundColor: PALETTE[idx % PALETTE.length] }} />
+                                  <div className="min-w-0 text-left leading-tight">
+                                    <span className="block truncate max-w-[150px]">{String(idx + 1).padStart(2, '0')} · {c.nom || `COULEUR ${idx + 1}`}</span>
+                                    <span className={`block max-w-[150px] truncate text-[9px] font-mono font-medium ${activeColorIdx === idx ? (darkMode ? 'text-slate-700' : 'text-[#9f1239]') : 'text-slate-400'}`}>
+                                      {tabSkus ? `SKU: ${tabSkus}` : (tabContext ? tabContext : 'Aucun SKU')}
+                                    </span>
+                                  </div>
                                   {(() => {
                                     const sum = c.tailles.reduce((acc, t) => acc + (c.sizes[t]?.qtyTot || 0), 0);
                                     if (sum > 0) {
@@ -5013,12 +5043,15 @@ export default function App() {
 
               {/* Active Tab Workspace Panel */}
               {colors[activeColorIdx] && (
-                <div className="space-y-4 pt-1 animate-fadeIn">
-                  <div className={`flex flex-wrap items-center gap-4 justify-between border rounded-xl p-4 transition-all duration-300 ${
-                    darkMode ? 'bg-[#0F0F12] border-white/10' : 'bg-[#f4f6fb]/50 border-slate-200'
-                  }`}>
+                <div className="space-y-4 pt-1 animate-fadeIn" style={{ borderTop: `3px solid ${PALETTE[activeColorIdx % PALETTE.length]}` }}>
+                  <div
+                    className={`flex flex-wrap items-center gap-4 justify-between border rounded-xl p-4 transition-all duration-300 ${
+                      darkMode ? 'bg-[#0F0F12] border-white/10' : 'bg-[#f4f6fb]/50 border-slate-200'
+                    }`}
+                    style={{ boxShadow: `inset 4px 0 0 ${PALETTE[activeColorIdx % PALETTE.length]}` }}
+                  >
                   <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-md border border-slate-700" style={{ backgroundColor: PALETTE[activeColorIdx % PALETTE.length] }} />
+                    <div className="w-4 h-4 rounded-md border-2" style={{ backgroundColor: PALETTE[activeColorIdx % PALETTE.length], borderColor: PALETTE[activeColorIdx % PALETTE.length] }} />
                     <input
                       type="text"
                       value={colors[activeColorIdx].nom}
@@ -5310,8 +5343,14 @@ export default function App() {
 
                 <div className={`overflow-x-auto rounded-xl border transition-all duration-300 ${
                   darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-slate-200 bg-slate-50/40 shadow-sm'
-                }`}>
-                  <table className="w-full text-xs text-center border-collapse">
+                }`} style={{ borderColor: PALETTE[activeColorIdx % PALETTE.length] }}>
+                  <table
+                    className="w-full text-xs text-center border-collapse"
+                    style={{
+                      backgroundColor: darkMode ? BG_COLORS_DARK[activeColorIdx % BG_COLORS_DARK.length] : BG_COLORS_LIGHT[activeColorIdx % BG_COLORS_LIGHT.length],
+                      boxShadow: `inset 0 0 0 2px ${PALETTE[activeColorIdx % PALETTE.length]}`
+                    }}
+                  >
                     <thead>
                       <tr className="font-mono font-bold border-b text-white" style={{ backgroundColor: '#224d1a', color: '#ffffff' }}>
                         <th className={`py-3 px-4 text-left border-r font-sans tracking-wide text-white ${
@@ -5497,7 +5536,31 @@ export default function App() {
                         ))}
                       </tr>
 
-                      {/* Row 4: Config Button */}
+                      {/* Row 4: Poids carton vide par taille — source primaire du poids brut */}
+                      <tr className={darkMode ? '' : 'hover:bg-slate-50/50'}>
+                        <td className={`py-2 px-4 text-left font-sans font-semibold border-r ${darkMode ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-violet-50/40 text-violet-900'}`}>
+                          <div className="flex flex-col"><span>Poids carton vide (kg)</span><span className="text-[10px] font-normal italic text-slate-500">Tare appliquée au carton</span></div>
+                        </td>
+                        {colors[activeColorIdx].tailles.map((sz) => (
+                          <td key={sz} className={`p-1 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>
+                            <input type="number" min="0" step="0.001" value={colors[activeColorIdx].sizes[sz]?.wCarton ?? ''} onChange={(e) => handleUpdateSizeCell(sz, 'wCarton', e.target.value)} onPaste={(e) => handlePasteGrid2D(e, sz, 'wCarton')} className={`w-full text-center py-1.5 font-bold rounded-md border focus:outline-none transition-all ${darkMode ? 'bg-[#15151A] border-white/10 text-white focus:border-white' : 'bg-white border-violet-200 text-violet-900 focus:border-violet-500 hover:border-violet-300'}`} placeholder="0.000" />
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Row 5: Poids par pièce par taille — source primaire du poids net */}
+                      <tr className={darkMode ? '' : 'hover:bg-slate-50/50'}>
+                        <td className={`py-2 px-4 text-left font-sans font-semibold border-r ${darkMode ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-indigo-50/40 text-indigo-900'}`}>
+                          <div className="flex flex-col"><span>Poids par pièce (kg)</span><span className="text-[10px] font-normal italic text-slate-500">Poids unitaire par taille</span></div>
+                        </td>
+                        {colors[activeColorIdx].tailles.map((sz) => (
+                          <td key={sz} className={`p-1 border-r col-sizes-cells ${darkMode ? 'border-white/10' : 'border-slate-200'}`}>
+                            <input type="number" min="0" step="0.001" value={colors[activeColorIdx].sizes[sz]?.wPiece ?? ''} onChange={(e) => handleUpdateSizeCell(sz, 'wPiece', e.target.value)} onPaste={(e) => handlePasteGrid2D(e, sz, 'wPiece')} className={`w-full text-center py-1.5 font-bold rounded-md border focus:outline-none transition-all ${darkMode ? 'bg-[#15151A] border-white/10 text-white focus:border-white' : 'bg-white border-indigo-200 text-indigo-900 focus:border-indigo-500 hover:border-indigo-300'}`} placeholder="0.000" />
+                          </td>
+                        ))}
+                      </tr>
+
+                      {/* Row 6: Config Button */}
                       <tr className={darkMode ? '' : 'hover:bg-slate-50/50'}>
                         <td className={`py-2.5 px-4 text-left font-sans font-semibold border-r ${
                           darkMode ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-slate-100/30 text-slate-600'
@@ -10587,6 +10650,38 @@ export default function App() {
                     )}
                   </div>
                 )}
+
+                {printSections.stats && activeResults.length > 0 && (() => {
+                  const exampleResult = activeResults[0];
+                  const exampleRow = exampleResult.rows[0];
+                  const exampleColorIndex = exampleResult.colorIndex ?? colors.findIndex(c => c.nom === exampleResult.nom);
+                  const exampleConfig = colors[exampleColorIndex >= 0 ? exampleColorIndex : 0];
+                  const exampleSize = exampleRow ? Object.keys(exampleRow.sizes).find(size => Number(exampleRow.sizes[size] || 0) > 0) : undefined;
+                  const exampleSpec = exampleSize ? exampleConfig?.sizes[exampleSize] : undefined;
+                  const exampleCbm = exampleSpec && Number(exampleSpec.dimL) > 0 && Number(exampleSpec.diml) > 0 && Number(exampleSpec.dimH) > 0
+                    ? (Number(exampleSpec.dimL) * Number(exampleSpec.diml) * Number(exampleSpec.dimH)) / 1000000
+                    : Number(exampleSpec?.cbmUnit || 0);
+                  return (
+                    <details open className="mt-4 rounded-lg border border-violet-300/60 bg-violet-50/60 dark:border-violet-900/60 dark:bg-violet-950/20 print-formulas-box break-inside-avoid">
+                      <summary className="cursor-pointer px-4 py-3 font-mono text-xs font-black uppercase tracking-wide text-violet-900 dark:text-violet-200">Formules de calcul — valeurs utilisées</summary>
+                      <div className="grid gap-3 border-t border-violet-200/70 p-4 text-xs dark:border-violet-900/60 md:grid-cols-2">
+                        <div className="space-y-2 font-mono text-slate-700 dark:text-slate-200">
+                          <p><b>CBM carton</b> = Longueur × Largeur × Hauteur ÷ 1 000 000</p>
+                          <p><b>Poids net</b> = Σ (quantité de chaque taille × poids par pièce de cette taille)</p>
+                          <p><b>Poids brut</b> = poids net + poids carton vide</p>
+                          <p><b>Total projet</b> = somme des cartons, pièces, poids et CBM de toutes les lignes générées</p>
+                        </div>
+                        <div className="space-y-2 font-mono text-slate-700 dark:text-slate-200">
+                          <p><b>Carton exemple</b> : {exampleResult.nom} — carton {exampleRow?.cartonRange || '—'}</p>
+                          <p><b>Valeur CBM active</b> : {exampleSize || '—'} : {exampleSpec ? `${exampleSpec.dimL} × ${exampleSpec.diml} × ${exampleSpec.dimH} cm = ${exampleCbm.toFixed(4)} m³` : '—'}</p>
+                          <p><b>Poids pièce actif</b> : {exampleSize || '—'} : {exampleSpec ? `${exampleSpec.wPiece} kg` : '—'}</p>
+                          <p><b>Poids carton vide actif</b> : {exampleSize || '—'} : {exampleSpec ? `${exampleSpec.wCarton} kg` : '—'}</p>
+                          <p><b>Résultats actuels</b> : {grandTotals.n.toFixed(2)} kg net / {grandTotals.g.toFixed(2)} kg brut / {grandTotals.v.toFixed(4)} m³</p>
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })()}
               </div>
             )}
             

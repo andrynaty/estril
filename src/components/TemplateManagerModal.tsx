@@ -4,11 +4,11 @@ import { Box, Edit3, Plus, Ruler, Trash2, UserRound, Weight, X } from 'lucide-re
 type Category = 'dimension' | 'weight_piece' | 'weight_carton' | 'customer';
 type TemplateRow = { id: string; category: Category; name: string; length_cm?: number; width_cm?: number; height_cm?: number; weight_kg?: number; active?: number };
 
-type Props = { isOpen: boolean; onClose: () => void; darkMode?: boolean };
+type Props = { isOpen: boolean; onClose: () => void; darkMode?: boolean; onTemplatesChanged?: () => Promise<void> | void };
 
 const categoryLabels: Record<Category, string> = { dimension: '📐 DIM. CARTON', weight_piece: '⚖️ POIDS PIÈCE', weight_carton: '📦 POIDS CARTON', customer: '👤 CUSTOMER' };
 
-export default function TemplateManagerModal({ isOpen, onClose, darkMode = false }: Props) {
+export default function TemplateManagerModal({ isOpen, onClose, darkMode = false, onTemplatesChanged }: Props) {
   const [category, setCategory] = useState<Category>('dimension');
   const [rows, setRows] = useState<TemplateRow[]>([]);
   const [editing, setEditing] = useState<TemplateRow | null>(null);
@@ -33,9 +33,9 @@ export default function TemplateManagerModal({ isOpen, onClose, darkMode = false
     if (isDimension && [form.length_cm, form.width_cm, form.height_cm].some(value => !Number(value) || Number(value) <= 0)) { setMessage('Longueur, largeur et hauteur doivent être supérieures à zéro.'); return; }
     if (isWeight && (!Number(form.weight_kg) || Number(form.weight_kg) <= 0)) { setMessage('Le poids doit être supérieur à zéro.'); return; }
     await window.rubaDesktop.saveTemplate({ ...form, id: editing?.id, category, name: String(form.name).trim().toUpperCase() });
-    setMessage('Gabarit enregistré dans la base séparée.'); setForm({ name: '' }); setEditing(null); await refresh();
+    setMessage('Gabarit enregistré dans SQLite.'); setForm({ name: '' }); setEditing(null); await refresh(); await onTemplatesChanged?.();
   };
-  const remove = async (row: TemplateRow) => { if (!window.confirm(`Supprimer le gabarit « ${row.name} » ?`)) return; await window.rubaDesktop?.deleteTemplate(row.id); await refresh(); setMessage('Gabarit supprimé.'); };
+  const remove = async (row: TemplateRow) => { if (!window.confirm(`Supprimer le gabarit « ${row.name} » ?`)) return; await window.rubaDesktop?.deleteTemplate(row.id); await refresh(); await onTemplatesChanged?.(); setMessage('Gabarit supprimé.'); };
 
   return <div className="fixed inset-0 z-[9500] flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm"><div className={`flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${darkMode ? 'border-slate-700 bg-slate-950 text-white' : 'border-slate-200 bg-white text-slate-900'}`}>
     <header className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-700">Base SQLite séparée · ruba_gabarits.sqlite</p><h2 className="mt-1 text-lg font-black">Gestion des Gabarits</h2><p className="text-xs text-slate-500">Les gabarits actifs apparaissent dans la Grille de saisie.</p></div><button onClick={onClose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-200"><X size={18}/></button></header>

@@ -78,6 +78,17 @@ export function getRemainderRowColor(
 /**
  * Computes how items are packed and calculates weights, CBM, and carton numbers sequentially.
  */
+function getSizeCbm(spec: SizeDetails | undefined): number {
+  if (!spec) return 0.08;
+  const length = Number(spec.dimL);
+  const width = Number(spec.diml);
+  const height = Number(spec.dimH);
+  if (length > 0 && width > 0 && height > 0) {
+    return (length * width * height) / 1000000;
+  }
+  return Number(spec.cbmUnit) > 0 ? Number(spec.cbmUnit) : 0.08;
+}
+
 export function computeColorResult(
   colorConfig: ColorConfig,
   globalMode: 'strict_solide' | 'mixte_autorise',
@@ -101,8 +112,8 @@ export function computeColorResult(
   if (forceSingleCarton) {
     const rowSizes: { [sizeName: string]: number } = {};
     let totalPcs = 0;
-    let maxWCarton = 0.80;
-    let maxCbm = 0.08;
+    let maxWCarton = 0;
+    let maxCbm = 0;
     let skusSet = new Set<string>();
 
     tailles.forEach(t => {
@@ -111,7 +122,7 @@ export function computeColorResult(
         rowSizes[t] = q;
         totalPcs += q;
         if (sizes[t].wCarton > maxWCarton) maxWCarton = sizes[t].wCarton;
-        if (sizes[t].cbmUnit > maxCbm) maxCbm = sizes[t].cbmUnit;
+        const sizeCbm = getSizeCbm(sizes[t]); if (sizeCbm > maxCbm) maxCbm = sizeCbm;
         if (sizes[t].sku) skusSet.add(sizes[t].sku);
         packedSizes[t] += q;
       }
@@ -164,7 +175,7 @@ export function computeColorResult(
       const cap = sizes[t]?.cap || 25;
       const wPiece = sizes[t]?.wPiece || 0.25;
       const wCarton = sizes[t]?.wCarton || 0.80;
-      const cbmUnit = sizes[t]?.cbmUnit || 0.08;
+      const cbmUnit = getSizeCbm(sizes[t]);
       const sizeSku = sizes[t]?.sku || '';
 
       if (q <= 0) return;
@@ -195,8 +206,8 @@ export function computeColorResult(
     // Pack the custom cartons specified
     colorConfig.customRemainders.forEach(cc => {
       const mixedSizes: { [sizeName: string]: number } = {};
-      let maxWCarton = 0.80;
-      let maxCbm = 0.08;
+      let maxWCarton = 0;
+      let maxCbm = 0;
       let netWeight = 0;
       const rowSkusSet = new Set<string>();
       let boxSum = 0;
@@ -210,7 +221,7 @@ export function computeColorResult(
           const spec = sizes[sz];
           if (spec) {
             if (spec.wCarton > maxWCarton) maxWCarton = spec.wCarton;
-            if (spec.cbmUnit > maxCbm) maxCbm = spec.cbmUnit;
+            const specCbm = getSizeCbm(spec); if (specCbm > maxCbm) maxCbm = specCbm;
             netWeight += qte * spec.wPiece;
             if (spec.sku) rowSkusSet.add(spec.sku);
           }
@@ -251,7 +262,7 @@ export function computeColorResult(
         const rowSizes = { [t]: leftover };
         const wPiece = sizes[t]?.wPiece || 0.25;
         const wCarton = sizes[t]?.wCarton || 0.80;
-        const cbmUnit = sizes[t]?.cbmUnit || 0.08;
+        const cbmUnit = getSizeCbm(sizes[t]);
         const sizeSku = sizes[t]?.sku || '';
         const netW = leftover * wPiece;
 
@@ -319,7 +330,7 @@ export function computeColorResult(
     const cap = sizes[t]?.cap || 25;
     const wPiece = sizes[t]?.wPiece || 0.25;
     const wCarton = sizes[t]?.wCarton || 0.80;
-    const cbmUnit = sizes[t]?.cbmUnit || 0.08;
+    const cbmUnit = getSizeCbm(sizes[t]);
     const sizeSku = sizes[t]?.sku || '';
 
     if (q <= 0) return;
@@ -458,8 +469,8 @@ export function computeColorResult(
 
       // Construct metrics for mixed carton
       const mixedSizes: { [sizeName: string]: number } = {};
-      let maxWCarton = 0.80;
-      let maxCbm = 0.08;
+      let maxWCarton = 0;
+      let maxCbm = 0;
       let netWeight = 0;
       const rowSkusSet = new Set<string>();
 
@@ -468,7 +479,7 @@ export function computeColorResult(
         const spec = sizes[item.taille];
         if (spec) {
           if (spec.wCarton > maxWCarton) maxWCarton = spec.wCarton;
-          if (spec.cbmUnit > maxCbm) maxCbm = spec.cbmUnit;
+          const specCbm = getSizeCbm(spec); if (specCbm > maxCbm) maxCbm = specCbm;
           netWeight += item.qte * spec.wPiece;
           if (spec.sku) rowSkusSet.add(spec.sku);
         }
@@ -1948,6 +1959,119 @@ export async function exportToExcel(
 
     wsComb.views = [{ state: 'frozen', xSplit: isSkuColShownCombined ? 4 : 3, ySplit: hdrRiComb, activeCell: wsComb.getRow(hdrRiComb + 1).getCell(isSkuColShownCombined ? 5 : 4).address }];
   }
+
+  // 2.B PL FINALE — format portrait validé FLOREAL.
+  // La feuille est volontairement compacte pour l'impression A4 portrait.
+  const finalSizes = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+  const wsFinal = wb.addWorksheet('PL FINALE', {
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 1, margins: { left: 0.2, right: 0.2, top: 0.25, bottom: 0.25, header: 0.1, footer: 0.1 } },
+    views: [{ showGridLines: false }]
+  });
+  const finalTotalPcs = allResults.reduce((sum, result) => sum + Number(result.totals.p || 0), 0);
+  const finalTotalNet = allResults.reduce((sum, result) => sum + Number(result.totals.n || 0), 0);
+  const finalTotalGross = allResults.reduce((sum, result) => sum + Number(result.totals.g || 0), 0);
+  const finalTotalCbm = allResults.reduce((sum, result) => sum + Number(result.totals.v || 0), 0);
+  const hasSkuColumn = allResults.some((r) => r.rows.some((row) => (row.skus || []).some((sku) => String(sku || '').trim().length > 0)));
+  const finalCols = hasSkuColumn ? 16 : 15;
+  wsFinal.columns = [
+    { width: 7 }, { width: 7 }, { width: 18 }, ...(hasSkuColumn ? [{ width: 18 }] : []), { width: 10 },
+    ...finalSizes.map(() => ({ width: 6 })), { width: 11 }, { width: 12 }, { width: 12 }
+  ];
+  const setFinalCell = (address: string, value: string | number, fill?: string, bold = false, color = '000000', border: any = borderThin) => {
+    const cell = wsFinal.getCell(address);
+    cell.value = value;
+    cell.font = { name: 'Arial', size: 9, bold, color: { argb: 'FF' + color } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = border;
+    if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + fill } };
+    return cell;
+  };
+  const setFinalPlain = (address: string, value: string | number, bold = true) => {
+    const cell = wsFinal.getCell(address);
+    cell.value = value;
+    cell.font = { name: 'Arial', size: 10, bold, color: { argb: 'FF' + colorsHex.navyBg } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+    cell.border = {};
+    cell.fill = { type: 'pattern', pattern: 'none' };
+    return cell;
+  };
+  const lastCol = (n: number) => String.fromCharCode(64 + n);
+  wsFinal.mergeCells(`A1:${lastCol(finalCols)}2`);
+  setFinalCell('A1', 'PACKING LIST', colorsHex.navyBg, true, 'FFFFFF', {});
+  wsFinal.getCell('A1').font = { name: 'Arial', size: 20, bold: true, color: { argb: 'FFFFFFFF' } };
+  wsFinal.getRow(1).height = 26; wsFinal.getRow(2).height = 18;
+  wsFinal.mergeCells('A3:D6'); setFinalCell('A3', 'FLOREAL\nKNITWEAR', 'FFFFFF', true, colorsHex.navyBg, {});
+  wsFinal.getCell('A3').font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF' + colorsHex.navyBg } };
+  wsFinal.getCell('A3').alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  wsFinal.mergeCells('E3:I6'); setFinalCell('E3', 'ANTSIRABE KNITWEAR\n1458 PROPRIETE "VOION" TN 1458\n110 ANTSIRABE\nMG', 'FFFFFF', false, '000000', {});
+  wsFinal.getCell('E3').alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  const shipStart = hasSkuColumn ? 'K' : 'J';
+  wsFinal.mergeCells(`${shipStart}3:${lastCol(finalCols)}7`); setFinalCell(`${shipStart}3`, 'SHIPPING MARK\n(ÉTIQUETTE D’EXPÉDITION)', 'FFF2B2', true, colorsHex.navyBg, borderMedium);
+  wsFinal.getCell(`${shipStart}3`).alignment = { vertical: 'top', horizontal: 'center', wrapText: true };
+  const infoLabels = ['PO / BON DE COMMANDE', 'STYLE / RÉFÉRENCE', 'DESCRIPTION', 'CUSTOMER / CLIENT', 'DESTINATION', 'DATE'];
+  infoLabels.forEach((label, index) => {
+    const row = 8 + index;
+    wsFinal.mergeCells(`A${row}:D${row}`); setFinalCell(`A${row}`, label, 'FFFFFF', true, colorsHex.navyBg);
+    wsFinal.mergeCells(`E${row}:I${row}`); setFinalCell(`E${row}`, index === 0 ? (meta.po || meta.order || '—') : index === 1 ? (meta.style || meta.styleNumber || '—') : index === 3 ? (meta.customer || '—') : index === 4 ? (meta.destination || '—') : index === 5 ? 'DD / MM / YYYY' : '—', 'FFFFFF', false, '000000');
+  });
+  const mainHeaderRow = 15;
+  const mainDataRow = 16;
+  const headers = ['START', 'END', 'COULEUR', ...(hasSkuColumn ? ['SKU'] : []), 'NBRE DE CTN', ...finalSizes, 'TOTAL PCS', 'POIDS NET\n(KG)', 'POIDS BRUT\n(KG)'];
+  headers.forEach((header, index) => setFinalCell(`${lastCol(index + 1)}${mainHeaderRow}`, header, colorsHex.navyBg, true, 'FFFFFF'));
+  let finalDataRow = mainDataRow;
+  let finalCartonNumber = 1;
+  const finalBreakdown: Record<string, Record<string, number>> = {};
+  allResults.forEach((result, resultIndex) => {
+    const realIndex = result.colorIndex ?? resultIndex;
+    const sourceSizes = originalSizesInputs[realIndex]?.D || {};
+    finalBreakdown[result.nom] ||= {};
+    finalSizes.forEach((size) => { finalBreakdown[result.nom][size] = result.totals.sizes[size] || 0; });
+    result.rows.forEach((row) => {
+      const firstSize = result.tailles.find((size) => Number(row.sizes[size] || 0) > 0) || result.tailles[0];
+      const rowSkus = Array.from(new Set((row.skus || []).map((sku) => String(sku || '').trim()).filter(Boolean))).join(' / ');
+      const rowNet = Number(row.netWeightRow || 0);
+      const rowGross = Number(row.grossWeightRow || 0);
+      const values: Array<string | number> = [String(finalCartonNumber).padStart(2, '0'), String(finalCartonNumber + row.nbr - 1).padStart(2, '0'), result.nom || '—'];
+      if (hasSkuColumn) values.push(rowSkus || '—');
+      values.push(row.nbr, ...finalSizes.map((size) => Number(row.sizes[size] || 0) || 0), row.totalPcs, Number(rowNet.toFixed(2)), Number(rowGross.toFixed(2)));
+      values.forEach((value, index) => setFinalCell(`${lastCol(index + 1)}${finalDataRow}`, value, finalDataRow % 2 ? 'EBF5FB' : 'FFFFFF', index === 2 || (hasSkuColumn && index === 3) || index >= (hasSkuColumn ? 13 : 12), index >= (hasSkuColumn ? 14 : 13) ? colorsHex.navyBg : '000000'));
+      finalCartonNumber += row.nbr; finalDataRow++;
+    });
+  });
+  const totalRow = finalDataRow;
+  setFinalCell(`A${totalRow}`, 'TOTAL', colorsHex.totalBg, true, colorsHex.totalFg);
+  for (let col = 2; col <= finalCols; col++) {
+    const cell = wsFinal.getCell(totalRow, col); cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colorsHex.totalBg } }; cell.border = borderMedium;
+  }
+  const cartonCol = hasSkuColumn ? 5 : 4;
+  setFinalCell(`${lastCol(cartonCol)}${totalRow}`, finalCartonNumber - 1, colorsHex.totalBg, true, colorsHex.totalFg);
+  setFinalCell(`${lastCol(hasSkuColumn ? 14 : 13)}${totalRow}`, finalTotalPcs, colorsHex.totalBg, true, colorsHex.totalFg);
+  const breakdownTitleRow = totalRow + 2;
+  wsFinal.mergeCells(`A${breakdownTitleRow}:${lastCol(finalCols)}${breakdownTitleRow}`); setFinalCell(`A${breakdownTitleRow}`, `BREAKDOWN “${meta.order || 'ORDER'}”`, colorsHex.navyBg, true, 'FFFFFF');
+  const breakdownHeaderRow = breakdownTitleRow + 1;
+  ['COULEUR', ...finalSizes, 'TOTAL PCS'].forEach((header, index) => setFinalCell(`${lastCol(index + 1)}${breakdownHeaderRow}`, header, colorsHex.blueBg, true, 'FFFFFF'));
+  let breakdownRow = breakdownHeaderRow + 1;
+  Object.entries(finalBreakdown).forEach(([color, sizes]) => {
+    setFinalCell(`A${breakdownRow}`, color, 'FFFFFF', true, colorsHex.navyBg);
+    finalSizes.forEach((size, index) => setFinalCell(`${lastCol(index + 2)}${breakdownRow}`, sizes[size] || 0, 'FFFFFF'));
+    setFinalCell(`${lastCol(finalSizes.length + 2)}${breakdownRow}`, finalSizes.reduce((sum, size) => sum + (sizes[size] || 0), 0), 'FFFFFF', true, colorsHex.navyBg);
+    breakdownRow++;
+  });
+  const breakdownTotalRow = breakdownRow;
+  setFinalCell(`A${breakdownTotalRow}`, '', colorsHex.totalBg, true, colorsHex.totalFg);
+  finalSizes.forEach((size, index) => setFinalCell(`${lastCol(index + 2)}${breakdownTotalRow}`, allResults.reduce((sum, result) => sum + Number(result.totals.sizes[size] || 0), 0), colorsHex.totalBg, true, colorsHex.totalFg));
+  setFinalCell(`${lastCol(finalSizes.length + 2)}${breakdownTotalRow}`, finalTotalPcs, colorsHex.totalBg, true, colorsHex.totalFg);
+  const summaryStartRow = breakdownTotalRow + 2;
+  const summaryLines = [
+    `CARTON NUMBER : ${finalCartonNumber - 1}`,
+    `POIDS NET : ${finalTotalNet.toFixed(2)} kg`,
+    `GROSS WEIGHT : ${finalTotalGross.toFixed(2)} kg`,
+    `CBM : ${finalTotalCbm.toFixed(3)}`,
+    `COMPOSITION : ${meta.composition || '—'}`
+  ];
+  summaryLines.forEach((line, index) => setFinalPlain(`A${summaryStartRow + index}`, line));
+  wsFinal.pageSetup.printArea = `A1:${lastCol(finalCols)}${summaryStartRow + summaryLines.length - 1}`;
+  wsFinal.views = [{ state: 'frozen', xSplit: 0, ySplit: mainHeaderRow, activeCell: `A${mainDataRow}` }];
 
   // 3. SEPARATE BREAKDOWN SHEET FOR ALL COLORS
   const wsBreakdown = wb.addWorksheet('RECAP QUANTITÉS', {
