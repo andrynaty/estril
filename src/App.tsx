@@ -4966,8 +4966,10 @@ export default function App() {
                                   }}
                                   style={activeColorIdx === idx ? {
                                     borderColor: PALETTE[idx % PALETTE.length],
+                                    borderWidth: '3px',
                                     color: darkMode ? '#0f172a' : PALETTE[idx % PALETTE.length],
-                                    backgroundColor: darkMode ? '#ffffff' : `${PALETTE[idx % PALETTE.length]}18`
+                                    backgroundColor: darkMode ? `${PALETTE[idx % PALETTE.length]}55` : `${PALETTE[idx % PALETTE.length]}40`,
+                                    boxShadow: `0 0 0 2px ${PALETTE[idx % PALETTE.length]}55`
                                   } : undefined}
                                   className={`px-3.5 py-2 rounded-lg text-xs font-sans font-bold transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] ${
                                     activeColorIdx === idx
