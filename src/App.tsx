@@ -2348,6 +2348,88 @@ export default function App() {
     triggerToast(`⚡ Cartons de restes configurés automatiquement (${customCartons.length} cartons générés) !`, "success");
   };
 
+  const copyTableToExcel = async (title: string, headers: string[], rows: Array<Array<string | number>>) => {
+    const tsv = [headers, ...rows].map(row => row.map(value => String(value ?? '').replace(/\t|\r?\n/g, ' ')).join('\t')).join('\n');
+    try {
+      await navigator.clipboard.writeText(tsv);
+      triggerToast(`✅ ${title} copié. Ouvrez Excel et faites Ctrl+V.`, 'success');
+    } catch (error) {
+      console.error('Clipboard copy failed', error);
+      triggerToast(`❌ Impossible de copier ${title}. Vérifiez les autorisations du navigateur.`, 'error');
+    }
+  };
+
+  const copyColorPackingList = (res: any, sizes: string[]) => {
+    const origColor = colors.find(c => c.nom === res.nom);
+    const showSku = Boolean(printColumns.sku && origColor && Object.values(origColor.sizes || {}).some((s: any) => s.sku && String(s.sku).trim()));
+    const headers = [
+      ...(printColumns.ctn ? ['N° DÉBUT', 'N° FIN'] : []),
+      ...(printColumns.color ? ['COULEUR'] : []),
+      ...(showSku ? ['SKU'] : []),
+      ...sizes,
+      'PCS/CTN',
+      ...(printColumns.nbctn ? ['NB CTN'] : []),
+      ...(printColumns.totalqty ? ['TOTAL QTY'] : []),
+      ...(printColumns.net ? ['N.W (KG)'] : []),
+      ...(printColumns.gross ? ['G.W (KG)'] : []),
+      ...(printColumns.cbm ? ['CBM (m³)'] : [])
+    ];
+    const rows = res.rows.map((row: any) => {
+      const range = parseCartonRange(row.cartonRange);
+      return [
+        ...(printColumns.ctn ? [range.start, range.end] : []),
+        ...(printColumns.color ? [res.nom] : []),
+        ...(showSku ? [row.skus.join('/') || '—'] : []),
+        ...sizes.map(size => row.sizes[size] || ''),
+        row.pcsPerCarton,
+        ...(printColumns.nbctn ? [row.nbr] : []),
+        ...(printColumns.totalqty ? [row.totalPcs] : []),
+        ...(printColumns.net ? [row.netWeightRow.toFixed(2)] : []),
+        ...(printColumns.gross ? [row.grossWeightRow.toFixed(2)] : []),
+        ...(printColumns.cbm ? [row.cbmRow.toFixed(4)] : [])
+      ];
+    });
+    copyTableToExcel(`PL ${res.nom}`, headers, rows);
+  };
+
+  const copyCombinedLedger = () => {
+    const showSku = Boolean(printColumns.sku && colors.some(col => Object.values(col.sizes || {}).some((s: any) => s.sku && String(s.sku).trim())));
+    const headers = [
+      ...(printColumns.ctn ? ['N° DÉBUT', 'N° FIN'] : []),
+      ...(printColumns.color ? ['COULEUR'] : []),
+      ...(showSku ? ['SKU'] : []),
+      ...summaryUniqueSizes,
+      'PCS/CTN',
+      ...(printColumns.nbctn ? ['NB CTN'] : []),
+      ...(printColumns.totalqty ? ['TOTAL QTY'] : []),
+      ...(printColumns.net ? ['N.W (KG)'] : []),
+      ...(printColumns.gross ? ['G.W (KG)'] : []),
+      ...(printColumns.cbm ? ['CBM (m³)'] : [])
+    ];
+    let seqNum = 1;
+    const rows: Array<Array<string | number>> = [];
+    activeResults.forEach((res: any) => {
+      res.rows.forEach((row: any) => {
+        const start = seqNum;
+        const end = seqNum + row.nbr - 1;
+        seqNum += row.nbr;
+        rows.push([
+          ...(printColumns.ctn ? [start, end] : []),
+          ...(printColumns.color ? [res.nom] : []),
+          ...(showSku ? [row.skus.join('/') || '—'] : []),
+          ...summaryUniqueSizes.map(size => row.sizes[size] || ''),
+          row.pcsPerCarton,
+          ...(printColumns.nbctn ? [row.nbr] : []),
+          ...(printColumns.totalqty ? [row.totalPcs] : []),
+          ...(printColumns.net ? [row.netWeightRow.toFixed(2)] : []),
+          ...(printColumns.gross ? [row.grossWeightRow.toFixed(2)] : []),
+          ...(printColumns.cbm ? [row.cbmRow.toFixed(4)] : [])
+        ]);
+      });
+    });
+    copyTableToExcel('Ledger combiné', headers, rows);
+  };
+
   // Generate Results Trigger
   const handleGenerateList = (options?: { skipRemainderValidation?: boolean }) => {
     // The Packing List ribbon can generate an informative result even when remainder cartons are incomplete.
@@ -4967,24 +5049,23 @@ export default function App() {
                                   style={activeColorIdx === idx ? {
                                     borderColor: PALETTE[idx % PALETTE.length],
                                     borderWidth: '3px',
-                                    color: darkMode ? '#0f172a' : PALETTE[idx % PALETTE.length],
-                                    backgroundColor: darkMode ? `${PALETTE[idx % PALETTE.length]}55` : `${PALETTE[idx % PALETTE.length]}40`,
-                                    boxShadow: `0 0 0 2px ${PALETTE[idx % PALETTE.length]}55`
+                                    color: darkMode ? '#ffffff' : '#0f172a',
+                                    backgroundColor: `${PALETTE[idx % PALETTE.length]}66`,
+                                    boxShadow: `0 0 0 2px ${PALETTE[idx % PALETTE.length]}66, 0 0 18px ${PALETTE[idx % PALETTE.length]}88`
                                   } : undefined}
-                                  className={`px-3.5 py-2 rounded-lg text-xs font-sans font-bold transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.01] active:scale-[0.99] ${
+                                  className={`relative px-3.5 py-2 rounded-lg text-xs font-sans font-bold transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.99] ${
                                     activeColorIdx === idx
-                                      ? darkMode
-                                        ? 'bg-white border border-white text-black font-black shadow-md shadow-black/10'
-                                        : 'bg-[#E51B22]/5 border border-[#E51B22] text-[#E51B22] font-extrabold shadow-sm'
+                                      ? 'font-black ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-950 animate-pulse'
                                       : darkMode
                                         ? 'bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:border-white/20'
                                         : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-950 hover:border-slate-350 shadow-xs'
                                   }`}
                                 >
-                                  <div className="w-2.5 h-2.5 shrink-0 rounded-full" style={{ backgroundColor: PALETTE[idx % PALETTE.length] }} />
+                                  {activeColorIdx === idx && <span className="absolute -top-2 -right-2 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white shadow-md" style={{ backgroundColor: PALETTE[idx % PALETTE.length] }}>ACTIF</span>}
+                                  <div className={`shrink-0 rounded-full border-2 border-white dark:border-slate-900 ${activeColorIdx === idx ? 'w-4 h-4 shadow-lg' : 'w-2.5 h-2.5'}`} style={{ backgroundColor: PALETTE[idx % PALETTE.length], boxShadow: activeColorIdx === idx ? `0 0 10px ${PALETTE[idx % PALETTE.length]}` : undefined }} />
                                   <div className="min-w-0 text-left leading-tight">
                                     <span className="block truncate max-w-[150px]">{String(idx + 1).padStart(2, '0')} · {c.nom || `COULEUR ${idx + 1}`}</span>
-                                    <span className={`block max-w-[150px] truncate text-[9px] font-mono font-medium ${activeColorIdx === idx ? (darkMode ? 'text-slate-700' : 'text-[#9f1239]') : 'text-slate-400'}`}>
+                                    <span className={`block max-w-[150px] truncate text-[9px] font-mono font-medium ${activeColorIdx === idx ? 'text-white drop-shadow-sm' : 'text-slate-400'}`}>
                                       {tabSkus ? `SKU: ${tabSkus}` : (tabContext ? tabContext : 'Aucun SKU')}
                                     </span>
                                   </div>
@@ -7214,7 +7295,10 @@ export default function App() {
                             >
                               <div className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: res.color }} />
                               <span>PL ORDER {(selectedOrderMatches.length ? selectedOrderMatches : [meta.order]).filter(Boolean).join('-') || '—'} | PO# {meta.po || '—'} | COULEUR : {res.nom} ({Number(res.totals?.p || 0).toLocaleString('fr-FR')} PCS)</span>
-                              <span className="ml-auto text-[9px] normal-case tracking-normal opacity-95">DIM : {deliveryAutoDimensions ? `${deliveryAutoDimensions.length}×${deliveryAutoDimensions.width}×${deliveryAutoDimensions.height} cm` : '—'}</span>
+                              <span className="ml-auto flex items-center gap-2 text-[9px] normal-case tracking-normal opacity-95">
+                                <span>DIM : {deliveryAutoDimensions ? `${deliveryAutoDimensions.length}×${deliveryAutoDimensions.width}×${deliveryAutoDimensions.height} cm` : '—'}</span>
+                                <button type="button" onClick={() => copyColorPackingList(res, activeColorSizes)} className="rounded-md border border-white/60 bg-white/20 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-white hover:bg-white/35" title={`Copier la PL ${res.nom} dans Excel`}>Copier Excel</button>
+                              </span>
                             </div>
 
                             <div className="pb-3 text-xs">
@@ -7367,7 +7451,8 @@ export default function App() {
                           <div className={`border-2 font-bold px-4 py-3 rounded-lg flex items-center gap-3 font-mono text-sm mb-4 ${
                             darkMode ? 'bg-white/5 border-white/20 text-white' : 'bg-white border-slate-300 text-slate-800'
                           }`}>
-                            📁 COMBINED PACKING LIST — LEDGER GLOBAL TOUTES COULEURS ({activeResults.length})
+                            <span>📁 COMBINED PACKING LIST — LEDGER GLOBAL TOUTES COULEURS ({activeResults.length})</span>
+                            <button type="button" onClick={copyCombinedLedger} className="ml-auto rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-slate-800 hover:bg-slate-100" title="Copier le Ledger combiné dans Excel">Copier Excel</button>
                           </div>
 
                           <div className={`overflow-x-auto rounded-lg border ${darkMode ? 'border-white/10 bg-[#0F0F12]' : 'border-slate-200 bg-slate-50/50'}`}>
